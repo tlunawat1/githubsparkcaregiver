@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -7,6 +8,7 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../widgets/add_dependent_dialog.dart';
 
 /// Main home screen for caregivers showing their dependents
 class CaregiverHomeScreen extends StatefulWidget {
@@ -80,21 +82,30 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
   }
 
   Widget _buildEmptyState() {
-    return EmptyState(
-      icon: Icons.people_outline,
-      title: 'No Dependents Yet',
-      message: 'Add a dependent to start creating reminders and stay connected.',
-      actionLabel: 'Add Dependent',
-      onAction: _showAddDependentDialog,
+    return ListView(
+      padding: AppSpacing.screenPadding,
+      children: [
+        _buildUniqueCodeCard(),
+        EmptyState(
+          icon: Icons.people_outline,
+          title: 'No Dependents Yet',
+          message: 'Add a dependent to start creating reminders and stay connected.',
+          actionLabel: 'Add Dependent',
+          onAction: _showAddDependentDialog,
+        ),
+      ],
     );
   }
 
   Widget _buildDependentsList() {
     return ListView.builder(
       padding: AppSpacing.screenPadding,
-      itemCount: _dependents.length + 1, // +1 for header
+      itemCount: _dependents.length + 2, // +2 for unique code card and header
       itemBuilder: (context, index) {
         if (index == 0) {
+          return _buildUniqueCodeCard();
+        }
+        if (index == 1) {
           return Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: Text(
@@ -106,7 +117,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
           );
         }
 
-        final dependent = _dependents[index - 1];
+        final dependent = _dependents[index - 2];
         return _DependentCard(
           dependent: dependent,
           onTap: () => context.goToDependentDashboard(dependent.id),
@@ -115,91 +126,77 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
     );
   }
 
-  void _showAddDependentDialog() {
-    final nameController = TextEditingController();
+  Widget _buildUniqueCodeCard() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final uniqueCode = _currentUser?.uniqueCode ?? '';
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Dependent'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Enter the name of the person you\'ll be caring for.',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'Enter dependent\'s name',
-                prefixIcon: Icon(Icons.person),
-              ),
-              textCapitalization: TextCapitalization.words,
-              autofocus: true,
-            ),
-          ],
+    if (uniqueCode.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.3),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.qr_code, color: colorScheme.primary, size: 32),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your Code',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  uniqueCode,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              if (name.isEmpty) return;
-
-              Navigator.pop(context);
-              await _addDependent(name);
+          IconButton(
+            icon: const Icon(Icons.copy),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: uniqueCode));
+              HapticFeedback.lightImpact();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Code copied to clipboard'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
             },
-            child: const Text('Add'),
+            tooltip: 'Copy code',
           ),
         ],
       ),
     );
   }
 
-  Future<void> _addDependent(String name) async {
-    try {
-      final userRepository = getIt<UserRepository>();
-      final careRelationshipRepository = getIt<CareRelationshipRepository>();
+  void _showAddDependentDialog() {
+    if (_currentUser == null) return;
 
-      // Create dependent user
-      final dependentId = DateTime.now().millisecondsSinceEpoch.toString();
-      await userRepository.createUser(
-        id: dependentId,
-        name: name,
-        role: 'dependent',
-      );
-
-      // Create care relationship
-      final relationshipId = '${_currentUser!.id}_$dependentId';
-      await careRelationshipRepository.createRelationship(
-        id: relationshipId,
+    showDialog(
+      context: context,
+      builder: (context) => AddDependentDialog(
         caregiverId: _currentUser!.id,
-        dependentId: dependentId,
-      );
-
-      // Reload data
-      await _loadData();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$name has been added')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error adding dependent: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    }
+        onDependentAdded: _loadData,
+      ),
+    );
   }
 
   void _showSettingsBottomSheet(BuildContext context) {

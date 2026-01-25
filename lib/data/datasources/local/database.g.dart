@@ -70,6 +70,96 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _emailMeta = const VerificationMeta('email');
+  @override
+  late final GeneratedColumn<String> email = GeneratedColumn<String>(
+    'email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _passwordHashMeta = const VerificationMeta(
+    'passwordHash',
+  );
+  @override
+  late final GeneratedColumn<String> passwordHash = GeneratedColumn<String>(
+    'password_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _phoneNumberMeta = const VerificationMeta(
+    'phoneNumber',
+  );
+  @override
+  late final GeneratedColumn<String> phoneNumber = GeneratedColumn<String>(
+    'phone_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _uniqueCodeMeta = const VerificationMeta(
+    'uniqueCode',
+  );
+  @override
+  late final GeneratedColumn<String> uniqueCode = GeneratedColumn<String>(
+    'unique_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _emailVerifiedMeta = const VerificationMeta(
+    'emailVerified',
+  );
+  @override
+  late final GeneratedColumn<bool> emailVerified = GeneratedColumn<bool>(
+    'email_verified',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("email_verified" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _verificationCodeMeta = const VerificationMeta(
+    'verificationCode',
+  );
+  @override
+  late final GeneratedColumn<String> verificationCode = GeneratedColumn<String>(
+    'verification_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _verificationCodeExpiryMeta =
+      const VerificationMeta('verificationCodeExpiry');
+  @override
+  late final GeneratedColumn<DateTime> verificationCodeExpiry =
+      GeneratedColumn<DateTime>(
+        'verification_code_expiry',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _lastLoginAtMeta = const VerificationMeta(
+    'lastLoginAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastLoginAt = GeneratedColumn<DateTime>(
+    'last_login_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -78,6 +168,14 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     avatarPath,
     createdAt,
     updatedAt,
+    email,
+    passwordHash,
+    phoneNumber,
+    uniqueCode,
+    emailVerified,
+    verificationCode,
+    verificationCodeExpiry,
+    lastLoginAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -130,6 +228,78 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
+    if (data.containsKey('email')) {
+      context.handle(
+        _emailMeta,
+        email.isAcceptableOrUnknown(data['email']!, _emailMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_emailMeta);
+    }
+    if (data.containsKey('password_hash')) {
+      context.handle(
+        _passwordHashMeta,
+        passwordHash.isAcceptableOrUnknown(
+          data['password_hash']!,
+          _passwordHashMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_passwordHashMeta);
+    }
+    if (data.containsKey('phone_number')) {
+      context.handle(
+        _phoneNumberMeta,
+        phoneNumber.isAcceptableOrUnknown(
+          data['phone_number']!,
+          _phoneNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('unique_code')) {
+      context.handle(
+        _uniqueCodeMeta,
+        uniqueCode.isAcceptableOrUnknown(data['unique_code']!, _uniqueCodeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uniqueCodeMeta);
+    }
+    if (data.containsKey('email_verified')) {
+      context.handle(
+        _emailVerifiedMeta,
+        emailVerified.isAcceptableOrUnknown(
+          data['email_verified']!,
+          _emailVerifiedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('verification_code')) {
+      context.handle(
+        _verificationCodeMeta,
+        verificationCode.isAcceptableOrUnknown(
+          data['verification_code']!,
+          _verificationCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('verification_code_expiry')) {
+      context.handle(
+        _verificationCodeExpiryMeta,
+        verificationCodeExpiry.isAcceptableOrUnknown(
+          data['verification_code_expiry']!,
+          _verificationCodeExpiryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_login_at')) {
+      context.handle(
+        _lastLoginAtMeta,
+        lastLoginAt.isAcceptableOrUnknown(
+          data['last_login_at']!,
+          _lastLoginAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -163,6 +333,38 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      email: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}email'],
+      )!,
+      passwordHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}password_hash'],
+      )!,
+      phoneNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phone_number'],
+      ),
+      uniqueCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unique_code'],
+      )!,
+      emailVerified: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}email_verified'],
+      )!,
+      verificationCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}verification_code'],
+      ),
+      verificationCodeExpiry: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}verification_code_expiry'],
+      ),
+      lastLoginAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_login_at'],
+      ),
     );
   }
 
@@ -179,6 +381,14 @@ class User extends DataClass implements Insertable<User> {
   final String? avatarPath;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String email;
+  final String passwordHash;
+  final String? phoneNumber;
+  final String uniqueCode;
+  final bool emailVerified;
+  final String? verificationCode;
+  final DateTime? verificationCodeExpiry;
+  final DateTime? lastLoginAt;
   const User({
     required this.id,
     required this.name,
@@ -186,6 +396,14 @@ class User extends DataClass implements Insertable<User> {
     this.avatarPath,
     required this.createdAt,
     required this.updatedAt,
+    required this.email,
+    required this.passwordHash,
+    this.phoneNumber,
+    required this.uniqueCode,
+    required this.emailVerified,
+    this.verificationCode,
+    this.verificationCodeExpiry,
+    this.lastLoginAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -198,6 +416,24 @@ class User extends DataClass implements Insertable<User> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['email'] = Variable<String>(email);
+    map['password_hash'] = Variable<String>(passwordHash);
+    if (!nullToAbsent || phoneNumber != null) {
+      map['phone_number'] = Variable<String>(phoneNumber);
+    }
+    map['unique_code'] = Variable<String>(uniqueCode);
+    map['email_verified'] = Variable<bool>(emailVerified);
+    if (!nullToAbsent || verificationCode != null) {
+      map['verification_code'] = Variable<String>(verificationCode);
+    }
+    if (!nullToAbsent || verificationCodeExpiry != null) {
+      map['verification_code_expiry'] = Variable<DateTime>(
+        verificationCodeExpiry,
+      );
+    }
+    if (!nullToAbsent || lastLoginAt != null) {
+      map['last_login_at'] = Variable<DateTime>(lastLoginAt);
+    }
     return map;
   }
 
@@ -211,6 +447,22 @@ class User extends DataClass implements Insertable<User> {
           : Value(avatarPath),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      email: Value(email),
+      passwordHash: Value(passwordHash),
+      phoneNumber: phoneNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(phoneNumber),
+      uniqueCode: Value(uniqueCode),
+      emailVerified: Value(emailVerified),
+      verificationCode: verificationCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(verificationCode),
+      verificationCodeExpiry: verificationCodeExpiry == null && nullToAbsent
+          ? const Value.absent()
+          : Value(verificationCodeExpiry),
+      lastLoginAt: lastLoginAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastLoginAt),
     );
   }
 
@@ -226,6 +478,16 @@ class User extends DataClass implements Insertable<User> {
       avatarPath: serializer.fromJson<String?>(json['avatarPath']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      email: serializer.fromJson<String>(json['email']),
+      passwordHash: serializer.fromJson<String>(json['passwordHash']),
+      phoneNumber: serializer.fromJson<String?>(json['phoneNumber']),
+      uniqueCode: serializer.fromJson<String>(json['uniqueCode']),
+      emailVerified: serializer.fromJson<bool>(json['emailVerified']),
+      verificationCode: serializer.fromJson<String?>(json['verificationCode']),
+      verificationCodeExpiry: serializer.fromJson<DateTime?>(
+        json['verificationCodeExpiry'],
+      ),
+      lastLoginAt: serializer.fromJson<DateTime?>(json['lastLoginAt']),
     );
   }
   @override
@@ -238,6 +500,16 @@ class User extends DataClass implements Insertable<User> {
       'avatarPath': serializer.toJson<String?>(avatarPath),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'email': serializer.toJson<String>(email),
+      'passwordHash': serializer.toJson<String>(passwordHash),
+      'phoneNumber': serializer.toJson<String?>(phoneNumber),
+      'uniqueCode': serializer.toJson<String>(uniqueCode),
+      'emailVerified': serializer.toJson<bool>(emailVerified),
+      'verificationCode': serializer.toJson<String?>(verificationCode),
+      'verificationCodeExpiry': serializer.toJson<DateTime?>(
+        verificationCodeExpiry,
+      ),
+      'lastLoginAt': serializer.toJson<DateTime?>(lastLoginAt),
     };
   }
 
@@ -248,6 +520,14 @@ class User extends DataClass implements Insertable<User> {
     Value<String?> avatarPath = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? email,
+    String? passwordHash,
+    Value<String?> phoneNumber = const Value.absent(),
+    String? uniqueCode,
+    bool? emailVerified,
+    Value<String?> verificationCode = const Value.absent(),
+    Value<DateTime?> verificationCodeExpiry = const Value.absent(),
+    Value<DateTime?> lastLoginAt = const Value.absent(),
   }) => User(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -255,6 +535,18 @@ class User extends DataClass implements Insertable<User> {
     avatarPath: avatarPath.present ? avatarPath.value : this.avatarPath,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    email: email ?? this.email,
+    passwordHash: passwordHash ?? this.passwordHash,
+    phoneNumber: phoneNumber.present ? phoneNumber.value : this.phoneNumber,
+    uniqueCode: uniqueCode ?? this.uniqueCode,
+    emailVerified: emailVerified ?? this.emailVerified,
+    verificationCode: verificationCode.present
+        ? verificationCode.value
+        : this.verificationCode,
+    verificationCodeExpiry: verificationCodeExpiry.present
+        ? verificationCodeExpiry.value
+        : this.verificationCodeExpiry,
+    lastLoginAt: lastLoginAt.present ? lastLoginAt.value : this.lastLoginAt,
   );
   User copyWithCompanion(UsersCompanion data) {
     return User(
@@ -266,6 +558,28 @@ class User extends DataClass implements Insertable<User> {
           : this.avatarPath,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      email: data.email.present ? data.email.value : this.email,
+      passwordHash: data.passwordHash.present
+          ? data.passwordHash.value
+          : this.passwordHash,
+      phoneNumber: data.phoneNumber.present
+          ? data.phoneNumber.value
+          : this.phoneNumber,
+      uniqueCode: data.uniqueCode.present
+          ? data.uniqueCode.value
+          : this.uniqueCode,
+      emailVerified: data.emailVerified.present
+          ? data.emailVerified.value
+          : this.emailVerified,
+      verificationCode: data.verificationCode.present
+          ? data.verificationCode.value
+          : this.verificationCode,
+      verificationCodeExpiry: data.verificationCodeExpiry.present
+          ? data.verificationCodeExpiry.value
+          : this.verificationCodeExpiry,
+      lastLoginAt: data.lastLoginAt.present
+          ? data.lastLoginAt.value
+          : this.lastLoginAt,
     );
   }
 
@@ -277,14 +591,36 @@ class User extends DataClass implements Insertable<User> {
           ..write('role: $role, ')
           ..write('avatarPath: $avatarPath, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('email: $email, ')
+          ..write('passwordHash: $passwordHash, ')
+          ..write('phoneNumber: $phoneNumber, ')
+          ..write('uniqueCode: $uniqueCode, ')
+          ..write('emailVerified: $emailVerified, ')
+          ..write('verificationCode: $verificationCode, ')
+          ..write('verificationCodeExpiry: $verificationCodeExpiry, ')
+          ..write('lastLoginAt: $lastLoginAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, role, avatarPath, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    role,
+    avatarPath,
+    createdAt,
+    updatedAt,
+    email,
+    passwordHash,
+    phoneNumber,
+    uniqueCode,
+    emailVerified,
+    verificationCode,
+    verificationCodeExpiry,
+    lastLoginAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -294,7 +630,15 @@ class User extends DataClass implements Insertable<User> {
           other.role == this.role &&
           other.avatarPath == this.avatarPath &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.email == this.email &&
+          other.passwordHash == this.passwordHash &&
+          other.phoneNumber == this.phoneNumber &&
+          other.uniqueCode == this.uniqueCode &&
+          other.emailVerified == this.emailVerified &&
+          other.verificationCode == this.verificationCode &&
+          other.verificationCodeExpiry == this.verificationCodeExpiry &&
+          other.lastLoginAt == this.lastLoginAt);
 }
 
 class UsersCompanion extends UpdateCompanion<User> {
@@ -304,6 +648,14 @@ class UsersCompanion extends UpdateCompanion<User> {
   final Value<String?> avatarPath;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> email;
+  final Value<String> passwordHash;
+  final Value<String?> phoneNumber;
+  final Value<String> uniqueCode;
+  final Value<bool> emailVerified;
+  final Value<String?> verificationCode;
+  final Value<DateTime?> verificationCodeExpiry;
+  final Value<DateTime?> lastLoginAt;
   final Value<int> rowid;
   const UsersCompanion({
     this.id = const Value.absent(),
@@ -312,6 +664,14 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.avatarPath = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.email = const Value.absent(),
+    this.passwordHash = const Value.absent(),
+    this.phoneNumber = const Value.absent(),
+    this.uniqueCode = const Value.absent(),
+    this.emailVerified = const Value.absent(),
+    this.verificationCode = const Value.absent(),
+    this.verificationCodeExpiry = const Value.absent(),
+    this.lastLoginAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   UsersCompanion.insert({
@@ -321,10 +681,21 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.avatarPath = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    required String email,
+    required String passwordHash,
+    this.phoneNumber = const Value.absent(),
+    required String uniqueCode,
+    this.emailVerified = const Value.absent(),
+    this.verificationCode = const Value.absent(),
+    this.verificationCodeExpiry = const Value.absent(),
+    this.lastLoginAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
-       role = Value(role);
+       role = Value(role),
+       email = Value(email),
+       passwordHash = Value(passwordHash),
+       uniqueCode = Value(uniqueCode);
   static Insertable<User> custom({
     Expression<String>? id,
     Expression<String>? name,
@@ -332,6 +703,14 @@ class UsersCompanion extends UpdateCompanion<User> {
     Expression<String>? avatarPath,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? email,
+    Expression<String>? passwordHash,
+    Expression<String>? phoneNumber,
+    Expression<String>? uniqueCode,
+    Expression<bool>? emailVerified,
+    Expression<String>? verificationCode,
+    Expression<DateTime>? verificationCodeExpiry,
+    Expression<DateTime>? lastLoginAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -341,6 +720,15 @@ class UsersCompanion extends UpdateCompanion<User> {
       if (avatarPath != null) 'avatar_path': avatarPath,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (email != null) 'email': email,
+      if (passwordHash != null) 'password_hash': passwordHash,
+      if (phoneNumber != null) 'phone_number': phoneNumber,
+      if (uniqueCode != null) 'unique_code': uniqueCode,
+      if (emailVerified != null) 'email_verified': emailVerified,
+      if (verificationCode != null) 'verification_code': verificationCode,
+      if (verificationCodeExpiry != null)
+        'verification_code_expiry': verificationCodeExpiry,
+      if (lastLoginAt != null) 'last_login_at': lastLoginAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -352,6 +740,14 @@ class UsersCompanion extends UpdateCompanion<User> {
     Value<String?>? avatarPath,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String>? email,
+    Value<String>? passwordHash,
+    Value<String?>? phoneNumber,
+    Value<String>? uniqueCode,
+    Value<bool>? emailVerified,
+    Value<String?>? verificationCode,
+    Value<DateTime?>? verificationCodeExpiry,
+    Value<DateTime?>? lastLoginAt,
     Value<int>? rowid,
   }) {
     return UsersCompanion(
@@ -361,6 +757,15 @@ class UsersCompanion extends UpdateCompanion<User> {
       avatarPath: avatarPath ?? this.avatarPath,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      email: email ?? this.email,
+      passwordHash: passwordHash ?? this.passwordHash,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      uniqueCode: uniqueCode ?? this.uniqueCode,
+      emailVerified: emailVerified ?? this.emailVerified,
+      verificationCode: verificationCode ?? this.verificationCode,
+      verificationCodeExpiry:
+          verificationCodeExpiry ?? this.verificationCodeExpiry,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -386,6 +791,32 @@ class UsersCompanion extends UpdateCompanion<User> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (email.present) {
+      map['email'] = Variable<String>(email.value);
+    }
+    if (passwordHash.present) {
+      map['password_hash'] = Variable<String>(passwordHash.value);
+    }
+    if (phoneNumber.present) {
+      map['phone_number'] = Variable<String>(phoneNumber.value);
+    }
+    if (uniqueCode.present) {
+      map['unique_code'] = Variable<String>(uniqueCode.value);
+    }
+    if (emailVerified.present) {
+      map['email_verified'] = Variable<bool>(emailVerified.value);
+    }
+    if (verificationCode.present) {
+      map['verification_code'] = Variable<String>(verificationCode.value);
+    }
+    if (verificationCodeExpiry.present) {
+      map['verification_code_expiry'] = Variable<DateTime>(
+        verificationCodeExpiry.value,
+      );
+    }
+    if (lastLoginAt.present) {
+      map['last_login_at'] = Variable<DateTime>(lastLoginAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -401,6 +832,14 @@ class UsersCompanion extends UpdateCompanion<User> {
           ..write('avatarPath: $avatarPath, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('email: $email, ')
+          ..write('passwordHash: $passwordHash, ')
+          ..write('phoneNumber: $phoneNumber, ')
+          ..write('uniqueCode: $uniqueCode, ')
+          ..write('emailVerified: $emailVerified, ')
+          ..write('verificationCode: $verificationCode, ')
+          ..write('verificationCodeExpiry: $verificationCodeExpiry, ')
+          ..write('lastLoginAt: $lastLoginAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -458,7 +897,7 @@ class $CareRelationshipsTable extends CareRelationships
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('active'),
+    defaultValue: const Constant('pending'),
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -472,6 +911,62 @@ class $CareRelationshipsTable extends CareRelationships
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _linkingCodeMeta = const VerificationMeta(
+    'linkingCode',
+  );
+  @override
+  late final GeneratedColumn<String> linkingCode = GeneratedColumn<String>(
+    'linking_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _codeExpiresAtMeta = const VerificationMeta(
+    'codeExpiresAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> codeExpiresAt =
+      GeneratedColumn<DateTime>(
+        'code_expires_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _verificationAttemptsMeta =
+      const VerificationMeta('verificationAttempts');
+  @override
+  late final GeneratedColumn<int> verificationAttempts = GeneratedColumn<int>(
+    'verification_attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _verifiedAtMeta = const VerificationMeta(
+    'verifiedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> verifiedAt = GeneratedColumn<DateTime>(
+    'verified_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _initiatedByMeta = const VerificationMeta(
+    'initiatedBy',
+  );
+  @override
+  late final GeneratedColumn<String> initiatedBy = GeneratedColumn<String>(
+    'initiated_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -479,6 +974,11 @@ class $CareRelationshipsTable extends CareRelationships
     dependentId,
     status,
     createdAt,
+    linkingCode,
+    codeExpiresAt,
+    verificationAttempts,
+    verifiedAt,
+    initiatedBy,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -531,6 +1031,50 @@ class $CareRelationshipsTable extends CareRelationships
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('linking_code')) {
+      context.handle(
+        _linkingCodeMeta,
+        linkingCode.isAcceptableOrUnknown(
+          data['linking_code']!,
+          _linkingCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('code_expires_at')) {
+      context.handle(
+        _codeExpiresAtMeta,
+        codeExpiresAt.isAcceptableOrUnknown(
+          data['code_expires_at']!,
+          _codeExpiresAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('verification_attempts')) {
+      context.handle(
+        _verificationAttemptsMeta,
+        verificationAttempts.isAcceptableOrUnknown(
+          data['verification_attempts']!,
+          _verificationAttemptsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('verified_at')) {
+      context.handle(
+        _verifiedAtMeta,
+        verifiedAt.isAcceptableOrUnknown(data['verified_at']!, _verifiedAtMeta),
+      );
+    }
+    if (data.containsKey('initiated_by')) {
+      context.handle(
+        _initiatedByMeta,
+        initiatedBy.isAcceptableOrUnknown(
+          data['initiated_by']!,
+          _initiatedByMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_initiatedByMeta);
+    }
     return context;
   }
 
@@ -560,6 +1104,26 @@ class $CareRelationshipsTable extends CareRelationships
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      linkingCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}linking_code'],
+      ),
+      codeExpiresAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}code_expires_at'],
+      ),
+      verificationAttempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}verification_attempts'],
+      )!,
+      verifiedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}verified_at'],
+      ),
+      initiatedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}initiated_by'],
+      )!,
     );
   }
 
@@ -576,12 +1140,22 @@ class CareRelationship extends DataClass
   final String dependentId;
   final String status;
   final DateTime createdAt;
+  final String? linkingCode;
+  final DateTime? codeExpiresAt;
+  final int verificationAttempts;
+  final DateTime? verifiedAt;
+  final String initiatedBy;
   const CareRelationship({
     required this.id,
     required this.caregiverId,
     required this.dependentId,
     required this.status,
     required this.createdAt,
+    this.linkingCode,
+    this.codeExpiresAt,
+    required this.verificationAttempts,
+    this.verifiedAt,
+    required this.initiatedBy,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -591,6 +1165,17 @@ class CareRelationship extends DataClass
     map['dependent_id'] = Variable<String>(dependentId);
     map['status'] = Variable<String>(status);
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || linkingCode != null) {
+      map['linking_code'] = Variable<String>(linkingCode);
+    }
+    if (!nullToAbsent || codeExpiresAt != null) {
+      map['code_expires_at'] = Variable<DateTime>(codeExpiresAt);
+    }
+    map['verification_attempts'] = Variable<int>(verificationAttempts);
+    if (!nullToAbsent || verifiedAt != null) {
+      map['verified_at'] = Variable<DateTime>(verifiedAt);
+    }
+    map['initiated_by'] = Variable<String>(initiatedBy);
     return map;
   }
 
@@ -601,6 +1186,17 @@ class CareRelationship extends DataClass
       dependentId: Value(dependentId),
       status: Value(status),
       createdAt: Value(createdAt),
+      linkingCode: linkingCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkingCode),
+      codeExpiresAt: codeExpiresAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(codeExpiresAt),
+      verificationAttempts: Value(verificationAttempts),
+      verifiedAt: verifiedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(verifiedAt),
+      initiatedBy: Value(initiatedBy),
     );
   }
 
@@ -615,6 +1211,13 @@ class CareRelationship extends DataClass
       dependentId: serializer.fromJson<String>(json['dependentId']),
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      linkingCode: serializer.fromJson<String?>(json['linkingCode']),
+      codeExpiresAt: serializer.fromJson<DateTime?>(json['codeExpiresAt']),
+      verificationAttempts: serializer.fromJson<int>(
+        json['verificationAttempts'],
+      ),
+      verifiedAt: serializer.fromJson<DateTime?>(json['verifiedAt']),
+      initiatedBy: serializer.fromJson<String>(json['initiatedBy']),
     );
   }
   @override
@@ -626,6 +1229,11 @@ class CareRelationship extends DataClass
       'dependentId': serializer.toJson<String>(dependentId),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'linkingCode': serializer.toJson<String?>(linkingCode),
+      'codeExpiresAt': serializer.toJson<DateTime?>(codeExpiresAt),
+      'verificationAttempts': serializer.toJson<int>(verificationAttempts),
+      'verifiedAt': serializer.toJson<DateTime?>(verifiedAt),
+      'initiatedBy': serializer.toJson<String>(initiatedBy),
     };
   }
 
@@ -635,12 +1243,24 @@ class CareRelationship extends DataClass
     String? dependentId,
     String? status,
     DateTime? createdAt,
+    Value<String?> linkingCode = const Value.absent(),
+    Value<DateTime?> codeExpiresAt = const Value.absent(),
+    int? verificationAttempts,
+    Value<DateTime?> verifiedAt = const Value.absent(),
+    String? initiatedBy,
   }) => CareRelationship(
     id: id ?? this.id,
     caregiverId: caregiverId ?? this.caregiverId,
     dependentId: dependentId ?? this.dependentId,
     status: status ?? this.status,
     createdAt: createdAt ?? this.createdAt,
+    linkingCode: linkingCode.present ? linkingCode.value : this.linkingCode,
+    codeExpiresAt: codeExpiresAt.present
+        ? codeExpiresAt.value
+        : this.codeExpiresAt,
+    verificationAttempts: verificationAttempts ?? this.verificationAttempts,
+    verifiedAt: verifiedAt.present ? verifiedAt.value : this.verifiedAt,
+    initiatedBy: initiatedBy ?? this.initiatedBy,
   );
   CareRelationship copyWithCompanion(CareRelationshipsCompanion data) {
     return CareRelationship(
@@ -653,6 +1273,21 @@ class CareRelationship extends DataClass
           : this.dependentId,
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      linkingCode: data.linkingCode.present
+          ? data.linkingCode.value
+          : this.linkingCode,
+      codeExpiresAt: data.codeExpiresAt.present
+          ? data.codeExpiresAt.value
+          : this.codeExpiresAt,
+      verificationAttempts: data.verificationAttempts.present
+          ? data.verificationAttempts.value
+          : this.verificationAttempts,
+      verifiedAt: data.verifiedAt.present
+          ? data.verifiedAt.value
+          : this.verifiedAt,
+      initiatedBy: data.initiatedBy.present
+          ? data.initiatedBy.value
+          : this.initiatedBy,
     );
   }
 
@@ -663,14 +1298,29 @@ class CareRelationship extends DataClass
           ..write('caregiverId: $caregiverId, ')
           ..write('dependentId: $dependentId, ')
           ..write('status: $status, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('linkingCode: $linkingCode, ')
+          ..write('codeExpiresAt: $codeExpiresAt, ')
+          ..write('verificationAttempts: $verificationAttempts, ')
+          ..write('verifiedAt: $verifiedAt, ')
+          ..write('initiatedBy: $initiatedBy')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, caregiverId, dependentId, status, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    caregiverId,
+    dependentId,
+    status,
+    createdAt,
+    linkingCode,
+    codeExpiresAt,
+    verificationAttempts,
+    verifiedAt,
+    initiatedBy,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -679,7 +1329,12 @@ class CareRelationship extends DataClass
           other.caregiverId == this.caregiverId &&
           other.dependentId == this.dependentId &&
           other.status == this.status &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.linkingCode == this.linkingCode &&
+          other.codeExpiresAt == this.codeExpiresAt &&
+          other.verificationAttempts == this.verificationAttempts &&
+          other.verifiedAt == this.verifiedAt &&
+          other.initiatedBy == this.initiatedBy);
 }
 
 class CareRelationshipsCompanion extends UpdateCompanion<CareRelationship> {
@@ -688,6 +1343,11 @@ class CareRelationshipsCompanion extends UpdateCompanion<CareRelationship> {
   final Value<String> dependentId;
   final Value<String> status;
   final Value<DateTime> createdAt;
+  final Value<String?> linkingCode;
+  final Value<DateTime?> codeExpiresAt;
+  final Value<int> verificationAttempts;
+  final Value<DateTime?> verifiedAt;
+  final Value<String> initiatedBy;
   final Value<int> rowid;
   const CareRelationshipsCompanion({
     this.id = const Value.absent(),
@@ -695,6 +1355,11 @@ class CareRelationshipsCompanion extends UpdateCompanion<CareRelationship> {
     this.dependentId = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.linkingCode = const Value.absent(),
+    this.codeExpiresAt = const Value.absent(),
+    this.verificationAttempts = const Value.absent(),
+    this.verifiedAt = const Value.absent(),
+    this.initiatedBy = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CareRelationshipsCompanion.insert({
@@ -703,16 +1368,27 @@ class CareRelationshipsCompanion extends UpdateCompanion<CareRelationship> {
     required String dependentId,
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.linkingCode = const Value.absent(),
+    this.codeExpiresAt = const Value.absent(),
+    this.verificationAttempts = const Value.absent(),
+    this.verifiedAt = const Value.absent(),
+    required String initiatedBy,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        caregiverId = Value(caregiverId),
-       dependentId = Value(dependentId);
+       dependentId = Value(dependentId),
+       initiatedBy = Value(initiatedBy);
   static Insertable<CareRelationship> custom({
     Expression<String>? id,
     Expression<String>? caregiverId,
     Expression<String>? dependentId,
     Expression<String>? status,
     Expression<DateTime>? createdAt,
+    Expression<String>? linkingCode,
+    Expression<DateTime>? codeExpiresAt,
+    Expression<int>? verificationAttempts,
+    Expression<DateTime>? verifiedAt,
+    Expression<String>? initiatedBy,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -721,6 +1397,12 @@ class CareRelationshipsCompanion extends UpdateCompanion<CareRelationship> {
       if (dependentId != null) 'dependent_id': dependentId,
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
+      if (linkingCode != null) 'linking_code': linkingCode,
+      if (codeExpiresAt != null) 'code_expires_at': codeExpiresAt,
+      if (verificationAttempts != null)
+        'verification_attempts': verificationAttempts,
+      if (verifiedAt != null) 'verified_at': verifiedAt,
+      if (initiatedBy != null) 'initiated_by': initiatedBy,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -731,6 +1413,11 @@ class CareRelationshipsCompanion extends UpdateCompanion<CareRelationship> {
     Value<String>? dependentId,
     Value<String>? status,
     Value<DateTime>? createdAt,
+    Value<String?>? linkingCode,
+    Value<DateTime?>? codeExpiresAt,
+    Value<int>? verificationAttempts,
+    Value<DateTime?>? verifiedAt,
+    Value<String>? initiatedBy,
     Value<int>? rowid,
   }) {
     return CareRelationshipsCompanion(
@@ -739,6 +1426,11 @@ class CareRelationshipsCompanion extends UpdateCompanion<CareRelationship> {
       dependentId: dependentId ?? this.dependentId,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
+      linkingCode: linkingCode ?? this.linkingCode,
+      codeExpiresAt: codeExpiresAt ?? this.codeExpiresAt,
+      verificationAttempts: verificationAttempts ?? this.verificationAttempts,
+      verifiedAt: verifiedAt ?? this.verifiedAt,
+      initiatedBy: initiatedBy ?? this.initiatedBy,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -761,6 +1453,21 @@ class CareRelationshipsCompanion extends UpdateCompanion<CareRelationship> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (linkingCode.present) {
+      map['linking_code'] = Variable<String>(linkingCode.value);
+    }
+    if (codeExpiresAt.present) {
+      map['code_expires_at'] = Variable<DateTime>(codeExpiresAt.value);
+    }
+    if (verificationAttempts.present) {
+      map['verification_attempts'] = Variable<int>(verificationAttempts.value);
+    }
+    if (verifiedAt.present) {
+      map['verified_at'] = Variable<DateTime>(verifiedAt.value);
+    }
+    if (initiatedBy.present) {
+      map['initiated_by'] = Variable<String>(initiatedBy.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -775,6 +1482,11 @@ class CareRelationshipsCompanion extends UpdateCompanion<CareRelationship> {
           ..write('dependentId: $dependentId, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
+          ..write('linkingCode: $linkingCode, ')
+          ..write('codeExpiresAt: $codeExpiresAt, ')
+          ..write('verificationAttempts: $verificationAttempts, ')
+          ..write('verifiedAt: $verifiedAt, ')
+          ..write('initiatedBy: $initiatedBy, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3584,6 +4296,14 @@ typedef $$UsersTableCreateCompanionBuilder =
       Value<String?> avatarPath,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      required String email,
+      required String passwordHash,
+      Value<String?> phoneNumber,
+      required String uniqueCode,
+      Value<bool> emailVerified,
+      Value<String?> verificationCode,
+      Value<DateTime?> verificationCodeExpiry,
+      Value<DateTime?> lastLoginAt,
       Value<int> rowid,
     });
 typedef $$UsersTableUpdateCompanionBuilder =
@@ -3594,6 +4314,14 @@ typedef $$UsersTableUpdateCompanionBuilder =
       Value<String?> avatarPath,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> email,
+      Value<String> passwordHash,
+      Value<String?> phoneNumber,
+      Value<String> uniqueCode,
+      Value<bool> emailVerified,
+      Value<String?> verificationCode,
+      Value<DateTime?> verificationCodeExpiry,
+      Value<DateTime?> lastLoginAt,
       Value<int> rowid,
     });
 
@@ -3679,6 +4407,46 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get email => $composableBuilder(
+    column: $table.email,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get passwordHash => $composableBuilder(
+    column: $table.passwordHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phoneNumber => $composableBuilder(
+    column: $table.phoneNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uniqueCode => $composableBuilder(
+    column: $table.uniqueCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get emailVerified => $composableBuilder(
+    column: $table.emailVerified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get verificationCode => $composableBuilder(
+    column: $table.verificationCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get verificationCodeExpiry => $composableBuilder(
+    column: $table.verificationCodeExpiry,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastLoginAt => $composableBuilder(
+    column: $table.lastLoginAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3771,6 +4539,46 @@ class $$UsersTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get email => $composableBuilder(
+    column: $table.email,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get passwordHash => $composableBuilder(
+    column: $table.passwordHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phoneNumber => $composableBuilder(
+    column: $table.phoneNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uniqueCode => $composableBuilder(
+    column: $table.uniqueCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get emailVerified => $composableBuilder(
+    column: $table.emailVerified,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get verificationCode => $composableBuilder(
+    column: $table.verificationCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get verificationCodeExpiry => $composableBuilder(
+    column: $table.verificationCodeExpiry,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastLoginAt => $composableBuilder(
+    column: $table.lastLoginAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$UsersTableAnnotationComposer
@@ -3801,6 +4609,44 @@ class $$UsersTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get email =>
+      $composableBuilder(column: $table.email, builder: (column) => column);
+
+  GeneratedColumn<String> get passwordHash => $composableBuilder(
+    column: $table.passwordHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get phoneNumber => $composableBuilder(
+    column: $table.phoneNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get uniqueCode => $composableBuilder(
+    column: $table.uniqueCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get emailVerified => $composableBuilder(
+    column: $table.emailVerified,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get verificationCode => $composableBuilder(
+    column: $table.verificationCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get verificationCodeExpiry => $composableBuilder(
+    column: $table.verificationCodeExpiry,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastLoginAt => $composableBuilder(
+    column: $table.lastLoginAt,
+    builder: (column) => column,
+  );
 
   Expression<T> sosEventsRefs<T extends Object>(
     Expression<T> Function($$SosEventsTableAnnotationComposer a) f,
@@ -3891,6 +4737,14 @@ class $$UsersTableTableManager
                 Value<String?> avatarPath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> email = const Value.absent(),
+                Value<String> passwordHash = const Value.absent(),
+                Value<String?> phoneNumber = const Value.absent(),
+                Value<String> uniqueCode = const Value.absent(),
+                Value<bool> emailVerified = const Value.absent(),
+                Value<String?> verificationCode = const Value.absent(),
+                Value<DateTime?> verificationCodeExpiry = const Value.absent(),
+                Value<DateTime?> lastLoginAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UsersCompanion(
                 id: id,
@@ -3899,6 +4753,14 @@ class $$UsersTableTableManager
                 avatarPath: avatarPath,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                email: email,
+                passwordHash: passwordHash,
+                phoneNumber: phoneNumber,
+                uniqueCode: uniqueCode,
+                emailVerified: emailVerified,
+                verificationCode: verificationCode,
+                verificationCodeExpiry: verificationCodeExpiry,
+                lastLoginAt: lastLoginAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3909,6 +4771,14 @@ class $$UsersTableTableManager
                 Value<String?> avatarPath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                required String email,
+                required String passwordHash,
+                Value<String?> phoneNumber = const Value.absent(),
+                required String uniqueCode,
+                Value<bool> emailVerified = const Value.absent(),
+                Value<String?> verificationCode = const Value.absent(),
+                Value<DateTime?> verificationCodeExpiry = const Value.absent(),
+                Value<DateTime?> lastLoginAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UsersCompanion.insert(
                 id: id,
@@ -3917,6 +4787,14 @@ class $$UsersTableTableManager
                 avatarPath: avatarPath,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                email: email,
+                passwordHash: passwordHash,
+                phoneNumber: phoneNumber,
+                uniqueCode: uniqueCode,
+                emailVerified: emailVerified,
+                verificationCode: verificationCode,
+                verificationCodeExpiry: verificationCodeExpiry,
+                lastLoginAt: lastLoginAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4003,6 +4881,11 @@ typedef $$CareRelationshipsTableCreateCompanionBuilder =
       required String dependentId,
       Value<String> status,
       Value<DateTime> createdAt,
+      Value<String?> linkingCode,
+      Value<DateTime?> codeExpiresAt,
+      Value<int> verificationAttempts,
+      Value<DateTime?> verifiedAt,
+      required String initiatedBy,
       Value<int> rowid,
     });
 typedef $$CareRelationshipsTableUpdateCompanionBuilder =
@@ -4012,6 +4895,11 @@ typedef $$CareRelationshipsTableUpdateCompanionBuilder =
       Value<String> dependentId,
       Value<String> status,
       Value<DateTime> createdAt,
+      Value<String?> linkingCode,
+      Value<DateTime?> codeExpiresAt,
+      Value<int> verificationAttempts,
+      Value<DateTime?> verifiedAt,
+      Value<String> initiatedBy,
       Value<int> rowid,
     });
 
@@ -4091,6 +4979,31 @@ class $$CareRelationshipsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get linkingCode => $composableBuilder(
+    column: $table.linkingCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get codeExpiresAt => $composableBuilder(
+    column: $table.codeExpiresAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get verificationAttempts => $composableBuilder(
+    column: $table.verificationAttempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get verifiedAt => $composableBuilder(
+    column: $table.verifiedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get initiatedBy => $composableBuilder(
+    column: $table.initiatedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$UsersTableFilterComposer get caregiverId {
     final $$UsersTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -4162,6 +5075,31 @@ class $$CareRelationshipsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get linkingCode => $composableBuilder(
+    column: $table.linkingCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get codeExpiresAt => $composableBuilder(
+    column: $table.codeExpiresAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get verificationAttempts => $composableBuilder(
+    column: $table.verificationAttempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get verifiedAt => $composableBuilder(
+    column: $table.verifiedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get initiatedBy => $composableBuilder(
+    column: $table.initiatedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$UsersTableOrderingComposer get caregiverId {
     final $$UsersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -4226,6 +5164,31 @@ class $$CareRelationshipsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get linkingCode => $composableBuilder(
+    column: $table.linkingCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get codeExpiresAt => $composableBuilder(
+    column: $table.codeExpiresAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get verificationAttempts => $composableBuilder(
+    column: $table.verificationAttempts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get verifiedAt => $composableBuilder(
+    column: $table.verifiedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get initiatedBy => $composableBuilder(
+    column: $table.initiatedBy,
+    builder: (column) => column,
+  );
 
   $$UsersTableAnnotationComposer get caregiverId {
     final $$UsersTableAnnotationComposer composer = $composerBuilder(
@@ -4312,6 +5275,11 @@ class $$CareRelationshipsTableTableManager
                 Value<String> dependentId = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> linkingCode = const Value.absent(),
+                Value<DateTime?> codeExpiresAt = const Value.absent(),
+                Value<int> verificationAttempts = const Value.absent(),
+                Value<DateTime?> verifiedAt = const Value.absent(),
+                Value<String> initiatedBy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CareRelationshipsCompanion(
                 id: id,
@@ -4319,6 +5287,11 @@ class $$CareRelationshipsTableTableManager
                 dependentId: dependentId,
                 status: status,
                 createdAt: createdAt,
+                linkingCode: linkingCode,
+                codeExpiresAt: codeExpiresAt,
+                verificationAttempts: verificationAttempts,
+                verifiedAt: verifiedAt,
+                initiatedBy: initiatedBy,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4328,6 +5301,11 @@ class $$CareRelationshipsTableTableManager
                 required String dependentId,
                 Value<String> status = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> linkingCode = const Value.absent(),
+                Value<DateTime?> codeExpiresAt = const Value.absent(),
+                Value<int> verificationAttempts = const Value.absent(),
+                Value<DateTime?> verifiedAt = const Value.absent(),
+                required String initiatedBy,
                 Value<int> rowid = const Value.absent(),
               }) => CareRelationshipsCompanion.insert(
                 id: id,
@@ -4335,6 +5313,11 @@ class $$CareRelationshipsTableTableManager
                 dependentId: dependentId,
                 status: status,
                 createdAt: createdAt,
+                linkingCode: linkingCode,
+                codeExpiresAt: codeExpiresAt,
+                verificationAttempts: verificationAttempts,
+                verifiedAt: verifiedAt,
+                initiatedBy: initiatedBy,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

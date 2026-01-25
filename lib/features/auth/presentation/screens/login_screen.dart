@@ -1,0 +1,434 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/routing/app_router.dart';
+import '../../../../data/repositories/repositories.dart';
+
+/// Login screen with email/password and login via code options
+class LoginScreen extends StatefulWidget {
+  final String role;
+
+  const LoginScreen({super.key, required this.role});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _userRepository = getIt<UserRepository>();
+  final _settingsRepository = getIt<SettingsRepository>();
+
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Login'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go(AppRoutes.roleSelection),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: AppSpacing.screenPadding,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: AppSpacing.lg),
+                // Header
+                Icon(
+                  widget.role == 'caregiver' ? Icons.favorite : Icons.person,
+                  size: 64,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Welcome Back',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Sign in as ${widget.role == 'caregiver' ? 'Caregiver' : 'Dependent'}',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // Error message
+                if (_errorMessage != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, color: colorScheme.error),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: TextStyle(color: colorScheme.onErrorContainer),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+
+                // Email field
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    hintText: 'Enter your email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autocorrect: false,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!_isValidEmail(value)) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Password field
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    hintText: 'Enter your password',
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () {
+                        setState(() => _obscurePassword = !_obscurePassword);
+                      },
+                    ),
+                  ),
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your password';
+                    }
+                    return null;
+                  },
+                  onFieldSubmitted: (_) => _handleLogin(),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // Login button
+                FilledButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Login'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Login via code button
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _showLoginViaCodeDialog,
+                  icon: const Icon(Icons.pin),
+                  label: const Text('Login via Code'),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // Register link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Don't have an account? ",
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        context.go('${AppRoutes.register}?role=${widget.role}');
+                      },
+                      child: const Text('Register'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        .hasMatch(email);
+  }
+
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final email = _emailController.text.trim().toLowerCase();
+      final password = _passwordController.text;
+
+      final user = await _userRepository.authenticateWithEmail(email, password);
+
+      if (user == null) {
+        setState(() {
+          _errorMessage = 'Invalid email or password';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Check if email is verified
+      if (!user.emailVerified) {
+        if (mounted) {
+          context.go('${AppRoutes.emailVerification}?userId=${user.id}&role=${widget.role}');
+        }
+        return;
+      }
+
+      // Check if user role matches
+      if (user.role != widget.role) {
+        setState(() {
+          _errorMessage = 'This account is registered as a ${user.role}';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Save user session
+      await _settingsRepository.setCurrentUserId(user.id);
+      await _settingsRepository.setUserRole(user.role);
+      await _settingsRepository.setOnboardingComplete(true);
+
+      HapticFeedback.mediumImpact();
+
+      if (mounted) {
+        if (user.role == 'caregiver') {
+          context.go(AppRoutes.caregiverHome);
+        } else {
+          context.go(AppRoutes.dependentHome);
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An error occurred. Please try again.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _showLoginViaCodeDialog() {
+    final emailController = TextEditingController(text: _emailController.text);
+    final codeController = TextEditingController();
+    bool isEmailStep = true;
+    String? dialogError;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text(isEmailStep ? 'Enter Email' : 'Enter Code'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (dialogError != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Text(
+                      dialogError!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                if (isEmailStep) ...[
+                  const Text('Enter your email to receive a login code.'),
+                  const SizedBox(height: AppSpacing.md),
+                  TextField(
+                    controller: emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      hintText: 'Enter your email',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    autofocus: true,
+                  ),
+                ] else ...[
+                  Text(
+                    'Enter the 6-digit code sent to ${emailController.text}',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Text(
+                      'For testing, use code: 123456',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextField(
+                    controller: codeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Code',
+                      hintText: '123456',
+                      prefixIcon: Icon(Icons.pin),
+                    ),
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    autofocus: true,
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  if (isEmailStep) {
+                    final email = emailController.text.trim().toLowerCase();
+                    if (!_isValidEmail(email)) {
+                      setDialogState(() {
+                        dialogError = 'Please enter a valid email';
+                      });
+                      return;
+                    }
+
+                    // Check if email exists
+                    final exists = await _userRepository.isEmailRegistered(email);
+                    if (!exists) {
+                      setDialogState(() {
+                        dialogError = 'No account found with this email';
+                      });
+                      return;
+                    }
+
+                    setDialogState(() {
+                      isEmailStep = false;
+                      dialogError = null;
+                    });
+                  } else {
+                    final email = emailController.text.trim().toLowerCase();
+                    final code = codeController.text.trim();
+
+                    if (code.length != 6) {
+                      setDialogState(() {
+                        dialogError = 'Please enter a 6-digit code';
+                      });
+                      return;
+                    }
+
+                    final user = await _userRepository.authenticateWithCode(email, code);
+                    if (user == null) {
+                      setDialogState(() {
+                        dialogError = 'Invalid code';
+                      });
+                      return;
+                    }
+
+                    // Check role match
+                    if (user.role != widget.role) {
+                      setDialogState(() {
+                        dialogError = 'This account is registered as a ${user.role}';
+                      });
+                      return;
+                    }
+
+                    // Save user session
+                    await _settingsRepository.setCurrentUserId(user.id);
+                    await _settingsRepository.setUserRole(user.role);
+                    await _settingsRepository.setOnboardingComplete(true);
+
+                    HapticFeedback.mediumImpact();
+
+                    if (mounted) {
+                      Navigator.pop(context);
+                      if (user.role == 'caregiver') {
+                        this.context.go(AppRoutes.caregiverHome);
+                      } else {
+                        this.context.go(AppRoutes.dependentHome);
+                      }
+                    }
+                  }
+                },
+                child: Text(isEmailStep ? 'Continue' : 'Verify'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}

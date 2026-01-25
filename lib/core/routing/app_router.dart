@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/screens/role_selection_screen.dart';
 import '../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../features/auth/presentation/screens/profile_setup_screen.dart';
+import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/registration_screen.dart';
+import '../../features/auth/presentation/screens/email_verification_screen.dart';
 import '../../features/caregiver/presentation/screens/caregiver_home_screen.dart';
 import '../../features/caregiver/presentation/screens/dependent_selector_screen.dart';
 import '../../features/caregiver/presentation/screens/dependent_dashboard_screen.dart';
@@ -20,6 +23,11 @@ class AppRoutes {
   static const String welcome = '/';
   static const String roleSelection = '/role-selection';
   static const String profileSetup = '/profile-setup';
+
+  // Authentication routes
+  static const String login = '/login';
+  static const String register = '/register';
+  static const String emailVerification = '/email-verification';
 
   // Caregiver routes
   static const String caregiverHome = '/caregiver';
@@ -69,6 +77,33 @@ class AppRouter {
         builder: (context, state) {
           final role = state.uri.queryParameters['role'] ?? 'caregiver';
           return ProfileSetupScreen(role: role);
+        },
+      ),
+
+      // Authentication routes
+      GoRoute(
+        path: AppRoutes.login,
+        name: 'login',
+        builder: (context, state) {
+          final role = state.uri.queryParameters['role'] ?? 'caregiver';
+          return LoginScreen(role: role);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.register,
+        name: 'register',
+        builder: (context, state) {
+          final role = state.uri.queryParameters['role'] ?? 'caregiver';
+          return RegistrationScreen(role: role);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.emailVerification,
+        name: 'emailVerification',
+        builder: (context, state) {
+          final userId = state.uri.queryParameters['userId'] ?? '';
+          final role = state.uri.queryParameters['role'] ?? 'caregiver';
+          return EmailVerificationScreen(userId: userId, role: role);
         },
       ),
 

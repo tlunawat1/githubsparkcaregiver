@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
@@ -9,6 +10,8 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../widgets/link_request_banner.dart';
+import '../widgets/link_request_dialog.dart';
 
 /// Home screen for dependents showing reminders and SOS button
 class DependentHomeScreen extends StatefulWidget {
@@ -22,10 +25,13 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
   final _userRepository = getIt<UserRepository>();
   final _reminderRepository = getIt<ReminderRepository>();
   final _settingsRepository = getIt<SettingsRepository>();
+  final _careRelationshipRepository = getIt<CareRelationshipRepository>();
 
   User? _user;
   List<Reminder> _reminders = [];
   List<ReminderInstance> _todayInstances = [];
+  List<CareRelationship> _pendingLinks = [];
+  Map<String, User> _pendingLinkCaregivers = {};
   bool _isLoading = true;
   String _themeMode = 'system';
 
@@ -46,6 +52,20 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
         _reminders = await _reminderRepository.getRemindersForDependent(userId);
         _todayInstances =
             await _reminderRepository.getTodayInstancesForDependent(userId);
+
+        // Load pending link requests
+        _pendingLinks = await _careRelationshipRepository
+            .getPendingLinksForDependent(userId);
+
+        // Load caregiver info for each pending link
+        _pendingLinkCaregivers = {};
+        for (final link in _pendingLinks) {
+          final caregiver =
+              await _userRepository.getUserById(link.caregiverId);
+          if (caregiver != null) {
+            _pendingLinkCaregivers[link.id] = caregiver;
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error loading data: $e');
@@ -117,6 +137,28 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
+                                if (_user?.uniqueCode != null &&
+                                    _user!.uniqueCode.isNotEmpty) ...[
+                                  const SizedBox(height: AppSpacing.md),
+                                  _buildUniqueCodeCard(),
+                                ],
+                                // Pending link request banners
+                                if (_pendingLinks.isNotEmpty) ...[
+                                  const SizedBox(height: AppSpacing.md),
+                                  ..._pendingLinks.map((link) {
+                                    final caregiver =
+                                        _pendingLinkCaregivers[link.id];
+                                    if (caregiver == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return LinkRequestBanner(
+                                      caregiver: caregiver,
+                                      relationship: link,
+                                      onTap: () =>
+                                          _showLinkRequestDialog(link, caregiver),
+                                    );
+                                  }),
+                                ],
                               ],
                             ),
                           ),
@@ -280,6 +322,76 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
               color: colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLinkRequestDialog(CareRelationship relationship, User caregiver) {
+    showDialog(
+      context: context,
+      builder: (context) => LinkRequestDialog(
+        caregiver: caregiver,
+        relationship: relationship,
+        onAccepted: _loadData,
+        onDeclined: _loadData,
+      ),
+    );
+  }
+
+  Widget _buildUniqueCodeCard() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final uniqueCode = _user?.uniqueCode ?? '';
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: colorScheme.secondary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.qr_code, color: colorScheme.secondary, size: 28),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your Code',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  uniqueCode,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                    color: colorScheme.secondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.copy, size: 20),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: uniqueCode));
+              HapticFeedback.lightImpact();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Code copied to clipboard'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            tooltip: 'Copy code',
           ),
         ],
       ),

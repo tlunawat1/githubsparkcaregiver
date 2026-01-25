@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/constants/app_config.dart';
 import '../../../../core/constants/app_spacing.dart';
@@ -21,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String _userRole = '';
   String _userName = '';
+  String _uniqueCode = '';
   String _themeMode = 'system';
   bool _highContrast = false;
   bool _notificationSound = true;
@@ -45,6 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (userId != null) {
         final user = await getIt<UserRepository>().getUserById(userId);
         _userName = user?.name ?? '';
+        _uniqueCode = user?.uniqueCode ?? '';
       }
     } catch (e) {
       debugPrint('Error loading settings: $e');
@@ -110,6 +114,87 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _userRole == 'caregiver' ? 'Caregiver' : 'Dependent',
                   ),
                 ),
+                if (_uniqueCode.isNotEmpty) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Your Unique Code',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.qr_code,
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: SelectableText(
+                                  _uniqueCode,
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 2,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.copy),
+                                onPressed: () {
+                                  Clipboard.setData(
+                                    ClipboardData(text: _uniqueCode),
+                                  );
+                                  HapticFeedback.lightImpact();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Code copied to clipboard'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                                tooltip: 'Copy code',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.share),
+                                onPressed: () {
+                                  Share.share(
+                                    'My Parental Care code is: $_uniqueCode\n\nUse this code to connect with me in the app.',
+                                    subject: 'My Parental Care Code',
+                                  );
+                                },
+                                tooltip: 'Share code',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'Share this code with ${_userRole == 'caregiver' ? 'your dependents' : 'your caregiver'} to connect.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -16,6 +16,17 @@ class Users extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
+  // Authentication fields
+  TextColumn get email => text()();
+  TextColumn get passwordHash => text()();
+  TextColumn get phoneNumber => text().nullable()();
+  TextColumn get uniqueCode => text()(); // 9-digit alphanumeric (e.g., "A1B2C3D4E")
+  BoolColumn get emailVerified =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get verificationCode => text().nullable()(); // Temp code for email verification
+  DateTimeColumn get verificationCodeExpiry => dateTime().nullable()();
+  DateTimeColumn get lastLoginAt => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -26,8 +37,16 @@ class CareRelationships extends Table {
   TextColumn get caregiverId => text().references(Users, #id)();
   TextColumn get dependentId => text().references(Users, #id)();
   TextColumn get status =>
-      text().withDefault(const Constant('active'))(); // active, pending
+      text().withDefault(const Constant('pending'))(); // active, pending
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  // Linking verification fields
+  TextColumn get linkingCode => text().nullable()(); // 5-digit verification (e.g., "12345")
+  DateTimeColumn get codeExpiresAt => dateTime().nullable()();
+  IntColumn get verificationAttempts =>
+      integer().withDefault(const Constant(0))();
+  DateTimeColumn get verifiedAt => dateTime().nullable()();
+  TextColumn get initiatedBy => text()(); // 'caregiver' or 'dependent'
 
   @override
   Set<Column> get primaryKey => {id};
@@ -132,7 +151,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration {
@@ -141,9 +160,74 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Handle future migrations here
+        // Migration from v1 to v2: Add auth and linking fields
+        if (from < 2) {
+          // Add new columns to Users table with defaults for existing rows
+          await customStatement(
+            'ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ""',
+          );
+          await customStatement(
+            'ALTER TABLE users ADD COLUMN password_hash TEXT NOT NULL DEFAULT ""',
+          );
+          await customStatement(
+            'ALTER TABLE users ADD COLUMN phone_number TEXT',
+          );
+          await customStatement(
+            'ALTER TABLE users ADD COLUMN unique_code TEXT NOT NULL DEFAULT ""',
+          );
+          await customStatement(
+            'ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0',
+          );
+          await customStatement(
+            'ALTER TABLE users ADD COLUMN verification_code TEXT',
+          );
+          await customStatement(
+            'ALTER TABLE users ADD COLUMN verification_code_expiry INTEGER',
+          );
+          await customStatement(
+            'ALTER TABLE users ADD COLUMN last_login_at INTEGER',
+          );
+
+          // Update existing users with generated values
+          final existingUsers = await select(users).get();
+          for (final user in existingUsers) {
+            final uniqueCode = _generateMigrationCode();
+            await customStatement(
+              'UPDATE users SET email = ?, unique_code = ?, email_verified = 1 WHERE id = ?',
+              ['${user.id}@migrated.local', uniqueCode, user.id],
+            );
+          }
+
+          // Add new columns to CareRelationships table
+          await customStatement(
+            'ALTER TABLE care_relationships ADD COLUMN linking_code TEXT',
+          );
+          await customStatement(
+            'ALTER TABLE care_relationships ADD COLUMN code_expires_at INTEGER',
+          );
+          await customStatement(
+            'ALTER TABLE care_relationships ADD COLUMN verification_attempts INTEGER NOT NULL DEFAULT 0',
+          );
+          await customStatement(
+            'ALTER TABLE care_relationships ADD COLUMN verified_at INTEGER',
+          );
+          await customStatement(
+            'ALTER TABLE care_relationships ADD COLUMN initiated_by TEXT NOT NULL DEFAULT "caregiver"',
+          );
+        }
       },
     );
+  }
+
+  /// Generate a simple unique code for migration
+  static String _generateMigrationCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final random = DateTime.now().microsecondsSinceEpoch;
+    final buffer = StringBuffer();
+    for (var i = 0; i < 9; i++) {
+      buffer.write(chars[(random + i * 7) % chars.length]);
+    }
+    return buffer.toString();
   }
 }
 

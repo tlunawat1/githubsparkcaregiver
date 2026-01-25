@@ -82,7 +82,7 @@ class RoleSelectionScreen extends StatelessWidget {
 
   void _selectRole(BuildContext context, UserRole role) {
     HapticFeedback.mediumImpact();
-    context.go('${AppRoutes.profileSetup}?role=${role.name}');
+    context.go('${AppRoutes.login}?role=${role.name}');
   }
 }
 

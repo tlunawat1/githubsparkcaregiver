@@ -48,11 +48,17 @@ dependencies:
   # UUID Generation
   uuid: ^4.5.1
 
+  # Cryptography (for password hashing)
+  crypto: ^3.0.6
+
   # Shared Preferences (for simple settings)
   shared_preferences: ^2.5.3
 
   # Intl for date/time formatting
   intl: ^0.20.2
+
+  # Share functionality
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:
