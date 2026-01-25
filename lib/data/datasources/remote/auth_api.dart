@@ -114,6 +114,44 @@ class RegisterResponse {
   }
 }
 
+/// Response from login that may require verification
+class LoginResponse {
+  final bool requiresVerification;
+  final String? userId;
+  final String? message;
+  final AuthResponse? authResponse;
+
+  LoginResponse({
+    this.requiresVerification = false,
+    this.userId,
+    this.message,
+    this.authResponse,
+  });
+
+  String? get accessToken => authResponse?.accessToken;
+  String? get refreshToken => authResponse?.refreshToken;
+  UserData? get user => authResponse?.user;
+  String? get role => authResponse?.user.role;
+}
+
+/// Response from email verification
+class VerifyEmailResponse {
+  final String message;
+  final String uniqueCode;
+
+  VerifyEmailResponse({
+    required this.message,
+    required this.uniqueCode,
+  });
+
+  factory VerifyEmailResponse.fromJson(Map<String, dynamic> json) {
+    return VerifyEmailResponse(
+      message: json['message'] as String? ?? '',
+      uniqueCode: json['uniqueCode'] as String? ?? '',
+    );
+  }
+}
+
 /// Authentication API service
 class AuthApi {
   final ApiClient _client;
@@ -144,7 +182,8 @@ class AuthApi {
   }
 
   /// Login with email and password
-  Future<AuthResponse> login({
+  /// Returns LoginResponse which may indicate verification is required
+  Future<LoginResponse> login({
     required String email,
     required String password,
   }) async {
@@ -157,6 +196,15 @@ class AuthApi {
       requiresAuth: false,
     );
 
+    // Check if verification is required
+    if (response['requiresVerification'] == true) {
+      return LoginResponse(
+        requiresVerification: true,
+        userId: response['userId'] as String?,
+        message: response['message'] as String?,
+      );
+    }
+
     final authResponse = AuthResponse.fromJson(response);
 
     // Store tokens
@@ -166,11 +214,11 @@ class AuthApi {
       expiry: authResponse.expiresAt,
     );
 
-    return authResponse;
+    return LoginResponse(authResponse: authResponse);
   }
 
   /// Login with email and verification code
-  Future<AuthResponse> loginWithCode({
+  Future<LoginResponse> loginWithCode({
     required String email,
     required String code,
   }) async {
@@ -183,6 +231,15 @@ class AuthApi {
       requiresAuth: false,
     );
 
+    // Check if verification is required
+    if (response['requiresVerification'] == true) {
+      return LoginResponse(
+        requiresVerification: true,
+        userId: response['userId'] as String?,
+        message: response['message'] as String?,
+      );
+    }
+
     final authResponse = AuthResponse.fromJson(response);
 
     // Store tokens
@@ -192,11 +249,11 @@ class AuthApi {
       expiry: authResponse.expiresAt,
     );
 
-    return authResponse;
+    return LoginResponse(authResponse: authResponse);
   }
 
   /// Verify email with code
-  Future<bool> verifyEmail({
+  Future<VerifyEmailResponse> verifyEmail({
     required String userId,
     required String code,
   }) async {
@@ -209,7 +266,16 @@ class AuthApi {
       requiresAuth: false,
     );
 
-    return response['success'] as bool? ?? false;
+    return VerifyEmailResponse.fromJson(response);
+  }
+
+  /// Resend verification code to user
+  Future<void> resendVerificationCode({required String userId}) async {
+    await _client.post(
+      '/api/auth/resend-verification',
+      body: {'userId': userId},
+      requiresAuth: false,
+    );
   }
 
   /// Send verification code to email

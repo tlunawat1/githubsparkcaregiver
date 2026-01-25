@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
-import '../../../../data/repositories/repositories.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../domain/auth_service.dart';
 
 /// Registration screen for new users
@@ -26,7 +25,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _userRepository = getIt<UserRepository>();
+  final _authApi = getIt<AuthApi>();
   final _authService = AuthService();
 
   bool _isLoading = false;
@@ -281,20 +280,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       final password = _passwordController.text;
       final phone = _phoneController.text.trim();
 
-      // Check if email is already registered
-      final emailExists = await _userRepository.isEmailRegistered(email);
-      if (emailExists) {
-        setState(() {
-          _errorMessage = 'An account with this email already exists';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // Create the user
-      final userId = const Uuid().v4();
-      await _userRepository.createUserWithCredentials(
-        id: userId,
+      // Register via remote API
+      final response = await _authApi.register(
         name: name,
         email: email,
         password: password,
@@ -306,11 +293,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
       if (mounted) {
         // Navigate to email verification
-        context.go('${AppRoutes.emailVerification}?userId=$userId&role=${widget.role}');
+        context.go('${AppRoutes.emailVerification}?userId=${response.id}&role=${widget.role}');
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
     }

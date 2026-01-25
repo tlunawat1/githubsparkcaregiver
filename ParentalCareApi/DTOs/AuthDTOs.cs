@@ -47,7 +47,8 @@ public record VerifyEmailRequest(
 
 public record VerifyEmailResponse(
     bool Success,
-    string Message
+    string Message,
+    string? UniqueCode = null
 );
 
 // Refresh token

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 
 /// Login screen with email/password and login via code options
@@ -21,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _userRepository = getIt<UserRepository>();
+  final _authApi = getIt<AuthApi>();
   final _settingsRepository = getIt<SettingsRepository>();
 
   bool _isLoading = false;
@@ -220,21 +221,23 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = _emailController.text.trim().toLowerCase();
       final password = _passwordController.text;
 
-      final user = await _userRepository.authenticateWithEmail(email, password);
+      final response = await _authApi.login(email: email, password: password);
 
+      // Check if email verification is required
+      if (response.requiresVerification) {
+        if (mounted) {
+          context.go('${AppRoutes.emailVerification}?userId=${response.userId}&role=${widget.role}');
+        }
+        return;
+      }
+
+      // Get user data from auth response
+      final user = response.user;
       if (user == null) {
         setState(() {
           _errorMessage = 'Invalid email or password';
           _isLoading = false;
         });
-        return;
-      }
-
-      // Check if email is verified
-      if (!user.emailVerified) {
-        if (mounted) {
-          context.go('${AppRoutes.emailVerification}?userId=${user.id}&role=${widget.role}');
-        }
         return;
       }
 
@@ -247,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Save user session
+      // Save user session (tokens already saved by AuthApi)
       await _settingsRepository.setCurrentUserId(user.id);
       await _settingsRepository.setUserRole(user.role);
       await _settingsRepository.setOnboardingComplete(true);
@@ -263,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
     }
@@ -273,6 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final emailController = TextEditingController(text: _emailController.text);
     final codeController = TextEditingController();
     bool isEmailStep = true;
+    bool isLoading = false;
     String? dialogError;
 
     showDialog(
@@ -352,11 +356,11 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: isLoading ? null : () => Navigator.pop(context),
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                onPressed: () async {
+                onPressed: isLoading ? null : () async {
                   if (isEmailStep) {
                     final email = emailController.text.trim().toLowerCase();
                     if (!_isValidEmail(email)) {
@@ -366,15 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       return;
                     }
 
-                    // Check if email exists
-                    final exists = await _userRepository.isEmailRegistered(email);
-                    if (!exists) {
-                      setDialogState(() {
-                        dialogError = 'No account found with this email';
-                      });
-                      return;
-                    }
-
+                    // Move to code entry step (server will send code)
                     setDialogState(() {
                       isEmailStep = false;
                       dialogError = null;
@@ -390,40 +386,67 @@ class _LoginScreenState extends State<LoginScreen> {
                       return;
                     }
 
-                    final user = await _userRepository.authenticateWithCode(email, code);
-                    if (user == null) {
-                      setDialogState(() {
-                        dialogError = 'Invalid code';
-                      });
-                      return;
-                    }
+                    setDialogState(() {
+                      isLoading = true;
+                      dialogError = null;
+                    });
 
-                    // Check role match
-                    if (user.role != widget.role) {
-                      setDialogState(() {
-                        dialogError = 'This account is registered as a ${user.role}';
-                      });
-                      return;
-                    }
+                    try {
+                      final response = await _authApi.loginWithCode(email: email, code: code);
 
-                    // Save user session
-                    await _settingsRepository.setCurrentUserId(user.id);
-                    await _settingsRepository.setUserRole(user.role);
-                    await _settingsRepository.setOnboardingComplete(true);
-
-                    HapticFeedback.mediumImpact();
-
-                    if (mounted) {
-                      Navigator.pop(context);
-                      if (user.role == 'caregiver') {
-                        this.context.go(AppRoutes.caregiverHome);
-                      } else {
-                        this.context.go(AppRoutes.dependentHome);
+                      // Check if verification is required
+                      if (response.requiresVerification) {
+                        setDialogState(() {
+                          dialogError = 'Please verify your email first';
+                          isLoading = false;
+                        });
+                        return;
                       }
+
+                      final user = response.user;
+                      if (user == null) {
+                        setDialogState(() {
+                          dialogError = 'Invalid code';
+                          isLoading = false;
+                        });
+                        return;
+                      }
+
+                      // Check role match
+                      if (user.role != widget.role) {
+                        setDialogState(() {
+                          dialogError = 'This account is registered as a ${user.role}';
+                          isLoading = false;
+                        });
+                        return;
+                      }
+
+                      // Save user session (tokens already saved by AuthApi)
+                      await _settingsRepository.setCurrentUserId(user.id);
+                      await _settingsRepository.setUserRole(user.role);
+                      await _settingsRepository.setOnboardingComplete(true);
+
+                      HapticFeedback.mediumImpact();
+
+                      if (mounted) {
+                        Navigator.pop(context);
+                        if (user.role == 'caregiver') {
+                          this.context.go(AppRoutes.caregiverHome);
+                        } else {
+                          this.context.go(AppRoutes.dependentHome);
+                        }
+                      }
+                    } catch (e) {
+                      setDialogState(() {
+                        dialogError = e.toString().replaceAll('Exception: ', '');
+                        isLoading = false;
+                      });
                     }
                   }
                 },
-                child: Text(isEmailStep ? 'Continue' : 'Verify'),
+                child: isLoading
+                    ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(isEmailStep ? 'Continue' : 'Verify'),
               ),
             ],
           );

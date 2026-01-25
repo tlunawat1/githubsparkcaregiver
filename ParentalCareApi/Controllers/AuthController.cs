@@ -144,7 +144,7 @@ public class AuthController : ControllerBase
             return NotFound(new { message = "User not found" });
 
         if (user.EmailVerified)
-            return Ok(new VerifyEmailResponse(true, "Email already verified"));
+            return Ok(new VerifyEmailResponse(true, "Email already verified", user.UniqueCode));
 
         // MVP: Accept hardcoded code "123456" or actual verification code
         var isValidCode = request.Code == "123456" ||
@@ -160,7 +160,7 @@ public class AuthController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        return Ok(new VerifyEmailResponse(true, "Email verified successfully"));
+        return Ok(new VerifyEmailResponse(true, "Email verified successfully", user.UniqueCode));
     }
 
     [HttpPost("refresh-token")]

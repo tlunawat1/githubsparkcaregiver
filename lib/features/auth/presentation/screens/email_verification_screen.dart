@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 
 /// Email verification screen for confirming user email
@@ -25,7 +26,7 @@ class EmailVerificationScreen extends StatefulWidget {
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   final _codeController = TextEditingController();
-  final _userRepository = getIt<UserRepository>();
+  final _authApi = getIt<AuthApi>();
   final _settingsRepository = getIt<SettingsRepository>();
 
   bool _isLoading = false;
@@ -40,12 +41,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   Future<void> _loadUserEmail() async {
-    final user = await _userRepository.getUserById(widget.userId);
-    if (mounted && user != null) {
-      setState(() {
-        _userEmail = user.email;
-      });
-    }
+    // Email is passed through or stored locally - for now we skip loading
+    // In a real app, we might cache this during registration
   }
 
   @override
@@ -244,18 +241,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     });
 
     try {
-      final success = await _userRepository.verifyEmail(widget.userId, code);
-
-      if (!success) {
-        setState(() {
-          _errorMessage = 'Invalid verification code';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // Get user to retrieve unique code
-      final user = await _userRepository.getUserById(widget.userId);
+      final response = await _authApi.verifyEmail(userId: widget.userId, code: code);
 
       // Save user session
       await _settingsRepository.setCurrentUserId(widget.userId);
@@ -266,11 +252,11 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
       if (mounted) {
         // Show success dialog with unique code
-        _showSuccessDialog(user?.uniqueCode ?? '');
+        _showSuccessDialog(response.uniqueCode);
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
     }
@@ -358,7 +344,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     });
 
     try {
-      await _userRepository.resendVerificationCode(widget.userId);
+      await _authApi.resendVerificationCode(userId: widget.userId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
