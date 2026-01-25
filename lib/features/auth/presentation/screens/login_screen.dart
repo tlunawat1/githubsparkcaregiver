@@ -255,12 +255,16 @@ class _LoginScreenState extends State<LoginScreen> {
       await _settingsRepository.setUserRole(user.role);
       await _settingsRepository.setOnboardingComplete(true);
 
+      debugPrint('Login successful - User role: "${user.role}", navigating to ${user.role == 'caregiver' ? 'caregiverHome' : 'dependentHome'}');
+
       HapticFeedback.mediumImpact();
 
       if (mounted) {
         if (user.role == 'caregiver') {
+          debugPrint('Navigating to: ${AppRoutes.caregiverHome}');
           context.go(AppRoutes.caregiverHome);
         } else {
+          debugPrint('Navigating to: ${AppRoutes.dependentHome}');
           context.go(AppRoutes.dependentHome);
         }
       }

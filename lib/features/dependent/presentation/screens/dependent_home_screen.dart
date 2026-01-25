@@ -8,6 +8,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../data/datasources/local/database.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/link_request_banner.dart';
@@ -22,12 +23,13 @@ class DependentHomeScreen extends StatefulWidget {
 }
 
 class _DependentHomeScreenState extends State<DependentHomeScreen> {
+  final _userApi = getIt<UserApi>();
   final _userRepository = getIt<UserRepository>();
   final _reminderRepository = getIt<ReminderRepository>();
   final _settingsRepository = getIt<SettingsRepository>();
   final _careRelationshipRepository = getIt<CareRelationshipRepository>();
 
-  User? _user;
+  UserData? _user;
   List<Reminder> _reminders = [];
   List<ReminderInstance> _todayInstances = [];
   List<CareRelationship> _pendingLinks = [];
@@ -45,10 +47,12 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userId = await _settingsRepository.getCurrentUserId();
       _themeMode = await _settingsRepository.getThemeMode();
-      if (userId != null) {
-        _user = await _userRepository.getUserById(userId);
+      // Load current user from remote API
+      _user = await _userApi.getCurrentUser();
+
+      if (_user != null) {
+        final userId = _user!.id;
         _reminders = await _reminderRepository.getRemindersForDependent(userId);
         _todayInstances =
             await _reminderRepository.getTodayInstancesForDependent(userId);

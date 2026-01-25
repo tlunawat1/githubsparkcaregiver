@@ -103,7 +103,8 @@ class AppRouter {
         builder: (context, state) {
           final userId = state.uri.queryParameters['userId'] ?? '';
           final role = state.uri.queryParameters['role'] ?? 'caregiver';
-          return EmailVerificationScreen(userId: userId, role: role);
+          final email = state.uri.queryParameters['email'] ?? '';
+          return EmailVerificationScreen(userId: userId, role: role, email: email);
         },
       ),
 

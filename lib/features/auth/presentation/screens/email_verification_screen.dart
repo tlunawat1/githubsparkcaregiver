@@ -12,11 +12,13 @@ import '../../../../data/repositories/repositories.dart';
 class EmailVerificationScreen extends StatefulWidget {
   final String userId;
   final String role;
+  final String email;
 
   const EmailVerificationScreen({
     super.key,
     required this.userId,
     required this.role,
+    required this.email,
   });
 
   @override
@@ -41,8 +43,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   Future<void> _loadUserEmail() async {
-    // Email is passed through or stored locally - for now we skip loading
-    // In a real app, we might cache this during registration
+    // Email is passed from registration screen
+    if (widget.email.isNotEmpty) {
+      setState(() {
+        _userEmail = widget.email;
+      });
+    }
   }
 
   @override
@@ -241,7 +247,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     });
 
     try {
-      final response = await _authApi.verifyEmail(userId: widget.userId, code: code);
+      // First verify the email
+      final verifyResponse = await _authApi.verifyEmail(userId: widget.userId, code: code);
+
+      // Then login with code to get auth tokens
+      if (widget.email.isNotEmpty) {
+        await _authApi.loginWithCode(email: widget.email, code: code);
+      }
 
       // Save user session
       await _settingsRepository.setCurrentUserId(widget.userId);
@@ -252,7 +264,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
       if (mounted) {
         // Show success dialog with unique code
-        _showSuccessDialog(response.uniqueCode);
+        _showSuccessDialog(verifyResponse.uniqueCode);
       }
     } catch (e) {
       setState(() {
@@ -324,9 +336,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           FilledButton(
             onPressed: () {
               Navigator.pop(context);
+              debugPrint('Email verification complete - widget.role: "${widget.role}", navigating to ${widget.role == 'caregiver' ? 'caregiverHome' : 'dependentHome'}');
               if (widget.role == 'caregiver') {
+                debugPrint('Navigating to: ${AppRoutes.caregiverHome}');
                 this.context.go(AppRoutes.caregiverHome);
               } else {
+                debugPrint('Navigating to: ${AppRoutes.dependentHome}');
                 this.context.go(AppRoutes.dependentHome);
               }
             },

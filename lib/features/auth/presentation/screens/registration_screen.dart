@@ -292,8 +292,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       HapticFeedback.mediumImpact();
 
       if (mounted) {
-        // Navigate to email verification
-        context.go('${AppRoutes.emailVerification}?userId=${response.id}&role=${widget.role}');
+        // Navigate to email verification with email for login after verification
+        context.go('${AppRoutes.emailVerification}?userId=${response.id}&role=${widget.role}&email=${Uri.encodeComponent(email)}');
       }
     } catch (e) {
       setState(() {

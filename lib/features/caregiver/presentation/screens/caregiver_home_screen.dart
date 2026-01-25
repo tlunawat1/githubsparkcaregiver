@@ -6,6 +6,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../data/datasources/local/database.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/add_dependent_dialog.dart';
@@ -19,10 +20,11 @@ class CaregiverHomeScreen extends StatefulWidget {
 }
 
 class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
+  final _userApi = getIt<UserApi>();
   final _userRepository = getIt<UserRepository>();
   final _settingsRepository = getIt<SettingsRepository>();
 
-  User? _currentUser;
+  UserData? _currentUser;
   List<User> _dependents = [];
   bool _isLoading = true;
   String _themeMode = 'system';
@@ -34,17 +36,22 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
   }
 
   Future<void> _loadData() async {
+    debugPrint('CaregiverHomeScreen._loadData() called');
     setState(() => _isLoading = true);
 
     try {
-      final userId = await _settingsRepository.getCurrentUserId();
       _themeMode = await _settingsRepository.getThemeMode();
-      if (userId != null) {
-        _currentUser = await _userRepository.getUserById(userId);
-        _dependents = await _userRepository.getDependentsForCaregiver(userId);
+      // Load current user from remote API
+      debugPrint('Fetching current user from API...');
+      _currentUser = await _userApi.getCurrentUser();
+      debugPrint('Current user loaded: ${_currentUser?.name}, role: ${_currentUser?.role}, uniqueCode: ${_currentUser?.uniqueCode}');
+      // Load dependents from local repository for now
+      if (_currentUser != null) {
+        _dependents = await _userRepository.getDependentsForCaregiver(_currentUser!.id);
+        debugPrint('Loaded ${_dependents.length} dependents');
       }
     } catch (e) {
-      debugPrint('Error loading data: $e');
+      debugPrint('Error loading data in CaregiverHomeScreen: $e');
     }
 
     if (mounted) {
