@@ -43,3 +43,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# .NET build artifacts
+**/bin/
+**/obj/
+**/publish/
+*.dll
+*.exe
+*.pdb
+*.user
+*.nupkg
+deploy.zip
+
+# .NET specific
+*.suo
+*.cache
+project.lock.json
+.vs/
