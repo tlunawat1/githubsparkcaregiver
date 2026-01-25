@@ -67,151 +67,158 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
       body: SafeArea(
         child: _isLoading
             ? const LoadingIndicator(message: 'Loading...')
-            : RefreshIndicator(
-                onRefresh: _loadData,
-                child: CustomScrollView(
-                  slivers: [
-                    // Header
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: AppSpacing.screenPadding,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            : Stack(
+                children: [
+                  // Main scrollable content
+                  RefreshIndicator(
+                    onRefresh: _loadData,
+                    child: CustomScrollView(
+                      slivers: [
+                        // Header
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: AppSpacing.screenPadding,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '$greeting,',
-                                        style: theme.textTheme.titleLarge?.copyWith(
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '$greeting,',
+                                            style: theme.textTheme.titleLarge?.copyWith(
+                                              color: colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                          Text(
+                                            _user?.name ?? 'Friend',
+                                            style: theme.textTheme.displaySmall?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        _user?.name ?? 'Friend',
-                                        style: theme.textTheme.displaySmall?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.settings, size: 28),
+                                      onPressed: () => _showSettingsBottomSheet(context),
+                                      tooltip: 'Settings',
+                                    ),
+                                  ],
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.settings, size: 28),
-                                  onPressed: () => _showSettingsBottomSheet(context),
-                                  tooltip: 'Settings',
+                                const SizedBox(height: AppSpacing.sm),
+                                Text(
+                                  DateFormat('EEEE, MMMM d').format(now),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              DateFormat('EEEE, MMMM d').format(now),
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+
+                        // Today's reminders
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.md,
+                              AppSpacing.lg,
+                              AppSpacing.md,
+                              AppSpacing.sm,
+                            ),
+                            child: Text(
+                              'Today\'s Reminders',
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Today's reminders
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.md,
-                          AppSpacing.lg,
-                          AppSpacing.md,
-                          AppSpacing.sm,
-                        ),
-                        child: Text(
-                          'Today\'s Reminders',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ),
 
-                    // Reminder list or empty state
-                    if (_getPendingReminders().isEmpty)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: AppSpacing.screenPadding,
-                          child: _buildNoRemindersCard(),
-                        ),
-                      )
-                    else
-                      SliverPadding(
-                        padding: AppSpacing.screenPaddingHorizontal,
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final pendingReminders = _getPendingReminders();
-                              if (index >= pendingReminders.length) return null;
+                        // Reminder list or empty state
+                        if (_getPendingReminders().isEmpty)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: AppSpacing.screenPadding,
+                              child: _buildNoRemindersCard(),
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: AppSpacing.screenPaddingHorizontal,
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final pendingReminders = _getPendingReminders();
+                                  if (index >= pendingReminders.length) return null;
 
-                              final instance = pendingReminders[index];
-                              final reminder = _reminders.firstWhere(
-                                (r) => r.id == instance.reminderId,
-                                orElse: () => _reminders.first,
-                              );
+                                  final instance = pendingReminders[index];
+                                  final reminder = _reminders.firstWhere(
+                                    (r) => r.id == instance.reminderId,
+                                    orElse: () => _reminders.first,
+                                  );
 
-                              return Padding(
-                                padding: const EdgeInsets.only(
-                                  bottom: AppSpacing.md,
-                                ),
-                                child: LargeReminderButton(
-                                  title: reminder.title,
-                                  time: DateFormat.jm()
-                                      .format(instance.scheduledTime),
-                                  hasVoiceNote: reminder.voiceNotePath != null,
-                                  isUrgent: reminder.priority == 'high' ||
-                                      instance.status == 'missed',
-                                  onTap: () =>
-                                      context.goToReminderAlert(instance.id),
-                                ),
-                              );
-                            },
-                            childCount: _getPendingReminders().length,
+                                  return Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: AppSpacing.md,
+                                    ),
+                                    child: LargeReminderButton(
+                                      title: reminder.title,
+                                      time: DateFormat.jm()
+                                          .format(instance.scheduledTime),
+                                      hasVoiceNote: reminder.voiceNotePath != null,
+                                      isUrgent: reminder.priority == 'high' ||
+                                          instance.status == 'missed',
+                                      onTap: () =>
+                                          context.goToReminderAlert(instance.id),
+                                    ),
+                                  );
+                                },
+                                childCount: _getPendingReminders().length,
+                              ),
+                            ),
                           ),
+
+                        // Spacer for SOS button
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 200),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // SOS button fixed at bottom
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surface,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, -5),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: SOSButton(
+                          onActivated: () {
+                            context.go('${AppRoutes.dependentHome}/sos');
+                          },
                         ),
                       ),
-
-                    // Spacer for SOS button
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: 200),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-      ),
-      // SOS button at bottom
-      bottomSheet: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Center(
-            child: SOSButton(
-              onActivated: () {
-                context.go('${AppRoutes.dependentHome}/sos');
-              },
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -462,9 +469,10 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
           ElevatedButton(
             onPressed: () async {
               await _settingsRepository.setUserRole('caregiver');
+              Navigator.pop(dialogContext);
               if (mounted) {
-                Navigator.pop(dialogContext);
-                context.go(AppRoutes.caregiverHome);
+                // Use the widget's context for navigation after dialog is closed
+                GoRouter.of(this.context).go(AppRoutes.caregiverHome);
               }
             },
             style: ElevatedButton.styleFrom(

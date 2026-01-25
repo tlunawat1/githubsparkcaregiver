@@ -385,9 +385,10 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
           ElevatedButton(
             onPressed: () async {
               await _settingsRepository.setUserRole('dependent');
+              Navigator.pop(dialogContext);
               if (mounted) {
-                Navigator.pop(dialogContext);
-                context.go(AppRoutes.dependentHome);
+                // Use the widget's context for navigation after dialog is closed
+                GoRouter.of(this.context).go(AppRoutes.dependentHome);
               }
             },
             style: ElevatedButton.styleFrom(
