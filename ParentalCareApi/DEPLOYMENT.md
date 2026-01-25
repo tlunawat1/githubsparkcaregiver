@@ -1,6 +1,12 @@
 # Azure Backend Deployment Guide
 
-This guide explains how to deploy the ParentalCare API to Azure.
+This guide explains how to deploy the Remote Caregiver API to Azure.
+
+## Current Deployment
+
+The API is currently deployed at:
+- **API URL**: `https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net`
+- **Health Check**: `https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net/health`
 
 ## Prerequisites
 
@@ -13,30 +19,30 @@ This guide explains how to deploy the ParentalCare API to Azure.
 
 ### Create Resource Group
 ```bash
-az group create --name ParentalCareRG --location eastus
+az group create --name RemoteCaregiverRG --location canadacentral
 ```
 
 ### Create Azure SQL Database
 ```bash
 # Create SQL Server
 az sql server create \
-  --name parentalcare-sql-server \
-  --resource-group ParentalCareRG \
-  --location eastus \
+  --name remotecaregiver-sql-server \
+  --resource-group RemoteCaregiverRG \
+  --location canadacentral \
   --admin-user sqladmin \
   --admin-password "YourSecurePassword123!"
 
 # Create Database
 az sql db create \
-  --resource-group ParentalCareRG \
-  --server parentalcare-sql-server \
-  --name ParentalCareDb \
+  --resource-group RemoteCaregiverRG \
+  --server remotecaregiver-sql-server \
+  --name RemoteCaregiverDb \
   --service-objective Basic
 
 # Configure firewall to allow Azure services
 az sql server firewall-rule create \
-  --resource-group ParentalCareRG \
-  --server parentalcare-sql-server \
+  --resource-group RemoteCaregiverRG \
+  --server remotecaregiver-sql-server \
   --name AllowAzureServices \
   --start-ip-address 0.0.0.0 \
   --end-ip-address 0.0.0.0
@@ -46,31 +52,31 @@ az sql server firewall-rule create \
 ```bash
 # Create App Service Plan
 az appservice plan create \
-  --name ParentalCarePlan \
-  --resource-group ParentalCareRG \
+  --name RemoteCaregiverPlan \
+  --resource-group RemoteCaregiverRG \
   --sku B1 \
   --is-linux
 
 # Create Web App
 az webapp create \
-  --name parentalcare-api \
-  --resource-group ParentalCareRG \
-  --plan ParentalCarePlan \
+  --name remotecaregiver-api \
+  --resource-group RemoteCaregiverRG \
+  --plan RemoteCaregiverPlan \
   --runtime "DOTNETCORE:8.0"
 ```
 
 ### Create Storage Account (for voice notes)
 ```bash
 az storage account create \
-  --name parentalcarestorage \
-  --resource-group ParentalCareRG \
-  --location eastus \
+  --name remotecaregiverstore \
+  --resource-group RemoteCaregiverRG \
+  --location canadacentral \
   --sku Standard_LRS
 
 # Create blob container
 az storage container create \
   --name uploads \
-  --account-name parentalcarestorage \
+  --account-name remotecaregiverstore \
   --public-access blob
 ```
 
@@ -79,28 +85,28 @@ az storage container create \
 ```bash
 # Get SQL connection string
 SQL_CONNECTION=$(az sql db show-connection-string \
-  --server parentalcare-sql-server \
-  --name ParentalCareDb \
+  --server remotecaregiver-sql-server \
+  --name RemoteCaregiverDb \
   --client ado.net \
   --output tsv)
 
 # Get Storage connection string
 STORAGE_CONNECTION=$(az storage account show-connection-string \
-  --name parentalcarestorage \
-  --resource-group ParentalCareRG \
+  --name remotecaregiverstore \
+  --resource-group RemoteCaregiverRG \
   --output tsv)
 
 # Configure app settings
 az webapp config appsettings set \
-  --name parentalcare-api \
-  --resource-group ParentalCareRG \
+  --name remotecaregiver-api \
+  --resource-group RemoteCaregiverRG \
   --settings \
     ConnectionStrings__DefaultConnection="$SQL_CONNECTION" \
     Azure__BlobStorage__ConnectionString="$STORAGE_CONNECTION" \
     Azure__BlobStorage__ContainerName="uploads" \
     Jwt__Key="YourProductionJwtKeyHereMustBeAtLeast32Characters!" \
-    Jwt__Issuer="ParentalCareApi" \
-    Jwt__Audience="ParentalCareApp"
+    Jwt__Issuer="RemoteCaregiverApi" \
+    Jwt__Audience="RemoteCaregiverApp"
 ```
 
 ## 3. Initialize Database
@@ -109,8 +115,8 @@ Run the SQL script to create tables:
 
 ```bash
 # Using Azure Cloud Shell or SQL Server Management Studio
-sqlcmd -S parentalcare-sql-server.database.windows.net \
-  -d ParentalCareDb \
+sqlcmd -S remotecaregiver-sql-server.database.windows.net \
+  -d RemoteCaregiverDb \
   -U sqladmin \
   -P "YourSecurePassword123!" \
   -i Scripts/InitDatabase.sql
@@ -124,13 +130,32 @@ Or use Azure Portal:
 
 ## 4. Deploy the API
 
-### Option A: Using GitHub Actions (Recommended)
+### Option A: Manual Deployment (Current Method)
+
+```bash
+cd ParentalCareApi
+
+# Build and publish
+dotnet publish -c Release -o ./publish
+
+# Create zip file
+cd publish && zip -r ../deploy.zip . && cd ..
+
+# Deploy using Azure CLI
+az webapp deploy \
+  --resource-group RemoteCaregiverRG \
+  --name remotecaregiver-api \
+  --src-path ./deploy.zip \
+  --type zip
+```
+
+### Option B: Using GitHub Actions
 
 1. Get the publish profile:
 ```bash
 az webapp deployment list-publishing-profiles \
-  --name parentalcare-api \
-  --resource-group ParentalCareRG \
+  --name remotecaregiver-api \
+  --resource-group RemoteCaregiverRG \
   --xml > publish-profile.xml
 ```
 
@@ -139,63 +164,45 @@ az webapp deployment list-publishing-profiles \
    - Add new secret: `AZURE_WEBAPP_PUBLISH_PROFILE`
    - Paste the contents of `publish-profile.xml`
 
-3. Update `.github/workflows/azure-deploy.yml`:
-   - Set `AZURE_WEBAPP_NAME` to `parentalcare-api`
+3. Create `.github/workflows/azure-deploy.yml` with deployment workflow
 
 4. Push to `main` branch to trigger deployment
-
-### Option B: Using Azure CLI
-
-```bash
-cd ParentalCareApi
-
-# Build and publish
-dotnet publish -c Release -o ./publish
-
-# Deploy
-az webapp deploy \
-  --resource-group ParentalCareRG \
-  --name parentalcare-api \
-  --src-path ./publish \
-  --type zip
-```
 
 ### Option C: Using Docker
 
 ```bash
 # Build image
-docker build -t parentalcare-api .
+docker build -t remotecaregiver-api .
 
 # Tag for Azure Container Registry (if using ACR)
-docker tag parentalcare-api parentalcareacr.azurecr.io/parentalcare-api:latest
+docker tag remotecaregiver-api remotecaregiverregistry.azurecr.io/remotecaregiver-api:latest
 
 # Push to registry
-docker push parentalcareacr.azurecr.io/parentalcare-api:latest
+docker push remotecaregiverregistry.azurecr.io/remotecaregiver-api:latest
 ```
 
 ## 5. Verify Deployment
 
 ```bash
 # Check health endpoint
-curl https://parentalcare-api.azurewebsites.net/health
+curl https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net/health
 
 # Expected response:
 # {"status":"healthy","timestamp":"2024-..."}
+
+# Test registration endpoint
+curl -X POST https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test","email":"test@test.com","password":"test123","role":"caregiver"}'
 ```
 
 ## 6. Configure Flutter App
 
-Update the API base URL in your Flutter app:
+The API base URL is already configured in the Flutter app:
 
 ```dart
 // lib/data/datasources/remote/api_client.dart
-static const String _defaultBaseUrl = 'https://parentalcare-api.azurewebsites.net';
-```
-
-For SignalR:
-```dart
-// lib/data/datasources/remote/signalr_service.dart
-static const String _defaultHubUrl = 'https://parentalcare-api.azurewebsites.net/hubs/sync';
+static const String _defaultBaseUrl = 'https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net';
 ```
 
 ## Cost Estimate
@@ -212,24 +219,30 @@ static const String _defaultHubUrl = 'https://parentalcare-api.azurewebsites.net
 ### Check Logs
 ```bash
 az webapp log tail \
-  --name parentalcare-api \
-  --resource-group ParentalCareRG
+  --name remotecaregiver-api \
+  --resource-group RemoteCaregiverRG
 ```
 
 ### Restart App
 ```bash
 az webapp restart \
-  --name parentalcare-api \
-  --resource-group ParentalCareRG
+  --name remotecaregiver-api \
+  --resource-group RemoteCaregiverRG
 ```
 
 ### Scale Up (if needed)
 ```bash
 az appservice plan update \
-  --name ParentalCarePlan \
-  --resource-group ParentalCareRG \
+  --name RemoteCaregiverPlan \
+  --resource-group RemoteCaregiverRG \
   --sku S1
 ```
+
+### Common Issues
+
+1. **401 Unauthorized**: JWT token expired or invalid. Re-login to get new token.
+2. **CORS errors**: Ensure CORS is configured in `Program.cs`.
+3. **Database connection**: Check firewall rules allow Azure services.
 
 ## Security Checklist
 
@@ -240,3 +253,21 @@ az appservice plan update \
 - [ ] Set up Azure Key Vault for secrets
 - [ ] Enable Application Insights for monitoring
 - [ ] Configure backup for SQL Database
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login with email/password
+- `POST /api/auth/login-code` - Login with verification code
+- `POST /api/auth/verify-email` - Verify email with code
+- `POST /api/auth/refresh-token` - Refresh JWT token
+- `POST /api/auth/send-verification-code` - Send new verification code
+- `POST /api/auth/logout` - Logout (requires auth)
+
+### Users
+- `GET /api/users/me` - Get current user (requires auth)
+- `PUT /api/users/me` - Update current user (requires auth)
+- `GET /api/users/code/{code}` - Find user by unique code
+- `GET /api/users/email/{email}` - Find user by email
+- `PUT /api/users/device-token` - Update push notification token
