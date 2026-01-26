@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../data/datasources/local/database.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../auth/domain/auth_service.dart';
 
@@ -23,6 +24,7 @@ class AddDependentDialog extends StatefulWidget {
 }
 
 class _AddDependentDialogState extends State<AddDependentDialog> {
+  final _userApi = getIt<UserApi>();
   final _userRepository = getIt<UserRepository>();
   final _careRelationshipRepository = getIt<CareRelationshipRepository>();
   final _authService = AuthService();
@@ -36,7 +38,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
 
   // For verification step
   bool _showVerificationStep = false;
-  User? _foundDependent;
+  UserSearchResult? _foundDependent;
   CareRelationship? _pendingRelationship;
   final _verificationCodeController = TextEditingController();
 
@@ -388,15 +390,16 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
     });
 
     try {
-      // Find the dependent user
-      User? dependent;
-      if (isEmail) {
-        dependent = await _userRepository.getUserByEmail(identifier);
-      } else {
-        dependent = await _userRepository.getUserByUniqueCode(identifier);
-      }
-
-      if (dependent == null) {
+      // Find the dependent user from remote API
+      UserSearchResult dependent;
+      try {
+        if (isEmail) {
+          dependent = await _userApi.findByEmail(identifier);
+        } else {
+          dependent = await _userApi.findByUniqueCode(identifier);
+        }
+      } catch (e) {
+        // API returns 404 if user not found
         setState(() {
           _errorMessage = isEmail
               ? 'No account found with this email'
@@ -415,14 +418,14 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
         return;
       }
 
-      // Check if relationship already exists
+      // Check if relationship already exists (local check for now)
       final existingActive = await _careRelationshipRepository.relationshipExists(
         widget.caregiverId,
         dependent.id,
       );
       if (existingActive) {
         setState(() {
-          _errorMessage = '${dependent?.name} is already connected with you';
+          _errorMessage = '${dependent.name} is already connected with you';
           _isLoading = false;
         });
         return;
@@ -437,7 +440,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
       if (existingPending) {
         setState(() {
           _errorMessage =
-              'A pending connection request already exists for ${dependent?.name}';
+              'A pending connection request already exists for ${dependent.name}';
           _isLoading = false;
         });
         return;
@@ -460,6 +463,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
         _isLoading = false;
       });
     } catch (e) {
+      debugPrint('Error finding dependent: $e');
       setState(() {
         _errorMessage = 'An error occurred. Please try again.';
         _isLoading = false;
