@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
-import '../../../../data/datasources/local/database.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -21,11 +20,11 @@ class CaregiverHomeScreen extends StatefulWidget {
 
 class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
   final _userApi = getIt<UserApi>();
-  final _userRepository = getIt<UserRepository>();
+  final _relationshipApi = getIt<RelationshipApi>();
   final _settingsRepository = getIt<SettingsRepository>();
 
   UserData? _currentUser;
-  List<User> _dependents = [];
+  List<RelationshipData> _relationships = [];
   bool _isLoading = true;
   String _themeMode = 'system';
 
@@ -45,11 +44,15 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
       debugPrint('Fetching current user from API...');
       _currentUser = await _userApi.getCurrentUser();
       debugPrint('Current user loaded: ${_currentUser?.name}, role: ${_currentUser?.role}, uniqueCode: ${_currentUser?.uniqueCode}');
-      // Load dependents from local repository for now
-      if (_currentUser != null) {
-        _dependents = await _userRepository.getDependentsForCaregiver(_currentUser!.id);
-        debugPrint('Loaded ${_dependents.length} dependents');
-      }
+
+      // Load relationships from remote API
+      debugPrint('Fetching relationships from API...');
+      final allRelationships = await _relationshipApi.getRelationships();
+      // Filter to only active relationships where current user is caregiver
+      _relationships = allRelationships
+          .where((r) => r.isActive && r.caregiverId == _currentUser?.id)
+          .toList();
+      debugPrint('Loaded ${_relationships.length} active relationships (dependents)');
     } catch (e) {
       debugPrint('Error loading data in CaregiverHomeScreen: $e');
     }
@@ -76,7 +79,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
           ? const LoadingIndicator(message: 'Loading...')
           : RefreshIndicator(
               onRefresh: _loadData,
-              child: _dependents.isEmpty
+              child: _relationships.isEmpty
                   ? _buildEmptyState()
                   : _buildDependentsList(),
             ),
@@ -107,7 +110,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
   Widget _buildDependentsList() {
     return ListView.builder(
       padding: AppSpacing.screenPadding,
-      itemCount: _dependents.length + 2, // +2 for unique code card and header
+      itemCount: _relationships.length + 2, // +2 for unique code card and header
       itemBuilder: (context, index) {
         if (index == 0) {
           return _buildUniqueCodeCard();
@@ -124,7 +127,10 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
           );
         }
 
-        final dependent = _dependents[index - 2];
+        final relationship = _relationships[index - 2];
+        final dependent = relationship.dependent;
+        if (dependent == null) return const SizedBox.shrink();
+
         return _DependentCard(
           dependent: dependent,
           onTap: () => context.goToDependentDashboard(dependent.id),
@@ -440,7 +446,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
 }
 
 class _DependentCard extends StatelessWidget {
-  final User dependent;
+  final UserSearchResult dependent;
   final VoidCallback onTap;
 
   const _DependentCard({

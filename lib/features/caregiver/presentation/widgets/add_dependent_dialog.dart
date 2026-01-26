@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../data/datasources/local/database.dart';
 import '../../../../data/datasources/remote/remote.dart';
-import '../../../../data/repositories/repositories.dart';
 import '../../../auth/domain/auth_service.dart';
 
 /// Dialog for adding a dependent by unique code or email
@@ -25,8 +22,7 @@ class AddDependentDialog extends StatefulWidget {
 
 class _AddDependentDialogState extends State<AddDependentDialog> {
   final _userApi = getIt<UserApi>();
-  final _userRepository = getIt<UserRepository>();
-  final _careRelationshipRepository = getIt<CareRelationshipRepository>();
+  final _relationshipApi = getIt<RelationshipApi>();
   final _authService = AuthService();
 
   final _codeController = TextEditingController();
@@ -39,7 +35,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
   // For verification step
   bool _showVerificationStep = false;
   UserSearchResult? _foundDependent;
-  CareRelationship? _pendingRelationship;
+  CreateRelationshipResponse? _pendingRelationship;
   final _verificationCodeController = TextEditingController();
 
   @override
@@ -418,50 +414,34 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
         return;
       }
 
-      // Check if relationship already exists (local check for now)
-      final existingActive = await _careRelationshipRepository.relationshipExists(
-        widget.caregiverId,
-        dependent.id,
-      );
-      if (existingActive) {
+      // Create pending relationship via remote API
+      // The API will check for existing relationships and return appropriate errors
+      try {
+        final relationship = await _relationshipApi.createRelationship(
+          targetUserIdentifier: identifier,
+          initiatedBy: 'caregiver',
+        );
+
+        debugPrint('Relationship created: ${relationship.id}, status: ${relationship.status}');
+
         setState(() {
-          _errorMessage = '${dependent.name} is already connected with you';
+          _foundDependent = dependent;
+          _pendingRelationship = relationship;
+          _showVerificationStep = true;
+          _isLoading = false;
+        });
+      } catch (e) {
+        debugPrint('Error creating relationship: $e');
+        String errorMsg = 'Failed to create connection request';
+        if (e.toString().contains('already exists') || e.toString().contains('409')) {
+          errorMsg = '${dependent.name} is already connected or has a pending request';
+        }
+        setState(() {
+          _errorMessage = errorMsg;
           _isLoading = false;
         });
         return;
       }
-
-      // Check if pending relationship exists
-      final existingPending =
-          await _careRelationshipRepository.pendingRelationshipExists(
-        widget.caregiverId,
-        dependent.id,
-      );
-      if (existingPending) {
-        setState(() {
-          _errorMessage =
-              'A pending connection request already exists for ${dependent.name}';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // Create pending relationship
-      final relationshipId = const Uuid().v4();
-      final relationship =
-          await _careRelationshipRepository.createPendingRelationship(
-        id: relationshipId,
-        caregiverId: widget.caregiverId,
-        dependentId: dependent.id,
-        initiatedBy: 'caregiver',
-      );
-
-      setState(() {
-        _foundDependent = dependent;
-        _pendingRelationship = relationship;
-        _showVerificationStep = true;
-        _isLoading = false;
-      });
     } catch (e) {
       debugPrint('Error finding dependent: $e');
       setState(() {
@@ -486,14 +466,19 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
     });
 
     try {
-      final success = await _careRelationshipRepository.verifyLinkingCode(
-        _pendingRelationship!.id,
-        code,
+      debugPrint('Verifying relationship ${_pendingRelationship!.id} with code: $code');
+      final response = await _relationshipApi.verifyLinkingCode(
+        relationshipId: _pendingRelationship!.id,
+        code: code,
       );
 
-      if (!success) {
+      debugPrint('Verification response: success=${response.success}, message=${response.message}');
+
+      if (!response.success) {
         setState(() {
-          _errorMessage = 'Invalid verification code. Please try again.';
+          _errorMessage = response.message.isNotEmpty
+              ? response.message
+              : 'Invalid verification code. Please try again.';
           _isLoading = false;
         });
         return;
@@ -511,6 +496,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
         );
       }
     } catch (e) {
+      debugPrint('Error verifying relationship: $e');
       setState(() {
         _errorMessage = 'An error occurred. Please try again.';
         _isLoading = false;
