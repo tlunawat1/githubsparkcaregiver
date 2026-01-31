@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -146,6 +145,44 @@ class ApiClient {
       endpoint,
       requiresAuth: requiresAuth,
     );
+  }
+
+  /// Upload a file using multipart form data
+  Future<Map<String, dynamic>> uploadFile(
+    String endpoint,
+    String filePath,
+    String fieldName, {
+    bool requiresAuth = true,
+  }) async {
+    // Check token expiry and refresh if needed
+    if (requiresAuth && _shouldRefreshToken()) {
+      await _refreshAccessToken();
+    }
+
+    final uri = Uri.parse('$baseUrl$endpoint');
+
+    try {
+      final request = http.MultipartRequest('POST', uri);
+
+      // Add authorization header
+      if (requiresAuth && _accessToken != null) {
+        request.headers['Authorization'] = 'Bearer $_accessToken';
+      }
+
+      // Add the file
+      final file = await http.MultipartFile.fromPath(fieldName, filePath);
+      request.files.add(file);
+
+      // Send the request
+      final streamedResponse = await request.send().timeout(_timeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _handleResponse(response, requiresAuth);
+    } on SocketException {
+      throw ApiException(0, 'Network error. Please check your connection.');
+    } on http.ClientException catch (e) {
+      throw ApiException(0, 'Connection error: ${e.message}');
+    }
   }
 
   /// Internal request method

@@ -8,8 +8,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
-import '../../../../data/datasources/local/database.dart';
-import '../../../../data/repositories/repositories.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 
 /// Full-screen reminder alert for dependents
@@ -26,11 +25,12 @@ class ReminderAlertScreen extends StatefulWidget {
 }
 
 class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
-  final _reminderRepository = getIt<ReminderRepository>();
+  final _reminderApi = getIt<ReminderApi>();
+  final _reminderInstanceApi = getIt<ReminderInstanceApi>();
   final AudioPlayer _player = AudioPlayer();
 
-  ReminderInstance? _instance;
-  Reminder? _reminder;
+  ReminderInstanceData? _instance;
+  ReminderData? _reminder;
   bool _isLoading = true;
   bool _isPlaying = false;
 
@@ -59,27 +59,19 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
 
   Future<void> _loadData() async {
     try {
-      // For MVP, we'll need to get the instance from the database
-      // This is a simplified approach - in production you'd query by instance ID
-      final userId = await getIt<SettingsRepository>().getCurrentUserId();
-      if (userId != null) {
-        final instances =
-            await _reminderRepository.getTodayInstancesForDependent(userId);
-        _instance = instances.firstWhere(
-          (i) => i.id == widget.instanceId,
-          orElse: () => instances.first,
-        );
+      // Load instance directly from API
+      _instance = await _reminderInstanceApi.getInstance(widget.instanceId);
 
-        if (_instance != null) {
-          _reminder =
-              await _reminderRepository.getReminderById(_instance!.reminderId);
+      if (_instance != null) {
+        _reminder = await _reminderApi.getReminder(_instance!.reminderId);
 
-          // Auto-play voice note if available
-          if (_reminder?.voiceNotePath != null) {
-            _playVoiceNote();
-          }
+        // Auto-play voice note if available
+        if (_reminder?.voiceNoteUrl != null) {
+          _playVoiceNote();
         }
       }
+    } on ApiException catch (e) {
+      debugPrint('Error loading reminder: ${e.message}');
     } catch (e) {
       debugPrint('Error loading reminder: $e');
     }
@@ -90,13 +82,13 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
   }
 
   Future<void> _playVoiceNote() async {
-    if (_reminder?.voiceNotePath == null) return;
+    if (_reminder?.voiceNoteUrl == null) return;
 
     try {
       if (_isPlaying) {
         await _player.pause();
       } else {
-        await _player.play(DeviceFileSource(_reminder!.voiceNotePath!));
+        await _player.play(UrlSource(_reminder!.voiceNoteUrl!));
       }
     } catch (e) {
       debugPrint('Error playing voice note: $e');
@@ -107,7 +99,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
     HapticFeedback.heavyImpact();
 
     try {
-      await _reminderRepository.markInstanceCompleted(widget.instanceId);
+      await _reminderInstanceApi.markCompleted(widget.instanceId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -117,6 +109,15 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
           ),
         );
         context.go(AppRoutes.dependentHome);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.message}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -135,7 +136,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
 
     try {
       final snoozeUntil = DateTime.now().add(const Duration(minutes: 10));
-      await _reminderRepository.snoozeInstance(widget.instanceId, snoozeUntil);
+      await _reminderInstanceApi.snooze(widget.instanceId, snoozeUntil);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -144,6 +145,15 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
           ),
         );
         context.go(AppRoutes.dependentHome);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.message}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -229,7 +239,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
                   ],
                 ),
                 child: Icon(
-                  _reminder!.voiceNotePath != null
+                  _reminder!.voiceNoteUrl != null
                       ? Icons.mic
                       : Icons.notifications_active,
                   color: Colors.white,
@@ -267,7 +277,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
                 ),
               ],
               // Voice note player
-              if (_reminder!.voiceNotePath != null) ...[
+              if (_reminder!.voiceNoteUrl != null) ...[
                 const SizedBox(height: AppSpacing.xl),
                 _VoiceNotePlayer(
                   isPlaying: _isPlaying,

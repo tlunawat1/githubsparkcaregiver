@@ -1,11 +1,9 @@
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../data/datasources/local/database.dart';
-import '../../../../data/repositories/repositories.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 import '../widgets/voice_recorder_widget.dart';
 
@@ -26,14 +24,15 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _reminderRepository = getIt<ReminderRepository>();
+  final _reminderApi = getIt<ReminderApi>();
 
-  Reminder? _reminder;
+  ReminderData? _reminder;
   TimeOfDay _selectedTime = TimeOfDay.now();
   String _repeatPattern = 'daily';
   Set<int> _selectedDays = {};
   String _priority = 'normal';
-  String? _voiceNotePath;
+  String? _voiceNotePath; // Local path for new recordings
+  String? _voiceNoteUrl; // Remote URL for existing recordings
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -68,7 +67,7 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
 
   Future<void> _loadReminder() async {
     try {
-      _reminder = await _reminderRepository.getReminderById(widget.reminderId);
+      _reminder = await _reminderApi.getReminder(widget.reminderId);
 
       if (_reminder != null) {
         _titleController.text = _reminder!.title;
@@ -76,7 +75,7 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
         _selectedTime = TimeOfDay(hour: _reminder!.hour, minute: _reminder!.minute);
         _repeatPattern = _reminder!.repeatPattern;
         _priority = _reminder!.priority;
-        _voiceNotePath = _reminder!.voiceNotePath;
+        _voiceNoteUrl = _reminder!.voiceNoteUrl;
 
         // Parse selected days
         if (_reminder!.repeatDays != null) {
@@ -91,6 +90,8 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
           }
         }
       }
+    } on ApiException catch (e) {
+      debugPrint('Error loading reminder: ${e.message}');
     } catch (e) {
       debugPrint('Error loading reminder: $e');
     }
@@ -126,28 +127,30 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
     setState(() => _isSaving = true);
 
     try {
+      // Upload new voice note if a local path is set
+      String? newVoiceNoteUrl = _voiceNoteUrl;
+      if (_voiceNotePath != null) {
+        newVoiceNoteUrl = await _reminderApi.uploadVoiceNote(_voiceNotePath!);
+      }
+
       String? repeatDays;
       if (_repeatPattern == 'specific_days') {
         final days = _selectedDays.map((i) => _dayNames[i].toLowerCase()).toList();
         repeatDays = days.join(',');
       }
 
-      await _reminderRepository.updateReminder(
-        widget.reminderId,
-        RemindersCompanion(
-          title: Value(_titleController.text.trim()),
-          description: Value(
-            _descriptionController.text.trim().isEmpty
-                ? null
-                : _descriptionController.text.trim(),
-          ),
-          voiceNotePath: Value(_voiceNotePath),
-          repeatPattern: Value(_repeatPattern),
-          repeatDays: Value(repeatDays),
-          hour: Value(_selectedTime.hour),
-          minute: Value(_selectedTime.minute),
-          priority: Value(_priority),
-        ),
+      await _reminderApi.updateReminder(
+        id: widget.reminderId,
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        voiceNoteUrl: newVoiceNoteUrl,
+        repeatPattern: _repeatPattern,
+        repeatDays: repeatDays,
+        hour: _selectedTime.hour,
+        minute: _selectedTime.minute,
+        priority: _priority,
       );
 
       if (mounted) {
@@ -155,6 +158,15 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
           const SnackBar(content: Text('Reminder updated')),
         );
         context.pop();
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.message}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -196,13 +208,22 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
 
     if (confirmed == true) {
       try {
-        await _reminderRepository.deleteReminder(widget.reminderId);
+        await _reminderApi.deleteReminder(widget.reminderId);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Reminder deleted')),
           );
           context.pop();
+        }
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${e.message}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
         }
       } catch (e) {
         if (mounted) {
@@ -406,14 +427,17 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
             const SizedBox(height: AppSpacing.sm),
             VoiceRecorderWidget(
               voiceNotePath: _voiceNotePath,
+              voiceNoteUrl: _voiceNoteUrl,
               onRecordingComplete: (path) {
                 setState(() {
                   _voiceNotePath = path;
+                  _voiceNoteUrl = null; // Clear URL when new recording is made
                 });
               },
               onDelete: () {
                 setState(() {
                   _voiceNotePath = null;
+                  _voiceNoteUrl = null;
                 });
               },
             ),

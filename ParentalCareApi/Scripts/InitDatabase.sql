@@ -99,6 +99,30 @@ BEGIN
 END
 GO
 
+-- ReminderInstances table
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ReminderInstances')
+BEGIN
+    CREATE TABLE ReminderInstances (
+        Id NVARCHAR(36) PRIMARY KEY DEFAULT NEWID(),
+        ReminderId NVARCHAR(36) NOT NULL,
+        ScheduledTime DATETIME2 NOT NULL,
+        Status NVARCHAR(20) NOT NULL DEFAULT 'pending',
+        CompletedAt DATETIME2 NULL,
+        SnoozedUntil DATETIME2 NULL,
+        EscalationLevel INT NOT NULL DEFAULT 0,
+        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        CONSTRAINT FK_ReminderInstances_Reminder FOREIGN KEY (ReminderId) REFERENCES Reminders(Id) ON DELETE CASCADE,
+        CONSTRAINT CK_ReminderInstances_Status CHECK (Status IN ('pending', 'completed', 'missed', 'snoozed'))
+    );
+
+    CREATE INDEX IX_ReminderInstances_ReminderId ON ReminderInstances(ReminderId);
+    CREATE INDEX IX_ReminderInstances_ScheduledTime ON ReminderInstances(ScheduledTime);
+    CREATE INDEX IX_ReminderInstances_Reminder_ScheduledTime ON ReminderInstances(ReminderId, ScheduledTime);
+
+    PRINT 'Created ReminderInstances table';
+END
+GO
+
 -- SosEvents table
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SosEvents')
 BEGIN

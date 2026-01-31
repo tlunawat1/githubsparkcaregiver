@@ -190,4 +190,14 @@ class ReminderApi {
   Future<void> deleteReminder(String id) async {
     await _client.delete('/api/reminders/$id');
   }
+
+  /// Upload a voice note and return its URL
+  Future<String> uploadVoiceNote(String filePath) async {
+    final response = await _client.uploadFile(
+      '/api/files/voice-notes',
+      filePath,
+      'file',
+    );
+    return response['url'] as String;
+  }
 }

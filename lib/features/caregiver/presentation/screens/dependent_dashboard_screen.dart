@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
-import '../../../../data/datasources/local/database.dart';
-import '../../../../data/repositories/repositories.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Dashboard screen showing a dependent's reminders and status
@@ -24,12 +22,13 @@ class DependentDashboardScreen extends StatefulWidget {
 }
 
 class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
-  final _userRepository = getIt<UserRepository>();
-  final _reminderRepository = getIt<ReminderRepository>();
+  final _userApi = getIt<UserApi>();
+  final _reminderApi = getIt<ReminderApi>();
+  final _reminderInstanceApi = getIt<ReminderInstanceApi>();
 
-  User? _dependent;
-  List<Reminder> _reminders = [];
-  List<ReminderInstance> _todayInstances = [];
+  UserSearchResult? _dependent;
+  List<ReminderData> _reminders = [];
+  List<ReminderInstanceData> _todayInstances = [];
   bool _isLoading = true;
 
   @override
@@ -42,9 +41,12 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
     setState(() => _isLoading = true);
 
     try {
-      _dependent = await _userRepository.getUserById(widget.dependentId);
-      _reminders = await _reminderRepository.getRemindersForDependent(widget.dependentId);
-      _todayInstances = await _reminderRepository.getTodayInstancesForDependent(widget.dependentId);
+      _dependent = await _userApi.getById(widget.dependentId);
+      _reminders = await _reminderApi.getReminders(dependentId: widget.dependentId);
+      _todayInstances = await _reminderInstanceApi.getInstances(
+        dependentId: widget.dependentId,
+        date: DateTime.now(),
+      );
     } catch (e) {
       debugPrint('Error loading data: $e');
     }
@@ -218,7 +220,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
     );
   }
 
-  Widget _buildReminderCard(Reminder reminder, ReminderInstance instance) {
+  Widget _buildReminderCard(ReminderData reminder, ReminderInstanceData instance) {
     final status = switch (instance.status) {
       'completed' => ReminderStatus.completed,
       'missed' => ReminderStatus.missed,
@@ -233,7 +235,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
       time: time,
       status: status,
       subtitle: reminder.description,
-      hasVoiceNote: reminder.voiceNotePath != null,
+      hasVoiceNote: reminder.voiceNoteUrl != null,
       priority: reminder.priority == 'high'
           ? ReminderPriority.high
           : ReminderPriority.normal,
@@ -241,7 +243,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
     );
   }
 
-  Widget _buildReminderTemplateCard(Reminder reminder) {
+  Widget _buildReminderTemplateCard(ReminderData reminder) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -266,7 +268,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              reminder.voiceNotePath != null
+              reminder.voiceNoteUrl != null
                   ? Icons.mic
                   : Icons.notifications_active,
               color: colorScheme.primary,

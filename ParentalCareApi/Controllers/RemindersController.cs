@@ -171,8 +171,32 @@ public class RemindersController : ControllerBase
 
         _logger.LogInformation("Reminder created: {Id} for dependent {DependentId}", reminder!.Id, reminder.DependentId);
 
+        // Generate instances based on repeat pattern
+        var instances = await GenerateInstancesForReminder(reminder);
+
         // Notify dependent via SignalR
         await _hubContext.Clients.User(request.DependentId).SendAsync("ReminderCreated", MapToDto(reminder));
+
+        // Notify about created instances
+        foreach (var instance in instances)
+        {
+            var instanceDto = new
+            {
+                instance.Id,
+                instance.ReminderId,
+                instance.ScheduledTime,
+                instance.Status,
+                instance.CompletedAt,
+                instance.SnoozedUntil,
+                instance.EscalationLevel,
+                instance.CreatedAt,
+                ReminderTitle = reminder.Title,
+                ReminderDescription = reminder.Description,
+                VoiceNoteUrl = reminder.VoiceNoteUrl,
+                Priority = reminder.Priority
+            };
+            await _hubContext.SendInstanceCreatedAsync(request.DependentId, instanceDto);
+        }
 
         // Send push notification
         var dependent = await _context.Users.FindAsync(request.DependentId);
@@ -312,5 +336,97 @@ public class RemindersController : ControllerBase
             r.Creator?.Name,
             r.Dependent?.Name
         );
+    }
+
+    /// <summary>
+    /// Generates ReminderInstance records based on the reminder's repeat pattern.
+    /// Creates instances for a 7-day rolling window.
+    /// </summary>
+    private async Task<List<ReminderInstance>> GenerateInstancesForReminder(Reminder reminder)
+    {
+        var instances = new List<ReminderInstance>();
+        var today = DateTime.UtcNow.Date;
+        var startDate = reminder.StartDate.Date >= today ? reminder.StartDate.Date : today;
+        var endDate = reminder.EndDate?.Date ?? today.AddDays(7);
+        var windowEnd = today.AddDays(7);
+
+        // Don't generate past the window or the reminder's end date
+        endDate = endDate < windowEnd ? endDate : windowEnd;
+
+        switch (reminder.RepeatPattern.ToLower())
+        {
+            case "once":
+                // Create single instance for the start date
+                if (reminder.StartDate.Date >= today && reminder.StartDate.Date <= windowEnd)
+                {
+                    instances.Add(CreateInstance(reminder, reminder.StartDate.Date));
+                }
+                break;
+
+            case "daily":
+                // Create instances for each day in the window
+                for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                {
+                    instances.Add(CreateInstance(reminder, date));
+                }
+                break;
+
+            case "weekly":
+                // Create instances for the same day of week within the window
+                var targetDayOfWeek = reminder.StartDate.DayOfWeek;
+                for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                {
+                    if (date.DayOfWeek == targetDayOfWeek)
+                    {
+                        instances.Add(CreateInstance(reminder, date));
+                    }
+                }
+                break;
+
+            case "specific_days":
+                // Parse RepeatDays JSON array like "[1,3,5]" for Mon, Wed, Fri
+                // 0=Sunday, 1=Monday, ..., 6=Saturday
+                if (!string.IsNullOrEmpty(reminder.RepeatDays))
+                {
+                    try
+                    {
+                        var days = System.Text.Json.JsonSerializer.Deserialize<int[]>(reminder.RepeatDays) ?? [];
+                        for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                        {
+                            if (days.Contains((int)date.DayOfWeek))
+                            {
+                                instances.Add(CreateInstance(reminder, date));
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse RepeatDays for reminder {ReminderId}", reminder.Id);
+                    }
+                }
+                break;
+        }
+
+        if (instances.Count > 0)
+        {
+            _context.ReminderInstances.AddRange(instances);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Created {Count} instances for reminder {ReminderId}", instances.Count, reminder.Id);
+        }
+
+        return instances;
+    }
+
+    private static ReminderInstance CreateInstance(Reminder reminder, DateTime date)
+    {
+        return new ReminderInstance
+        {
+            Id = Guid.NewGuid().ToString(),
+            ReminderId = reminder.Id,
+            ScheduledTime = date.AddHours(reminder.Hour).AddMinutes(reminder.Minute),
+            Status = "pending",
+            EscalationLevel = 0,
+            CreatedAt = DateTime.UtcNow
+        };
     }
 }

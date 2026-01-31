@@ -33,6 +33,10 @@ Future<void> configureDependencies() async {
     () => ReminderApi(getIt<ApiClient>()),
   );
 
+  getIt.registerLazySingleton<ReminderInstanceApi>(
+    () => ReminderInstanceApi(getIt<ApiClient>()),
+  );
+
   getIt.registerLazySingleton<SosApi>(
     () => SosApi(getIt<ApiClient>()),
   );

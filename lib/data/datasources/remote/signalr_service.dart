@@ -21,6 +21,8 @@ enum SignalREventType {
   reminderCreated,
   reminderUpdated,
   reminderDeleted,
+  instanceCreated,
+  instanceStatusChanged,
   userOnline,
   pong,
 }
@@ -220,6 +222,15 @@ class SignalRService {
 
     _connection!.on('ReminderDeleted', (arguments) {
       _emitEvent(SignalREventType.reminderDeleted, arguments);
+    });
+
+    // Instance events
+    _connection!.on('InstanceCreated', (arguments) {
+      _emitEvent(SignalREventType.instanceCreated, arguments);
+    });
+
+    _connection!.on('InstanceStatusChanged', (arguments) {
+      _emitEvent(SignalREventType.instanceStatusChanged, arguments);
     });
 
     // Presence

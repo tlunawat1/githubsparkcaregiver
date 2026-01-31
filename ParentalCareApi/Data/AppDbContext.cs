@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<CareRelationship> CareRelationships { get; set; }
     public DbSet<Reminder> Reminders { get; set; }
+    public DbSet<ReminderInstance> ReminderInstances { get; set; }
     public DbSet<SosEvent> SosEvents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -76,6 +77,19 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(e => e.DependentId);
             entity.HasIndex(e => new { e.DependentId, e.Status });
+        });
+
+        // ReminderInstance configuration
+        modelBuilder.Entity<ReminderInstance>(entity =>
+        {
+            entity.HasOne(e => e.Reminder)
+                .WithMany()
+                .HasForeignKey(e => e.ReminderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ReminderId);
+            entity.HasIndex(e => e.ScheduledTime);
+            entity.HasIndex(e => new { e.ReminderId, e.ScheduledTime });
         });
     }
 }

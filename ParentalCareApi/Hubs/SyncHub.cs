@@ -109,4 +109,24 @@ public static class SyncHubExtensions
     {
         await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync(method, arg);
     }
+
+    // Send instance status changed event
+    public static async Task SendInstanceStatusChangedAsync(
+        this IHubContext<SyncHub> hubContext,
+        string dependentId,
+        object instanceDto)
+    {
+        await hubContext.Clients.User(dependentId).SendAsync("InstanceStatusChanged", instanceDto);
+        await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceStatusChanged", instanceDto);
+    }
+
+    // Send instance created event
+    public static async Task SendInstanceCreatedAsync(
+        this IHubContext<SyncHub> hubContext,
+        string dependentId,
+        object instanceDto)
+    {
+        await hubContext.Clients.User(dependentId).SendAsync("InstanceCreated", instanceDto);
+        await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceCreated", instanceDto);
+    }
 }

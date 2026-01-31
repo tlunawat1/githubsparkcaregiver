@@ -14,13 +14,15 @@ import '../../../../core/constants/app_spacing.dart';
 
 /// Widget for recording and playing back voice notes
 class VoiceRecorderWidget extends StatefulWidget {
-  final String? voiceNotePath;
+  final String? voiceNotePath; // Local file path for new recordings
+  final String? voiceNoteUrl; // Remote URL for existing recordings
   final ValueChanged<String> onRecordingComplete;
   final VoidCallback onDelete;
 
   const VoiceRecorderWidget({
     super.key,
     this.voiceNotePath,
+    this.voiceNoteUrl,
     required this.onRecordingComplete,
     required this.onDelete,
   });
@@ -166,13 +168,21 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
   }
 
   Future<void> _playRecording() async {
-    if (widget.voiceNotePath == null) return;
+    final hasLocalPath = widget.voiceNotePath != null;
+    final hasUrl = widget.voiceNoteUrl != null;
+
+    if (!hasLocalPath && !hasUrl) return;
 
     try {
       if (_isPlaying) {
         await _player.pause();
       } else {
-        await _player.play(DeviceFileSource(widget.voiceNotePath!));
+        // Prefer local path if available, otherwise use URL
+        if (hasLocalPath) {
+          await _player.play(DeviceFileSource(widget.voiceNotePath!));
+        } else {
+          await _player.play(UrlSource(widget.voiceNoteUrl!));
+        }
       }
     } catch (e) {
       debugPrint('Error playing recording: $e');
@@ -199,7 +209,8 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
       return _buildRecordingState();
     }
 
-    if (widget.voiceNotePath != null) {
+    // Show playback if either local path or URL exists
+    if (widget.voiceNotePath != null || widget.voiceNoteUrl != null) {
       return _buildPlaybackState();
     }
 

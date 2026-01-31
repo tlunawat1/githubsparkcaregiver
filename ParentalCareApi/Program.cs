@@ -91,6 +91,10 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddSingleton<IBlobStorageService, BlobStorageService>();
+
+// Background Services
+builder.Services.AddHostedService<ReminderInstanceBackgroundService>();
 
 // CORS
 builder.Services.AddCors(options =>

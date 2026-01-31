@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../data/repositories/repositories.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 import '../widgets/voice_recorder_widget.dart';
 
@@ -25,8 +24,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _settingsRepository = getIt<SettingsRepository>();
-  final _reminderRepository = getIt<ReminderRepository>();
+  final _reminderApi = getIt<ReminderApi>();
 
   TimeOfDay _selectedTime = TimeOfDay.now();
   String _repeatPattern = 'daily';
@@ -90,10 +88,11 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userId = await _settingsRepository.getCurrentUserId();
-      if (userId == null) throw Exception('No user found');
-
-      final reminderId = const Uuid().v4();
+      // Upload voice note if present
+      String? voiceNoteUrl;
+      if (_voiceNotePath != null) {
+        voiceNoteUrl = await _reminderApi.uploadVoiceNote(_voiceNotePath!);
+      }
 
       String? repeatDays;
       if (_repeatPattern == 'specific_days') {
@@ -101,15 +100,13 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
         repeatDays = days.join(',');
       }
 
-      await _reminderRepository.createReminder(
-        id: reminderId,
-        creatorId: userId,
+      await _reminderApi.createReminder(
         dependentId: widget.dependentId,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
-        voiceNotePath: _voiceNotePath,
+        voiceNoteUrl: voiceNoteUrl,
         repeatPattern: _repeatPattern,
         repeatDays: repeatDays,
         hour: _selectedTime.hour,
@@ -123,6 +120,15 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
           const SnackBar(content: Text('Reminder created')),
         );
         context.pop();
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.message}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {

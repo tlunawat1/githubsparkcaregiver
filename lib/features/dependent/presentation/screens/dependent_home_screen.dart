@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -25,22 +27,43 @@ class DependentHomeScreen extends StatefulWidget {
 class _DependentHomeScreenState extends State<DependentHomeScreen> {
   final _userApi = getIt<UserApi>();
   final _userRepository = getIt<UserRepository>();
-  final _reminderRepository = getIt<ReminderRepository>();
+  final _reminderApi = getIt<ReminderApi>();
+  final _reminderInstanceApi = getIt<ReminderInstanceApi>();
   final _settingsRepository = getIt<SettingsRepository>();
   final _careRelationshipRepository = getIt<CareRelationshipRepository>();
+  final _signalRService = getIt<SignalRService>();
 
   UserData? _user;
-  List<Reminder> _reminders = [];
-  List<ReminderInstance> _todayInstances = [];
+  List<ReminderData> _reminders = [];
+  List<ReminderInstanceData> _todayInstances = [];
   List<CareRelationship> _pendingLinks = [];
   Map<String, User> _pendingLinkCaregivers = {};
   bool _isLoading = true;
   String _themeMode = 'system';
+  Set<String> _completingInstances = {};
+  StreamSubscription<SignalREvent>? _signalRSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _setupSignalRListeners();
+  }
+
+  @override
+  void dispose() {
+    _signalRSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _setupSignalRListeners() {
+    _signalRSubscription = _signalRService.events.listen((event) {
+      if (event.type == SignalREventType.instanceCreated ||
+          event.type == SignalREventType.instanceStatusChanged) {
+        // Refresh data when instance events are received
+        _loadData();
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -53,9 +76,11 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
 
       if (_user != null) {
         final userId = _user!.id;
-        _reminders = await _reminderRepository.getRemindersForDependent(userId);
-        _todayInstances =
-            await _reminderRepository.getTodayInstancesForDependent(userId);
+        _reminders = await _reminderApi.getReminders(dependentId: userId);
+        _todayInstances = await _reminderInstanceApi.getInstances(
+          dependentId: userId,
+          date: DateTime.now(),
+        );
 
         // Load pending link requests
         _pendingLinks = await _careRelationshipRepository
@@ -186,8 +211,8 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
                           ),
                         ),
 
-                        // Reminder list or empty state
-                        if (_getPendingReminders().isEmpty)
+                        // Reminder grid or empty state
+                        if (_todayInstances.isEmpty)
                           SliverToBoxAdapter(
                             child: Padding(
                               padding: AppSpacing.screenPadding,
@@ -197,35 +222,43 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
                         else
                           SliverPadding(
                             padding: AppSpacing.screenPaddingHorizontal,
-                            sliver: SliverList(
+                            sliver: SliverGrid(
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: AppSpacing.md,
+                                crossAxisSpacing: AppSpacing.md,
+                                childAspectRatio: 0.95,
+                              ),
                               delegate: SliverChildBuilderDelegate(
                                 (context, index) {
-                                  final pendingReminders = _getPendingReminders();
-                                  if (index >= pendingReminders.length) return null;
+                                  final sortedReminders = _getSortedReminders();
+                                  if (index >= sortedReminders.length) return null;
 
-                                  final instance = pendingReminders[index];
-                                  final reminder = _reminders.firstWhere(
-                                    (r) => r.id == instance.reminderId,
-                                    orElse: () => _reminders.first,
+                                  final instance = sortedReminders[index];
+                                  final reminder = _reminders.cast<ReminderData?>().firstWhere(
+                                    (r) => r?.id == instance.reminderId,
+                                    orElse: () => null,
                                   );
 
-                                  return Padding(
-                                    padding: const EdgeInsets.only(
-                                      bottom: AppSpacing.md,
-                                    ),
-                                    child: LargeReminderButton(
-                                      title: reminder.title,
-                                      time: DateFormat.jm()
-                                          .format(instance.scheduledTime),
-                                      hasVoiceNote: reminder.voiceNotePath != null,
-                                      isUrgent: reminder.priority == 'high' ||
-                                          instance.status == 'missed',
-                                      onTap: () =>
-                                          context.goToReminderAlert(instance.id),
-                                    ),
+                                  return ReminderButton(
+                                    title: reminder?.title ??
+                                        instance.reminderTitle ??
+                                        'Reminder',
+                                    time: DateFormat.jm()
+                                        .format(instance.scheduledTime),
+                                    status: _getInstanceStatus(instance.status),
+                                    hasVoiceNote: (reminder?.voiceNoteUrl ??
+                                            instance.voiceNoteUrl) !=
+                                        null,
+                                    isLoading:
+                                        _completingInstances.contains(instance.id),
+                                    onTap: () => _markInstanceComplete(instance.id),
+                                    onDetailsTap: () =>
+                                        _showDetailsModal(instance, reminder),
                                   );
                                 },
-                                childCount: _getPendingReminders().length,
+                                childCount: _getSortedReminders().length,
                               ),
                             ),
                           ),
@@ -269,10 +302,111 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
     );
   }
 
-  List<ReminderInstance> _getPendingReminders() {
-    return _todayInstances
-        .where((i) => i.status == 'pending' || i.status == 'missed')
-        .toList();
+  /// Get all reminders sorted: pending first, then missed, then completed
+  List<ReminderInstanceData> _getSortedReminders() {
+    final sorted = List<ReminderInstanceData>.from(_todayInstances);
+    sorted.sort((a, b) {
+      // Priority order: pending > snoozed > missed > completed
+      const statusOrder = {
+        'pending': 0,
+        'snoozed': 1,
+        'missed': 2,
+        'completed': 3,
+      };
+      final aOrder = statusOrder[a.status] ?? 4;
+      final bOrder = statusOrder[b.status] ?? 4;
+      if (aOrder != bOrder) return aOrder.compareTo(bOrder);
+      // Within same status, sort by scheduled time
+      return a.scheduledTime.compareTo(b.scheduledTime);
+    });
+    return sorted;
+  }
+
+  ReminderInstanceStatus _getInstanceStatus(String status) {
+    return switch (status) {
+      'completed' => ReminderInstanceStatus.completed,
+      'missed' => ReminderInstanceStatus.missed,
+      'snoozed' => ReminderInstanceStatus.snoozed,
+      _ => ReminderInstanceStatus.pending,
+    };
+  }
+
+  Future<void> _markInstanceComplete(String instanceId) async {
+    if (_completingInstances.contains(instanceId)) return;
+
+    setState(() => _completingInstances.add(instanceId));
+    HapticFeedback.mediumImpact();
+
+    try {
+      await _reminderInstanceApi.markCompleted(instanceId);
+      await _loadData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Great job! Reminder completed.'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error completing reminder: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _completingInstances.remove(instanceId));
+      }
+    }
+  }
+
+  Future<void> _snoozeInstance(String instanceId) async {
+    HapticFeedback.lightImpact();
+
+    try {
+      final snoozeUntil = DateTime.now().add(const Duration(minutes: 10));
+      await _reminderInstanceApi.snooze(instanceId, snoozeUntil);
+      await _loadData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Snoozed for 10 minutes'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error snoozing reminder: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showDetailsModal(ReminderInstanceData instance, ReminderData? reminder) {
+    ReminderDetailsModal.show(
+      context,
+      title: reminder?.title ?? instance.reminderTitle ?? 'Reminder',
+      scheduledTime: instance.scheduledTime,
+      status: _getInstanceStatus(instance.status),
+      description: reminder?.description ?? instance.reminderDescription,
+      voiceNoteUrl: reminder?.voiceNoteUrl ?? instance.voiceNoteUrl,
+      onMarkDone: () => _markInstanceComplete(instance.id),
+      onSnooze: () => _snoozeInstance(instance.id),
+    );
   }
 
   String _getGreeting(int hour) {
