@@ -24,7 +24,8 @@ class DependentHomeScreen extends StatefulWidget {
   State<DependentHomeScreen> createState() => _DependentHomeScreenState();
 }
 
-class _DependentHomeScreenState extends State<DependentHomeScreen> {
+class _DependentHomeScreenState extends State<DependentHomeScreen>
+    with WidgetsBindingObserver {
   final _userApi = getIt<UserApi>();
   final _userRepository = getIt<UserRepository>();
   final _reminderApi = getIt<ReminderApi>();
@@ -46,21 +47,34 @@ class _DependentHomeScreenState extends State<DependentHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
     _setupSignalRListeners();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _signalRSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data when app comes to foreground
+      _loadData();
+    }
   }
 
   void _setupSignalRListeners() {
     _signalRSubscription = _signalRService.events.listen((event) {
       if (event.type == SignalREventType.instanceCreated ||
-          event.type == SignalREventType.instanceStatusChanged) {
-        // Refresh data when instance events are received
+          event.type == SignalREventType.instanceStatusChanged ||
+          event.type == SignalREventType.reminderCreated ||
+          event.type == SignalREventType.reminderUpdated ||
+          event.type == SignalREventType.reminderDeleted) {
+        // Refresh data when reminder or instance events are received
         _loadData();
       }
     });
