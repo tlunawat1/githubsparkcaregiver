@@ -33,6 +33,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
   List<ReminderData> _reminders = [];
   List<ReminderInstanceData> _todayInstances = [];
   bool _isLoading = true;
+  bool _isInitialLoad = true;
   StreamSubscription<SignalREvent>? _signalRSubscription;
 
   @override
@@ -74,7 +75,10 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    // Only show loading indicator on initial load to avoid jarring screen flashes
+    if (_isInitialLoad) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       _dependent = await _userApi.getById(widget.dependentId);
@@ -88,7 +92,10 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
     }
 
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _isInitialLoad = false;
+      });
     }
   }
 
