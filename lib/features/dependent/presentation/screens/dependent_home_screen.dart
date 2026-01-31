@@ -40,6 +40,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   List<CareRelationship> _pendingLinks = [];
   Map<String, User> _pendingLinkCaregivers = {};
   bool _isLoading = true;
+  bool _isInitialLoad = true;
   String _themeMode = 'system';
   Set<String> _completingInstances = {};
   StreamSubscription<SignalREvent>? _signalRSubscription;
@@ -90,7 +91,10 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    // Only show loading indicator on initial load to avoid jarring screen flashes
+    if (_isInitialLoad) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       _themeMode = await _settingsRepository.getThemeMode();
@@ -124,7 +128,10 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     }
 
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _isInitialLoad = false;
+      });
     }
   }
 
