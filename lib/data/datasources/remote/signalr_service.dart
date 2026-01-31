@@ -73,6 +73,7 @@ class SignalRService {
   /// Set access token for authentication
   void setAccessToken(String? token) {
     _accessToken = token;
+    debugPrint('SignalR: Access token set (${token != null ? 'provided' : 'null'})');
   }
 
   /// Connect to SignalR hub
@@ -116,12 +117,13 @@ class SignalRService {
         _startPing();
       });
 
+      debugPrint('SignalR: Starting connection to $hubUrl');
       await _connection!.start();
       _updateState(SignalRConnectionState.connected);
       _reconnectAttempts = 0;
       _startPing();
 
-      debugPrint('SignalR connected');
+      debugPrint('SignalR: Connected successfully');
     } catch (e) {
       debugPrint('SignalR connection error: $e');
       _updateState(SignalRConnectionState.disconnected);
@@ -246,6 +248,8 @@ class SignalRService {
 
   /// Emit event to stream
   void _emitEvent(SignalREventType type, List<Object?>? arguments) {
+    debugPrint('SignalR: Received event $type with ${arguments?.length ?? 0} arguments');
+
     Map<String, dynamic> data = {};
 
     if (arguments != null && arguments.isNotEmpty) {
@@ -257,6 +261,7 @@ class SignalRService {
       }
     }
 
+    debugPrint('SignalR: Emitting event $type to stream');
     _eventController.add(SignalREvent(type: type, data: data));
   }
 

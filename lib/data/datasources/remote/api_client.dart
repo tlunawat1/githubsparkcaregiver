@@ -65,6 +65,9 @@ class ApiClient {
       _tokenExpiry != null &&
       _tokenExpiry!.isAfter(DateTime.now());
 
+  /// Get current access token (for SignalR)
+  String? get accessToken => _accessToken;
+
   /// Set authentication tokens
   Future<void> setTokens({
     required String accessToken,

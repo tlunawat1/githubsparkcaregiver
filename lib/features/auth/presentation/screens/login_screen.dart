@@ -24,6 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authApi = getIt<AuthApi>();
   final _settingsRepository = getIt<SettingsRepository>();
+  final _apiClient = getIt<ApiClient>();
+  final _signalRService = getIt<SignalRService>();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -255,6 +257,10 @@ class _LoginScreenState extends State<LoginScreen> {
       await _settingsRepository.setUserRole(user.role);
       await _settingsRepository.setOnboardingComplete(true);
 
+      // Connect SignalR for real-time updates
+      _signalRService.setAccessToken(_apiClient.accessToken);
+      _signalRService.connect();
+
       debugPrint('Login successful - User role: "${user.role}", navigating to ${user.role == 'caregiver' ? 'caregiverHome' : 'dependentHome'}');
 
       HapticFeedback.mediumImpact();
@@ -429,6 +435,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       await _settingsRepository.setCurrentUserId(user.id);
                       await _settingsRepository.setUserRole(user.role);
                       await _settingsRepository.setOnboardingComplete(true);
+
+                      // Connect SignalR for real-time updates
+                      _signalRService.setAccessToken(_apiClient.accessToken);
+                      _signalRService.connect();
 
                       HapticFeedback.mediumImpact();
 

@@ -68,13 +68,22 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   }
 
   void _setupSignalRListeners() {
+    debugPrint('DependentHomeScreen: Setting up SignalR listeners');
+    debugPrint('DependentHomeScreen: SignalR isConnected=${_signalRService.isConnected}');
+
+    // Also listen for connection state changes
+    _signalRService.connectionState.listen((state) {
+      debugPrint('DependentHomeScreen: SignalR connection state changed to $state');
+    });
+
     _signalRSubscription = _signalRService.events.listen((event) {
+      debugPrint('DependentHomeScreen: Received SignalR event: ${event.type}');
       if (event.type == SignalREventType.instanceCreated ||
           event.type == SignalREventType.instanceStatusChanged ||
           event.type == SignalREventType.reminderCreated ||
           event.type == SignalREventType.reminderUpdated ||
           event.type == SignalREventType.reminderDeleted) {
-        // Refresh data when reminder or instance events are received
+        debugPrint('DependentHomeScreen: Refreshing data due to ${event.type}');
         _loadData();
       }
     });

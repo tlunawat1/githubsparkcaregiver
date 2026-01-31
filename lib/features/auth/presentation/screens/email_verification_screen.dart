@@ -30,6 +30,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   final _codeController = TextEditingController();
   final _authApi = getIt<AuthApi>();
   final _settingsRepository = getIt<SettingsRepository>();
+  final _apiClient = getIt<ApiClient>();
+  final _signalRService = getIt<SignalRService>();
 
   bool _isLoading = false;
   bool _isResending = false;
@@ -259,6 +261,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       await _settingsRepository.setCurrentUserId(widget.userId);
       await _settingsRepository.setUserRole(widget.role);
       await _settingsRepository.setOnboardingComplete(true);
+
+      // Connect SignalR for real-time updates
+      _signalRService.setAccessToken(_apiClient.accessToken);
+      _signalRService.connect();
 
       HapticFeedback.mediumImpact();
 

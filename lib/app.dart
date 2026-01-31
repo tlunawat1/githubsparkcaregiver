@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/di/injection.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'data/datasources/remote/remote.dart';
 import 'data/repositories/repositories.dart';
 
 /// Main application widget
@@ -27,10 +28,19 @@ class _ParentalCareAppState extends State<ParentalCareApp> {
 
   Future<void> _initializeApp() async {
     final settingsRepository = getIt<SettingsRepository>();
+    final apiClient = getIt<ApiClient>();
+    final signalRService = getIt<SignalRService>();
 
     try {
       _isOnboardingComplete = await settingsRepository.isOnboardingComplete();
       _userRole = await settingsRepository.getUserRole();
+
+      // Connect SignalR if user is already authenticated
+      if (_isOnboardingComplete && _userRole != null && apiClient.isAuthenticated) {
+        signalRService.setAccessToken(apiClient.accessToken);
+        signalRService.connect();
+        debugPrint('SignalR connecting on app start');
+      }
     } catch (e) {
       debugPrint('Error loading settings: $e');
     }
