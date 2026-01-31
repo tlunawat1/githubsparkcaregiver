@@ -157,7 +157,7 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Reminder updated')),
         );
-        context.pop();
+        context.pop(true); // Return true to indicate reminder was modified
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -214,7 +214,7 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Reminder deleted')),
           );
-          context.pop();
+          context.pop(true); // Return true to indicate reminder was modified
         }
       } on ApiException catch (e) {
         if (mounted) {

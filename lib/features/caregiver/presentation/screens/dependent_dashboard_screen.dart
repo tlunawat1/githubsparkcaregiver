@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -25,16 +27,50 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
   final _userApi = getIt<UserApi>();
   final _reminderApi = getIt<ReminderApi>();
   final _reminderInstanceApi = getIt<ReminderInstanceApi>();
+  final _signalRService = getIt<SignalRService>();
 
   UserSearchResult? _dependent;
   List<ReminderData> _reminders = [];
   List<ReminderInstanceData> _todayInstances = [];
   bool _isLoading = true;
+  StreamSubscription<SignalREvent>? _signalRSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _setupSignalRListeners();
+    _subscribeToDependent();
+  }
+
+  @override
+  void dispose() {
+    _signalRSubscription?.cancel();
+    _unsubscribeFromDependent();
+    super.dispose();
+  }
+
+  void _subscribeToDependent() {
+    // Subscribe to real-time updates for this dependent
+    _signalRService.subscribeToDependent(widget.dependentId);
+  }
+
+  void _unsubscribeFromDependent() {
+    // Unsubscribe when leaving the screen
+    _signalRService.unsubscribeFromDependent(widget.dependentId);
+  }
+
+  void _setupSignalRListeners() {
+    _signalRSubscription = _signalRService.events.listen((event) {
+      // Refresh when dependent completes/snoozes a reminder or when instances change
+      if (event.type == SignalREventType.instanceStatusChanged ||
+          event.type == SignalREventType.instanceCreated ||
+          event.type == SignalREventType.reminderCreated ||
+          event.type == SignalREventType.reminderUpdated ||
+          event.type == SignalREventType.reminderDeleted) {
+        _loadData();
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -136,7 +172,10 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
                             ),
                           ),
                           TextButton.icon(
-                            onPressed: () => context.goToAddReminder(widget.dependentId),
+                            onPressed: () async {
+                              final result = await context.goToAddReminder(widget.dependentId);
+                              if (result == true) _loadData();
+                            },
                             icon: const Icon(Icons.add),
                             label: const Text('Add'),
                           ),
@@ -151,7 +190,10 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
                         title: 'No Reminders',
                         message: 'Create a reminder to help ${_dependent?.name ?? 'your dependent'} stay on track.',
                         actionLabel: 'Add Reminder',
-                        onAction: () => context.goToAddReminder(widget.dependentId),
+                        onAction: () async {
+                          final result = await context.goToAddReminder(widget.dependentId);
+                          if (result == true) _loadData();
+                        },
                       ),
                     )
                   else
@@ -175,7 +217,10 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
               ),
             ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.goToAddReminder(widget.dependentId),
+        onPressed: () async {
+          final result = await context.goToAddReminder(widget.dependentId);
+          if (result == true) _loadData();
+        },
         icon: const Icon(Icons.add),
         label: const Text('Add Reminder'),
       ),
@@ -239,7 +284,10 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
       priority: reminder.priority == 'high'
           ? ReminderPriority.high
           : ReminderPriority.normal,
-      onTap: () => context.goToEditReminder(reminder.id),
+      onTap: () async {
+        final result = await context.goToEditReminder(reminder.id);
+        if (result == true) _loadData();
+      },
     );
   }
 
@@ -257,7 +305,10 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
     };
 
     return AccessibleCard(
-      onTap: () => context.goToEditReminder(reminder.id),
+      onTap: () async {
+        final result = await context.goToEditReminder(reminder.id);
+        if (result == true) _loadData();
+      },
       child: Row(
         children: [
           Container(

@@ -119,7 +119,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Reminder created')),
         );
-        context.pop();
+        context.pop(true); // Return true to indicate reminder was created
       }
     } on ApiException catch (e) {
       if (mounted) {

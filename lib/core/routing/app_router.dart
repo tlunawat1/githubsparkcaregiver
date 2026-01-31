@@ -240,12 +240,14 @@ extension GoRouterExtension on BuildContext {
     go('/caregiver/dependent/$dependentId');
   }
 
-  void goToAddReminder(String dependentId) {
-    go('/caregiver/dependent/$dependentId/add-reminder');
+  /// Navigate to add reminder and return true if a reminder was created
+  Future<bool?> goToAddReminder(String dependentId) {
+    return push<bool>('/caregiver/dependent/$dependentId/add-reminder');
   }
 
-  void goToEditReminder(String reminderId) {
-    go('/caregiver/reminder/$reminderId/edit');
+  /// Navigate to edit reminder and return true if the reminder was modified
+  Future<bool?> goToEditReminder(String reminderId) {
+    return push<bool>('/caregiver/reminder/$reminderId/edit');
   }
 
   void goToEmergencyContacts(String dependentId) {
