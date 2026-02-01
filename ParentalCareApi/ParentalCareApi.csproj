@@ -17,6 +17,14 @@
     <PackageReference Include="Azure.Storage.Blobs" Version="12.19.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <!-- Hangfire for persistent job scheduling -->
+    <PackageReference Include="Hangfire.Core" Version="1.8.14" />
+    <PackageReference Include="Hangfire.SqlServer" Version="1.8.14" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.14" />
+    <!-- Firebase Admin SDK for push notifications -->
+    <PackageReference Include="FirebaseAdmin" Version="3.0.0" />
+    <!-- NodaTime for timezone handling -->
+    <PackageReference Include="NodaTime" Version="3.1.11" />
   </ItemGroup>
 
 </Project>

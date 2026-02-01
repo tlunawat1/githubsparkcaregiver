@@ -7,6 +7,7 @@ using ParentalCareApi.Data;
 using ParentalCareApi.DTOs;
 using ParentalCareApi.Hubs;
 using ParentalCareApi.Models;
+using ParentalCareApi.Services;
 
 namespace ParentalCareApi.Controllers;
 
@@ -17,15 +18,18 @@ public class ReminderInstancesController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IHubContext<SyncHub> _hubContext;
+    private readonly INotificationJobService _notificationJobService;
     private readonly ILogger<ReminderInstancesController> _logger;
 
     public ReminderInstancesController(
         AppDbContext context,
         IHubContext<SyncHub> hubContext,
+        INotificationJobService notificationJobService,
         ILogger<ReminderInstancesController> logger)
     {
         _context = context;
         _hubContext = hubContext;
+        _notificationJobService = notificationJobService;
         _logger = logger;
     }
 
@@ -185,6 +189,9 @@ public class ReminderInstancesController : ControllerBase
         _context.ReminderInstances.Add(instance);
         await _context.SaveChangesAsync();
 
+        // Schedule notification jobs for this instance
+        await _notificationJobService.ScheduleNotificationJobsAsync(instance.Id, request.ScheduledTime);
+
         // Load the reminder for the DTO
         await _context.Entry(instance).Reference(i => i.Reminder).LoadAsync();
 
@@ -227,6 +234,10 @@ public class ReminderInstancesController : ControllerBase
 
         instance.Status = "completed";
         instance.CompletedAt = DateTime.UtcNow;
+
+        // Cancel any pending notification jobs
+        await _notificationJobService.CancelNotificationJobsAsync(id);
+
         await _context.SaveChangesAsync();
 
         // Notify via SignalR
@@ -234,7 +245,7 @@ public class ReminderInstancesController : ControllerBase
         await _hubContext.SendToUserAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
         await _hubContext.SendToCaregiversOfDependentAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
 
-        _logger.LogInformation("Instance {InstanceId} marked as completed", id);
+        _logger.LogInformation("Instance {InstanceId} marked as completed, notification jobs cancelled", id);
 
         return Ok(dto);
     }
@@ -304,6 +315,10 @@ public class ReminderInstancesController : ControllerBase
         }
 
         instance.Status = "missed";
+
+        // Cancel any pending notification jobs
+        await _notificationJobService.CancelNotificationJobsAsync(id);
+
         await _context.SaveChangesAsync();
 
         // Notify via SignalR
@@ -311,7 +326,7 @@ public class ReminderInstancesController : ControllerBase
         await _hubContext.SendToUserAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
         await _hubContext.SendToCaregiversOfDependentAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
 
-        _logger.LogInformation("Instance {InstanceId} marked as missed", id);
+        _logger.LogInformation("Instance {InstanceId} marked as missed, notification jobs cancelled", id);
 
         return Ok(dto);
     }

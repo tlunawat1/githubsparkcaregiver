@@ -49,12 +49,15 @@ public class User
     public DateTime? LastLoginAt { get; set; }
 
     [StringLength(500)]
-    public string? DeviceToken { get; set; } // For push notifications
+    public string? DeviceToken { get; set; } // For push notifications (legacy - use UserDeviceTokens)
 
     [StringLength(500)]
     public string? RefreshToken { get; set; }
 
     public DateTime? RefreshTokenExpiry { get; set; }
+
+    [StringLength(50)]
+    public string Timezone { get; set; } = "UTC"; // IANA timezone (e.g., "America/New_York")
 
     // Navigation properties
     [InverseProperty("Caregiver")]
@@ -66,4 +69,5 @@ public class User
     public ICollection<Reminder> CreatedReminders { get; set; } = new List<Reminder>();
     public ICollection<Reminder> AssignedReminders { get; set; } = new List<Reminder>();
     public ICollection<SosEvent> SosEvents { get; set; } = new List<SosEvent>();
+    public ICollection<UserDeviceToken> DeviceTokens { get; set; } = new List<UserDeviceToken>();
 }

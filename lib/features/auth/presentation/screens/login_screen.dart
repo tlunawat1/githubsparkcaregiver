@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/services/fcm_service.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 
@@ -211,6 +212,17 @@ class _LoginScreenState extends State<LoginScreen> {
         .hasMatch(email);
   }
 
+  Future<void> _registerFcmToken() async {
+    try {
+      final fcmService = FcmService(getIt<UserApi>());
+      await fcmService.initialize();
+      await fcmService.registerDeviceToken();
+      debugPrint('FCM token registered after login');
+    } catch (e) {
+      debugPrint('Error registering FCM token: $e');
+    }
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -260,6 +272,9 @@ class _LoginScreenState extends State<LoginScreen> {
       // Connect SignalR for real-time updates
       _signalRService.setAccessToken(_apiClient.accessToken);
       _signalRService.connect();
+
+      // Register FCM token for push notifications
+      _registerFcmToken();
 
       debugPrint('Login successful - User role: "${user.role}", navigating to ${user.role == 'caregiver' ? 'caregiverHome' : 'dependentHome'}');
 
@@ -439,6 +454,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Connect SignalR for real-time updates
                       _signalRService.setAccessToken(_apiClient.accessToken);
                       _signalRService.connect();
+
+                      // Register FCM token for push notifications
+                      _registerFcmToken();
 
                       HapticFeedback.mediumImpact();
 

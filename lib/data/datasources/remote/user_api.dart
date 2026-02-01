@@ -83,11 +83,54 @@ class UserApi {
     return UserSearchResult.fromJson(response);
   }
 
-  /// Update device token for push notifications
+  /// Update device token for push notifications (legacy endpoint)
   Future<void> updateDeviceToken(String deviceToken) async {
     await _client.put(
       '/api/users/device-token',
       body: {'deviceToken': deviceToken},
     );
+  }
+
+  /// Register device token for push notifications (multi-device support)
+  Future<void> registerDeviceToken({
+    required String token,
+    required String platform,
+    String? deviceName,
+    String? appVersion,
+  }) async {
+    await _client.post(
+      '/api/device-tokens',
+      body: {
+        'token': token,
+        'platform': platform,
+        if (deviceName != null) 'deviceName': deviceName,
+        if (appVersion != null) 'appVersion': appVersion,
+      },
+    );
+  }
+
+  /// Invalidate device token (e.g., on logout)
+  Future<void> invalidateDeviceToken(String token) async {
+    await _client.post(
+      '/api/device-tokens/invalidate',
+      body: {'token': token},
+    );
+  }
+
+  /// Logout device - invalidate token and clear session
+  Future<void> logoutDevice(String token) async {
+    await _client.post(
+      '/api/device-tokens/logout',
+      body: {'token': token},
+    );
+  }
+
+  /// Update user timezone
+  Future<UserData> updateTimezone(String timezone) async {
+    final response = await _client.put(
+      '/api/users/me',
+      body: {'timezone': timezone},
+    );
+    return UserData.fromJson(response);
   }
 }

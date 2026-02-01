@@ -27,6 +27,8 @@ public class ReminderInstance
     [Required]
     public int EscalationLevel { get; set; } = 0; // 0, 1, 2
 
+    public string? NotificationJobIds { get; set; } // JSON array of Hangfire job IDs for cancellation
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation property

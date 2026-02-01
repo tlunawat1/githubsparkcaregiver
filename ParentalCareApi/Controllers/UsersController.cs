@@ -41,6 +41,7 @@ public class UsersController : ControllerBase
             user.UniqueCode,
             user.AvatarUrl,
             user.EmailVerified,
+            user.Timezone,
             user.CreatedAt,
             user.LastLoginAt
         ));
@@ -66,6 +67,9 @@ public class UsersController : ControllerBase
         if (request.AvatarUrl != null)
             user.AvatarUrl = request.AvatarUrl;
 
+        if (!string.IsNullOrWhiteSpace(request.Timezone))
+            user.Timezone = request.Timezone;
+
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -79,6 +83,7 @@ public class UsersController : ControllerBase
             user.UniqueCode,
             user.AvatarUrl,
             user.EmailVerified,
+            user.Timezone,
             user.CreatedAt,
             user.LastLoginAt
         ));

@@ -53,13 +53,13 @@ public class ReminderInstanceBackgroundService : BackgroundService
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<SyncHub>>();
-        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+        var notificationJobService = scope.ServiceProvider.GetRequiredService<INotificationJobService>();
 
-        // Mark missed instances
+        // Mark missed instances (backup - Hangfire should handle this, but this is a fallback)
         await MarkMissedInstancesAsync(context, hubContext, stoppingToken);
 
         // Generate future instances for recurring reminders
-        await GenerateFutureInstancesAsync(context, hubContext, stoppingToken);
+        await GenerateFutureInstancesAsync(context, hubContext, notificationJobService, stoppingToken);
     }
 
     private async Task MarkMissedInstancesAsync(
@@ -109,6 +109,7 @@ public class ReminderInstanceBackgroundService : BackgroundService
     private async Task GenerateFutureInstancesAsync(
         AppDbContext context,
         IHubContext<SyncHub> hubContext,
+        INotificationJobService notificationJobService,
         CancellationToken stoppingToken)
     {
         var today = DateTime.UtcNow.Date;
@@ -116,6 +117,7 @@ public class ReminderInstanceBackgroundService : BackgroundService
 
         // Get all active recurring reminders
         var recurringReminders = await context.Reminders
+            .Include(r => r.Dependent)
             .Where(r => r.IsActive &&
                         r.RepeatPattern != "once" &&
                         (r.EndDate == null || r.EndDate >= today))
@@ -123,13 +125,14 @@ public class ReminderInstanceBackgroundService : BackgroundService
 
         foreach (var reminder in recurringReminders)
         {
-            await GenerateInstancesForReminderAsync(context, hubContext, reminder, today, windowEnd, stoppingToken);
+            await GenerateInstancesForReminderAsync(context, hubContext, notificationJobService, reminder, today, windowEnd, stoppingToken);
         }
     }
 
     private async Task GenerateInstancesForReminderAsync(
         AppDbContext context,
         IHubContext<SyncHub> hubContext,
+        INotificationJobService notificationJobService,
         Reminder reminder,
         DateTime today,
         DateTime windowEnd,
@@ -146,6 +149,9 @@ public class ReminderInstanceBackgroundService : BackgroundService
         var endDate = reminder.EndDate?.Date ?? windowEnd;
         endDate = endDate < windowEnd ? endDate : windowEnd;
 
+        // Get dependent's timezone for proper UTC conversion
+        var timezone = reminder.Dependent?.Timezone ?? "UTC";
+
         var newInstances = new List<ReminderInstance>();
 
         switch (reminder.RepeatPattern.ToLower())
@@ -155,7 +161,7 @@ public class ReminderInstanceBackgroundService : BackgroundService
                 {
                     if (!existingDateSet.Contains(date))
                     {
-                        newInstances.Add(CreateInstance(reminder, date));
+                        newInstances.Add(CreateInstance(reminder, date, timezone));
                     }
                 }
                 break;
@@ -166,7 +172,7 @@ public class ReminderInstanceBackgroundService : BackgroundService
                 {
                     if (date.DayOfWeek == targetDayOfWeek && !existingDateSet.Contains(date))
                     {
-                        newInstances.Add(CreateInstance(reminder, date));
+                        newInstances.Add(CreateInstance(reminder, date, timezone));
                     }
                 }
                 break;
@@ -181,7 +187,7 @@ public class ReminderInstanceBackgroundService : BackgroundService
                         {
                             if (days.Contains((int)date.DayOfWeek) && !existingDateSet.Contains(date))
                             {
-                                newInstances.Add(CreateInstance(reminder, date));
+                                newInstances.Add(CreateInstance(reminder, date, timezone));
                             }
                         }
                     }
@@ -199,9 +205,12 @@ public class ReminderInstanceBackgroundService : BackgroundService
             await context.SaveChangesAsync(stoppingToken);
             _logger.LogInformation("Generated {Count} new instances for reminder {ReminderId}", newInstances.Count, reminder.Id);
 
-            // Notify dependent about new instances
+            // Schedule notification jobs and notify dependent about new instances
             foreach (var instance in newInstances)
             {
+                // Schedule Hangfire notification jobs
+                await notificationJobService.ScheduleNotificationJobsAsync(instance.Id, instance.ScheduledTime);
+
                 var instanceDto = new
                 {
                     instance.Id,
@@ -222,13 +231,25 @@ public class ReminderInstanceBackgroundService : BackgroundService
         }
     }
 
-    private static ReminderInstance CreateInstance(Reminder reminder, DateTime date)
+    /// <summary>
+    /// Creates a ReminderInstance with proper timezone conversion.
+    /// The ScheduledTime is stored in UTC.
+    /// </summary>
+    private static ReminderInstance CreateInstance(Reminder reminder, DateTime date, string timezone)
     {
+        // Convert local time to UTC using the dependent's timezone
+        var scheduledTimeUtc = NotificationJobService.ConvertToUtc(
+            reminder.Hour,
+            reminder.Minute,
+            date,
+            timezone
+        );
+
         return new ReminderInstance
         {
             Id = Guid.NewGuid().ToString(),
             ReminderId = reminder.Id,
-            ScheduledTime = date.AddHours(reminder.Hour).AddMinutes(reminder.Minute),
+            ScheduledTime = scheduledTimeUtc,
             Status = "pending",
             EscalationLevel = 0,
             CreatedAt = DateTime.UtcNow

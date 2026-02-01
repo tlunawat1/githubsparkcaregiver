@@ -19,17 +19,20 @@ public class RemindersController : ControllerBase
     private readonly AppDbContext _context;
     private readonly IHubContext<SyncHub> _hubContext;
     private readonly INotificationService _notificationService;
+    private readonly INotificationJobService _notificationJobService;
     private readonly ILogger<RemindersController> _logger;
 
     public RemindersController(
         AppDbContext context,
         IHubContext<SyncHub> hubContext,
         INotificationService notificationService,
+        INotificationJobService notificationJobService,
         ILogger<RemindersController> logger)
     {
         _context = context;
         _hubContext = hubContext;
         _notificationService = notificationService;
+        _notificationJobService = notificationJobService;
         _logger = logger;
     }
 
@@ -290,6 +293,10 @@ public class RemindersController : ControllerBase
         var updatedInstances = new List<ReminderInstance>();
         if (timeChanged)
         {
+            // Get dependent's timezone for proper UTC conversion
+            var dependent = await _context.Users.FindAsync(reminder.DependentId);
+            var timezone = dependent?.Timezone ?? "UTC";
+
             // Get all instances for this reminder (today and future)
             var today = DateTime.UtcNow.Date;
             var instances = await _context.ReminderInstances
@@ -300,18 +307,33 @@ public class RemindersController : ControllerBase
 
             foreach (var instance in instances)
             {
-                // Update the scheduled time keeping the same date but with new hour/minute
+                // Cancel existing notification jobs
+                await _notificationJobService.CancelNotificationJobsAsync(instance.Id);
+
+                // Update the scheduled time with proper timezone conversion
                 var date = instance.ScheduledTime.Date;
-                var newScheduledTime = date.AddHours(reminder.Hour).AddMinutes(reminder.Minute);
+                var newScheduledTime = NotificationJobService.ConvertToUtc(
+                    reminder.Hour,
+                    reminder.Minute,
+                    date,
+                    timezone
+                );
                 instance.ScheduledTime = newScheduledTime;
 
-                // If new time is in the future, reset status to pending
-                if (newScheduledTime > now && instance.Status != "pending")
+                // If new time is in the future, reset status to pending and schedule new jobs
+                if (newScheduledTime > now)
                 {
-                    instance.Status = "pending";
-                    instance.CompletedAt = null;
-                    instance.SnoozedUntil = null;
-                    _logger.LogInformation("Reset instance {InstanceId} to pending (new time {NewTime} is in future)", instance.Id, newScheduledTime);
+                    if (instance.Status != "pending")
+                    {
+                        instance.Status = "pending";
+                        instance.CompletedAt = null;
+                        instance.SnoozedUntil = null;
+                        instance.EscalationLevel = 0;
+                        _logger.LogInformation("Reset instance {InstanceId} to pending (new time {NewTime} is in future)", instance.Id, newScheduledTime);
+                    }
+
+                    // Schedule new notification jobs
+                    await _notificationJobService.ScheduleNotificationJobsAsync(instance.Id, newScheduledTime);
                 }
 
                 updatedInstances.Add(instance);
@@ -409,6 +431,7 @@ public class RemindersController : ControllerBase
     /// <summary>
     /// Generates ReminderInstance records based on the reminder's repeat pattern.
     /// Creates instances for a 7-day rolling window.
+    /// Uses the dependent's timezone to correctly schedule notifications.
     /// </summary>
     private async Task<List<ReminderInstance>> GenerateInstancesForReminder(Reminder reminder)
     {
@@ -417,6 +440,10 @@ public class RemindersController : ControllerBase
         var startDate = reminder.StartDate.Date >= today ? reminder.StartDate.Date : today;
         var endDate = reminder.EndDate?.Date ?? today.AddDays(7);
         var windowEnd = today.AddDays(7);
+
+        // Get dependent's timezone for proper UTC conversion
+        var dependent = await _context.Users.FindAsync(reminder.DependentId);
+        var timezone = dependent?.Timezone ?? "UTC";
 
         // Don't generate past the window or the reminder's end date
         endDate = endDate < windowEnd ? endDate : windowEnd;
@@ -427,7 +454,7 @@ public class RemindersController : ControllerBase
                 // Create single instance for the start date
                 if (reminder.StartDate.Date >= today && reminder.StartDate.Date <= windowEnd)
                 {
-                    instances.Add(CreateInstance(reminder, reminder.StartDate.Date));
+                    instances.Add(CreateInstance(reminder, reminder.StartDate.Date, timezone));
                 }
                 break;
 
@@ -435,7 +462,7 @@ public class RemindersController : ControllerBase
                 // Create instances for each day in the window
                 for (var date = startDate; date <= endDate; date = date.AddDays(1))
                 {
-                    instances.Add(CreateInstance(reminder, date));
+                    instances.Add(CreateInstance(reminder, date, timezone));
                 }
                 break;
 
@@ -446,7 +473,7 @@ public class RemindersController : ControllerBase
                 {
                     if (date.DayOfWeek == targetDayOfWeek)
                     {
-                        instances.Add(CreateInstance(reminder, date));
+                        instances.Add(CreateInstance(reminder, date, timezone));
                     }
                 }
                 break;
@@ -463,7 +490,7 @@ public class RemindersController : ControllerBase
                         {
                             if (days.Contains((int)date.DayOfWeek))
                             {
-                                instances.Add(CreateInstance(reminder, date));
+                                instances.Add(CreateInstance(reminder, date, timezone));
                             }
                         }
                     }
@@ -480,18 +507,36 @@ public class RemindersController : ControllerBase
             _context.ReminderInstances.AddRange(instances);
             await _context.SaveChangesAsync();
             _logger.LogInformation("Created {Count} instances for reminder {ReminderId}", instances.Count, reminder.Id);
+
+            // Schedule Hangfire notification jobs for each instance
+            foreach (var instance in instances)
+            {
+                await _notificationJobService.ScheduleNotificationJobsAsync(instance.Id, instance.ScheduledTime);
+            }
         }
 
         return instances;
     }
 
-    private static ReminderInstance CreateInstance(Reminder reminder, DateTime date)
+    /// <summary>
+    /// Creates a ReminderInstance with proper timezone conversion.
+    /// The ScheduledTime is stored in UTC.
+    /// </summary>
+    private static ReminderInstance CreateInstance(Reminder reminder, DateTime date, string timezone)
     {
+        // Convert local time to UTC using the dependent's timezone
+        var scheduledTimeUtc = NotificationJobService.ConvertToUtc(
+            reminder.Hour,
+            reminder.Minute,
+            date,
+            timezone
+        );
+
         return new ReminderInstance
         {
             Id = Guid.NewGuid().ToString(),
             ReminderId = reminder.Id,
-            ScheduledTime = date.AddHours(reminder.Hour).AddMinutes(reminder.Minute),
+            ScheduledTime = scheduledTimeUtc,
             Status = "pending",
             EscalationLevel = 0,
             CreatedAt = DateTime.UtcNow

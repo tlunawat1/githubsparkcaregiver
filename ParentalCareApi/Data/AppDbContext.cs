@@ -14,6 +14,8 @@ public class AppDbContext : DbContext
     public DbSet<Reminder> Reminders { get; set; }
     public DbSet<ReminderInstance> ReminderInstances { get; set; }
     public DbSet<SosEvent> SosEvents { get; set; }
+    public DbSet<UserDeviceToken> UserDeviceTokens { get; set; }
+    public DbSet<NotificationLog> NotificationLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -90,6 +92,38 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.ReminderId);
             entity.HasIndex(e => e.ScheduledTime);
             entity.HasIndex(e => new { e.ReminderId, e.ScheduledTime });
+        });
+
+        // UserDeviceToken configuration
+        modelBuilder.Entity<UserDeviceToken>(entity =>
+        {
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.DeviceTokens)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Token);
+            entity.HasIndex(e => new { e.UserId, e.IsValid });
+        });
+
+        // NotificationLog configuration
+        modelBuilder.Entity<NotificationLog>(entity =>
+        {
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.DeviceToken)
+                .WithMany()
+                .HasForeignKey(e => e.DeviceTokenId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+            entity.HasIndex(e => new { e.ReferenceId, e.Type });
         });
     }
 }

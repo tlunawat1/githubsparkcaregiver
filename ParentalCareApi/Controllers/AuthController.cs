@@ -245,6 +245,7 @@ public class AuthController : ControllerBase
                 user.UniqueCode,
                 user.AvatarUrl,
                 user.EmailVerified,
+                user.Timezone,
                 user.CreatedAt,
                 user.LastLoginAt
             )

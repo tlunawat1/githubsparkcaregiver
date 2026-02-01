@@ -11,6 +11,7 @@ public record UserDto(
     string UniqueCode,
     string? AvatarUrl,
     bool EmailVerified,
+    string Timezone,
     DateTime CreatedAt,
     DateTime? LastLoginAt
 );
@@ -18,7 +19,8 @@ public record UserDto(
 public record UpdateUserRequest(
     string? Name,
     string? PhoneNumber,
-    string? AvatarUrl
+    string? AvatarUrl,
+    string? Timezone
 );
 
 public record UpdateDeviceTokenRequest(
