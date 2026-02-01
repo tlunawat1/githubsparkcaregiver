@@ -189,19 +189,32 @@ public class ReminderInstancesController : ControllerBase
         _context.ReminderInstances.Add(instance);
         await _context.SaveChangesAsync();
 
-        // Schedule notification jobs for this instance
-        await _notificationJobService.ScheduleNotificationJobsAsync(instance.Id, request.ScheduledTime);
-
         // Load the reminder for the DTO
         await _context.Entry(instance).Reference(i => i.Reminder).LoadAsync();
 
-        // Notify via SignalR
-        await _hubContext.SendToUserAsync(reminder.DependentId, "InstanceCreated", MapToDto(instance));
-        await _hubContext.SendToCaregiversOfDependentAsync(reminder.DependentId, "InstanceCreated", MapToDto(instance));
+        var dto = MapToDto(instance);
+        var instanceId = instance.Id;
+        var scheduledTime = request.ScheduledTime;
 
-        _logger.LogInformation("Created instance {InstanceId} for reminder {ReminderId}", instance.Id, request.ReminderId);
+        // SignalR notifications - send to both dependent and caregivers
+        await _hubContext.SendInstanceCreatedAsync(reminder.DependentId, dto);
 
-        return CreatedAtAction(nameof(GetInstance), new { id = instance.Id }, MapToDto(instance));
+        // Fire-and-forget: Schedule notification jobs (slow Hangfire operation)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _notificationJobService.ScheduleNotificationJobsAsync(instanceId, scheduledTime);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to schedule notification jobs for instance {InstanceId}", instanceId);
+            }
+        });
+
+        _logger.LogInformation("Created instance {InstanceId} for reminder {ReminderId}", instanceId, request.ReminderId);
+
+        return CreatedAtAction(nameof(GetInstance), new { id = instanceId }, dto);
     }
 
     /// <summary>
@@ -235,17 +248,31 @@ public class ReminderInstancesController : ControllerBase
         instance.Status = "completed";
         instance.CompletedAt = DateTime.UtcNow;
 
-        // Cancel any pending notification jobs
-        await _notificationJobService.CancelNotificationJobsAsync(id);
-
+        // Save the critical state change immediately
         await _context.SaveChangesAsync();
 
-        // Notify via SignalR
         var dto = MapToDto(instance);
-        await _hubContext.SendToUserAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
-        await _hubContext.SendToCaregiversOfDependentAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
+        var dependentId = instance.Reminder.DependentId;
 
-        _logger.LogInformation("Instance {InstanceId} marked as completed, notification jobs cancelled", id);
+        _logger.LogInformation("Sending InstanceStatusChanged for {InstanceId} to dependent {DependentId} and caregivers", id, dependentId);
+
+        // SignalR notifications - send to both dependent and caregivers
+        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto);
+
+        // Fire-and-forget: Cancel notification jobs (slow Hangfire operation)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _notificationJobService.CancelNotificationJobsAsync(id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to cancel notification jobs for instance {InstanceId}", id);
+            }
+        });
+
+        _logger.LogInformation("Instance {InstanceId} marked as completed", id);
 
         return Ok(dto);
     }
@@ -282,10 +309,10 @@ public class ReminderInstancesController : ControllerBase
         instance.SnoozedUntil = request.SnoozedUntil;
         await _context.SaveChangesAsync();
 
-        // Notify via SignalR
         var dto = MapToDto(instance);
-        await _hubContext.SendToUserAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
-        await _hubContext.SendToCaregiversOfDependentAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
+
+        // SignalR notifications - send to both dependent and caregivers
+        await _hubContext.SendInstanceStatusChangedAsync(instance.Reminder.DependentId, dto);
 
         _logger.LogInformation("Instance {InstanceId} snoozed until {SnoozedUntil}", id, request.SnoozedUntil);
 
@@ -316,17 +343,29 @@ public class ReminderInstancesController : ControllerBase
 
         instance.Status = "missed";
 
-        // Cancel any pending notification jobs
-        await _notificationJobService.CancelNotificationJobsAsync(id);
-
+        // Save the critical state change immediately
         await _context.SaveChangesAsync();
 
-        // Notify via SignalR
         var dto = MapToDto(instance);
-        await _hubContext.SendToUserAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
-        await _hubContext.SendToCaregiversOfDependentAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
+        var dependentId = instance.Reminder.DependentId;
 
-        _logger.LogInformation("Instance {InstanceId} marked as missed, notification jobs cancelled", id);
+        // SignalR notifications - send to both dependent and caregivers
+        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto);
+
+        // Fire-and-forget: Cancel notification jobs (slow Hangfire operation)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _notificationJobService.CancelNotificationJobsAsync(id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to cancel notification jobs for instance {InstanceId}", id);
+            }
+        });
+
+        _logger.LogInformation("Instance {InstanceId} marked as missed", id);
 
         return Ok(dto);
     }
@@ -361,10 +400,10 @@ public class ReminderInstancesController : ControllerBase
         instance.EscalationLevel++;
         await _context.SaveChangesAsync();
 
-        // Notify via SignalR
         var dto = MapToDto(instance);
-        await _hubContext.SendToUserAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
-        await _hubContext.SendToCaregiversOfDependentAsync(instance.Reminder.DependentId, "InstanceStatusChanged", dto);
+
+        // SignalR notifications - send to both dependent and caregivers
+        await _hubContext.SendInstanceStatusChangedAsync(instance.Reminder.DependentId, dto);
 
         _logger.LogInformation("Instance {InstanceId} escalated to level {Level}", id, instance.EscalationLevel);
 

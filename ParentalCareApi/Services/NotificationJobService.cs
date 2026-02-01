@@ -242,6 +242,154 @@ public class NotificationJobService : INotificationJobService
         }
     }
 
+    public async Task ProcessReminderNotificationsAsync(string reminderId)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var instances = await context.ReminderInstances
+            .Where(i => i.ReminderId == reminderId && i.ScheduledTime > DateTime.UtcNow)
+            .ToListAsync();
+
+        if (instances.Count == 0)
+        {
+            _logger.LogInformation("No future instances found for reminder {ReminderId}", reminderId);
+            return;
+        }
+
+        var escalationDelay = _configuration.GetValue<int>("Notifications:EscalationDelayMinutes", 5);
+        var autoMissDelay = _configuration.GetValue<int>("Notifications:AutoMissDelayMinutes", 30);
+
+        foreach (var instance in instances)
+        {
+            var jobIds = new List<string>();
+            var scheduledTimeUtc = instance.ScheduledTime;
+
+            // Initial notification at scheduled time
+            var job1 = BackgroundJob.Schedule<INotificationJobService>(
+                x => x.SendReminderNotificationAsync(instance.Id, 0),
+                scheduledTimeUtc
+            );
+            jobIds.Add(job1);
+
+            // Escalation 1: +5 minutes
+            var job2 = BackgroundJob.Schedule<INotificationJobService>(
+                x => x.SendEscalatedNotificationAsync(instance.Id, 1),
+                scheduledTimeUtc.AddMinutes(escalationDelay)
+            );
+            jobIds.Add(job2);
+
+            // Escalation 2: +10 minutes
+            var job3 = BackgroundJob.Schedule<INotificationJobService>(
+                x => x.SendEscalatedNotificationAsync(instance.Id, 2),
+                scheduledTimeUtc.AddMinutes(escalationDelay * 2)
+            );
+            jobIds.Add(job3);
+
+            // Auto-miss: +30 minutes
+            var job4 = BackgroundJob.Schedule<INotificationJobService>(
+                x => x.MarkAsMissedAsync(instance.Id),
+                scheduledTimeUtc.AddMinutes(autoMissDelay)
+            );
+            jobIds.Add(job4);
+
+            instance.NotificationJobIds = JsonSerializer.Serialize(jobIds);
+        }
+
+        // Single batch save for all job IDs
+        await context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Scheduled notification jobs for {Count} instances of reminder {ReminderId}",
+            instances.Count, reminderId);
+    }
+
+    public async Task RescheduleReminderNotificationsAsync(string reminderId)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var instances = await context.ReminderInstances
+            .Where(i => i.ReminderId == reminderId && i.ScheduledTime > DateTime.UtcNow)
+            .ToListAsync();
+
+        if (instances.Count == 0)
+        {
+            _logger.LogInformation("No future instances found for reminder {ReminderId} to reschedule", reminderId);
+            return;
+        }
+
+        // Cancel all existing jobs first
+        foreach (var instance in instances)
+        {
+            if (!string.IsNullOrEmpty(instance.NotificationJobIds))
+            {
+                try
+                {
+                    var oldJobIds = JsonSerializer.Deserialize<List<string>>(instance.NotificationJobIds);
+                    if (oldJobIds != null)
+                    {
+                        foreach (var jobId in oldJobIds)
+                        {
+                            BackgroundJob.Delete(jobId);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error parsing job IDs for instance {InstanceId}", instance.Id);
+                }
+            }
+        }
+
+        var escalationDelay = _configuration.GetValue<int>("Notifications:EscalationDelayMinutes", 5);
+        var autoMissDelay = _configuration.GetValue<int>("Notifications:AutoMissDelayMinutes", 30);
+
+        // Schedule new jobs for all instances
+        foreach (var instance in instances)
+        {
+            var jobIds = new List<string>();
+            var scheduledTimeUtc = instance.ScheduledTime;
+
+            // Initial notification at scheduled time
+            var job1 = BackgroundJob.Schedule<INotificationJobService>(
+                x => x.SendReminderNotificationAsync(instance.Id, 0),
+                scheduledTimeUtc
+            );
+            jobIds.Add(job1);
+
+            // Escalation 1: +5 minutes
+            var job2 = BackgroundJob.Schedule<INotificationJobService>(
+                x => x.SendEscalatedNotificationAsync(instance.Id, 1),
+                scheduledTimeUtc.AddMinutes(escalationDelay)
+            );
+            jobIds.Add(job2);
+
+            // Escalation 2: +10 minutes
+            var job3 = BackgroundJob.Schedule<INotificationJobService>(
+                x => x.SendEscalatedNotificationAsync(instance.Id, 2),
+                scheduledTimeUtc.AddMinutes(escalationDelay * 2)
+            );
+            jobIds.Add(job3);
+
+            // Auto-miss: +30 minutes
+            var job4 = BackgroundJob.Schedule<INotificationJobService>(
+                x => x.MarkAsMissedAsync(instance.Id),
+                scheduledTimeUtc.AddMinutes(autoMissDelay)
+            );
+            jobIds.Add(job4);
+
+            instance.NotificationJobIds = JsonSerializer.Serialize(jobIds);
+        }
+
+        // Single batch save for all job IDs
+        await context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Rescheduled notification jobs for {Count} instances of reminder {ReminderId}",
+            instances.Count, reminderId);
+    }
+
     private string GetNotificationTitle(string reminderTitle, int escalationLevel)
     {
         return escalationLevel switch

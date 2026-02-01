@@ -8,15 +8,14 @@ namespace ParentalCareApi.Services;
 
 /// <summary>
 /// Background service that manages reminder instances:
-/// - Marks pending instances as "missed" if 30 minutes past scheduled time
 /// - Generates future instances for recurring reminders (rolling 7-day window)
+/// Note: Auto-miss functionality is handled by Hangfire scheduled jobs for each instance.
 /// </summary>
 public class ReminderInstanceBackgroundService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ReminderInstanceBackgroundService> _logger;
     private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan MissedThreshold = TimeSpan.FromMinutes(30);
     private const int RollingWindowDays = 7;
 
     public ReminderInstanceBackgroundService(
@@ -55,55 +54,8 @@ public class ReminderInstanceBackgroundService : BackgroundService
         var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<SyncHub>>();
         var notificationJobService = scope.ServiceProvider.GetRequiredService<INotificationJobService>();
 
-        // Mark missed instances (backup - Hangfire should handle this, but this is a fallback)
-        await MarkMissedInstancesAsync(context, hubContext, stoppingToken);
-
         // Generate future instances for recurring reminders
         await GenerateFutureInstancesAsync(context, hubContext, notificationJobService, stoppingToken);
-    }
-
-    private async Task MarkMissedInstancesAsync(
-        AppDbContext context,
-        IHubContext<SyncHub> hubContext,
-        CancellationToken stoppingToken)
-    {
-        var cutoffTime = DateTime.UtcNow.Subtract(MissedThreshold);
-
-        var pendingInstances = await context.ReminderInstances
-            .Include(i => i.Reminder)
-            .Where(i => i.Status == "pending" && i.ScheduledTime < cutoffTime)
-            .ToListAsync(stoppingToken);
-
-        if (pendingInstances.Count == 0) return;
-
-        _logger.LogInformation("Marking {Count} instances as missed", pendingInstances.Count);
-
-        foreach (var instance in pendingInstances)
-        {
-            instance.Status = "missed";
-
-            var instanceDto = new
-            {
-                instance.Id,
-                instance.ReminderId,
-                instance.ScheduledTime,
-                instance.Status,
-                instance.CompletedAt,
-                instance.SnoozedUntil,
-                instance.EscalationLevel,
-                instance.CreatedAt,
-                ReminderTitle = instance.Reminder?.Title,
-                ReminderDescription = instance.Reminder?.Description,
-                VoiceNoteUrl = instance.Reminder?.VoiceNoteUrl,
-                Priority = instance.Reminder?.Priority
-            };
-
-            await hubContext.SendInstanceStatusChangedAsync(
-                instance.Reminder?.DependentId ?? "",
-                instanceDto);
-        }
-
-        await context.SaveChangesAsync(stoppingToken);
     }
 
     private async Task GenerateFutureInstancesAsync(
