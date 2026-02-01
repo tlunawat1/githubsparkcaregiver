@@ -253,11 +253,24 @@ public class RemindersController : ControllerBase
         if (request.RepeatDays != null)
             reminder.RepeatDays = request.RepeatDays;
 
+        // Track if time changed to update instances
+        var timeChanged = false;
+        var oldHour = reminder.Hour;
+        var oldMinute = reminder.Minute;
+
         if (request.Hour.HasValue)
+        {
+            if (reminder.Hour != request.Hour.Value)
+                timeChanged = true;
             reminder.Hour = request.Hour.Value;
+        }
 
         if (request.Minute.HasValue)
+        {
+            if (reminder.Minute != request.Minute.Value)
+                timeChanged = true;
             reminder.Minute = request.Minute.Value;
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Priority))
             reminder.Priority = request.Priority;
@@ -273,12 +286,67 @@ public class RemindersController : ControllerBase
 
         reminder.UpdatedAt = DateTime.UtcNow;
 
+        // Update all instances if time changed
+        var updatedInstances = new List<ReminderInstance>();
+        if (timeChanged)
+        {
+            // Get all instances for this reminder (today and future)
+            var today = DateTime.UtcNow.Date;
+            var instances = await _context.ReminderInstances
+                .Where(i => i.ReminderId == id && i.ScheduledTime.Date >= today)
+                .ToListAsync();
+
+            var now = DateTime.UtcNow;
+
+            foreach (var instance in instances)
+            {
+                // Update the scheduled time keeping the same date but with new hour/minute
+                var date = instance.ScheduledTime.Date;
+                var newScheduledTime = date.AddHours(reminder.Hour).AddMinutes(reminder.Minute);
+                instance.ScheduledTime = newScheduledTime;
+
+                // If new time is in the future, reset status to pending
+                if (newScheduledTime > now && instance.Status != "pending")
+                {
+                    instance.Status = "pending";
+                    instance.CompletedAt = null;
+                    instance.SnoozedUntil = null;
+                    _logger.LogInformation("Reset instance {InstanceId} to pending (new time {NewTime} is in future)", instance.Id, newScheduledTime);
+                }
+
+                updatedInstances.Add(instance);
+            }
+
+            _logger.LogInformation("Updated {Count} instances with new time for reminder {Id}", instances.Count, id);
+        }
+
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Reminder updated: {Id}", id);
 
         // Notify dependent via SignalR
         await _hubContext.Clients.User(reminder.DependentId).SendAsync("ReminderUpdated", MapToDto(reminder));
+
+        // Notify about updated instances so dependent screen refreshes with new status
+        foreach (var instance in updatedInstances)
+        {
+            var instanceDto = new
+            {
+                instance.Id,
+                instance.ReminderId,
+                instance.ScheduledTime,
+                instance.Status,
+                instance.CompletedAt,
+                instance.SnoozedUntil,
+                instance.EscalationLevel,
+                instance.CreatedAt,
+                ReminderTitle = reminder.Title,
+                ReminderDescription = reminder.Description,
+                VoiceNoteUrl = reminder.VoiceNoteUrl,
+                Priority = reminder.Priority
+            };
+            await _hubContext.Clients.User(reminder.DependentId).SendAsync("InstanceStatusChanged", instanceDto);
+        }
 
         return Ok(MapToDto(reminder));
     }

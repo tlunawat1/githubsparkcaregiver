@@ -280,7 +280,18 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
       _ => ReminderStatus.pending,
     };
 
-    final time = DateFormat.jm().format(instance.scheduledTime);
+    // For pending instances, use reminder template time as fallback
+    // (in case backend hasn't updated instance time yet)
+    final displayTime = instance.status == 'pending'
+        ? DateTime(
+            instance.scheduledTime.year,
+            instance.scheduledTime.month,
+            instance.scheduledTime.day,
+            reminder.hour,
+            reminder.minute,
+          )
+        : instance.scheduledTime;
+    final time = DateFormat.jm().format(displayTime);
 
     return ReminderCard(
       title: reminder.title,

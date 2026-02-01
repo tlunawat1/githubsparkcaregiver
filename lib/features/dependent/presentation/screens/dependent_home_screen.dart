@@ -271,12 +271,23 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                     orElse: () => null,
                                   );
 
+                                  // For pending instances, use reminder template time
+                                  // (workaround for backend not updating instance time on edit)
+                                  final displayTime = instance.status == 'pending' && reminder != null
+                                      ? DateTime(
+                                          instance.scheduledTime.year,
+                                          instance.scheduledTime.month,
+                                          instance.scheduledTime.day,
+                                          reminder.hour,
+                                          reminder.minute,
+                                        )
+                                      : instance.scheduledTime;
+
                                   return ReminderButton(
                                     title: reminder?.title ??
                                         instance.reminderTitle ??
                                         'Reminder',
-                                    time: DateFormat.jm()
-                                        .format(instance.scheduledTime),
+                                    time: DateFormat.jm().format(displayTime),
                                     status: _getInstanceStatus(instance.status),
                                     hasVoiceNote: (reminder?.voiceNoteUrl ??
                                             instance.voiceNoteUrl) !=
