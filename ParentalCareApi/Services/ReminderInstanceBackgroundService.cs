@@ -157,6 +157,12 @@ public class ReminderInstanceBackgroundService : BackgroundService
             await context.SaveChangesAsync(stoppingToken);
             _logger.LogInformation("Generated {Count} new instances for reminder {ReminderId}", newInstances.Count, reminder.Id);
 
+            // Query caregivers directly from database to ensure SignalR delivery
+            var caregiverIds = await context.CareRelationships
+                .Where(cr => cr.DependentId == reminder.DependentId && cr.Status == "active")
+                .Select(cr => cr.CaregiverId)
+                .ToListAsync(stoppingToken);
+
             // Schedule notification jobs and notify dependent about new instances
             foreach (var instance in newInstances)
             {
@@ -178,7 +184,7 @@ public class ReminderInstanceBackgroundService : BackgroundService
                     VoiceNoteUrl = reminder.VoiceNoteUrl,
                     Priority = reminder.Priority
                 };
-                await hubContext.SendInstanceCreatedAsync(reminder.DependentId, instanceDto);
+                await hubContext.SendInstanceCreatedAsync(reminder.DependentId, instanceDto, caregiverIds);
             }
         }
     }

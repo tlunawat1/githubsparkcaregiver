@@ -100,7 +100,7 @@ public static class SyncHubExtensions
         await hubContext.Clients.User(userId).SendAsync(method, arg);
     }
 
-    // Send to all caregivers of a dependent
+    // Send to all caregivers of a dependent (via group - may be empty if caregivers disconnected)
     public static async Task SendToCaregiversOfDependentAsync(
         this IHubContext<SyncHub> hubContext,
         string dependentId,
@@ -110,27 +110,51 @@ public static class SyncHubExtensions
         await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync(method, arg);
     }
 
-    // Send instance status changed event to both dependent and their caregivers
+    // Send instance status changed event to dependent and their caregivers
+    // Uses direct user IDs instead of groups to ensure delivery even after reconnection
     public static async Task SendInstanceStatusChangedAsync(
         this IHubContext<SyncHub> hubContext,
         string dependentId,
-        object instanceDto)
+        object instanceDto,
+        IEnumerable<string>? caregiverIds = null)
     {
         // Send to dependent user
         await hubContext.Clients.User(dependentId).SendAsync("InstanceStatusChanged", instanceDto);
-        // Send to caregivers group
+
+        // Send directly to each caregiver by user ID (reliable even after reconnection)
+        if (caregiverIds != null)
+        {
+            foreach (var caregiverId in caregiverIds)
+            {
+                await hubContext.Clients.User(caregiverId).SendAsync("InstanceStatusChanged", instanceDto);
+            }
+        }
+
+        // Also send to group as fallback (for any caregivers who are subscribed)
         await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceStatusChanged", instanceDto);
     }
 
-    // Send instance created event to both dependent and their caregivers
+    // Send instance created event to dependent and their caregivers
+    // Uses direct user IDs instead of groups to ensure delivery even after reconnection
     public static async Task SendInstanceCreatedAsync(
         this IHubContext<SyncHub> hubContext,
         string dependentId,
-        object instanceDto)
+        object instanceDto,
+        IEnumerable<string>? caregiverIds = null)
     {
         // Send to dependent user
         await hubContext.Clients.User(dependentId).SendAsync("InstanceCreated", instanceDto);
-        // Send to caregivers group
+
+        // Send directly to each caregiver by user ID (reliable even after reconnection)
+        if (caregiverIds != null)
+        {
+            foreach (var caregiverId in caregiverIds)
+            {
+                await hubContext.Clients.User(caregiverId).SendAsync("InstanceCreated", instanceDto);
+            }
+        }
+
+        // Also send to group as fallback (for any caregivers who are subscribed)
         await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceCreated", instanceDto);
     }
 }

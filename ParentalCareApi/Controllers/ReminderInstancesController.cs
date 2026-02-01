@@ -195,9 +195,16 @@ public class ReminderInstancesController : ControllerBase
         var dto = MapToDto(instance);
         var instanceId = instance.Id;
         var scheduledTime = request.ScheduledTime;
+        var dependentId = reminder.DependentId;
 
-        // SignalR notifications - send to both dependent and caregivers
-        await _hubContext.SendInstanceCreatedAsync(reminder.DependentId, dto);
+        // Query caregivers directly from database to ensure SignalR delivery
+        var caregiverIds = await _context.CareRelationships
+            .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
+            .Select(cr => cr.CaregiverId)
+            .ToListAsync();
+
+        // SignalR notifications - send to both dependent and caregivers by user ID
+        await _hubContext.SendInstanceCreatedAsync(dependentId, dto, caregiverIds);
 
         // Fire-and-forget: Schedule notification jobs (slow Hangfire operation)
         _ = Task.Run(async () =>
@@ -254,10 +261,18 @@ public class ReminderInstancesController : ControllerBase
         var dto = MapToDto(instance);
         var dependentId = instance.Reminder.DependentId;
 
-        _logger.LogInformation("Sending InstanceStatusChanged for {InstanceId} to dependent {DependentId} and caregivers", id, dependentId);
+        // Query caregivers directly from database to ensure SignalR delivery
+        // (group membership is lost when caregivers disconnect/reconnect)
+        var caregiverIds = await _context.CareRelationships
+            .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
+            .Select(cr => cr.CaregiverId)
+            .ToListAsync();
 
-        // SignalR notifications - send to both dependent and caregivers
-        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto);
+        _logger.LogInformation("Sending InstanceStatusChanged for {InstanceId} to dependent {DependentId} and {CaregiverCount} caregivers",
+            id, dependentId, caregiverIds.Count);
+
+        // SignalR notifications - send to both dependent and caregivers by user ID
+        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
 
         // Fire-and-forget: Cancel notification jobs (slow Hangfire operation)
         _ = Task.Run(async () =>
@@ -310,9 +325,16 @@ public class ReminderInstancesController : ControllerBase
         await _context.SaveChangesAsync();
 
         var dto = MapToDto(instance);
+        var dependentId = instance.Reminder.DependentId;
 
-        // SignalR notifications - send to both dependent and caregivers
-        await _hubContext.SendInstanceStatusChangedAsync(instance.Reminder.DependentId, dto);
+        // Query caregivers directly from database to ensure SignalR delivery
+        var caregiverIds = await _context.CareRelationships
+            .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
+            .Select(cr => cr.CaregiverId)
+            .ToListAsync();
+
+        // SignalR notifications - send to both dependent and caregivers by user ID
+        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
 
         _logger.LogInformation("Instance {InstanceId} snoozed until {SnoozedUntil}", id, request.SnoozedUntil);
 
@@ -349,8 +371,14 @@ public class ReminderInstancesController : ControllerBase
         var dto = MapToDto(instance);
         var dependentId = instance.Reminder.DependentId;
 
-        // SignalR notifications - send to both dependent and caregivers
-        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto);
+        // Query caregivers directly from database to ensure SignalR delivery
+        var caregiverIds = await _context.CareRelationships
+            .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
+            .Select(cr => cr.CaregiverId)
+            .ToListAsync();
+
+        // SignalR notifications - send to both dependent and caregivers by user ID
+        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
 
         // Fire-and-forget: Cancel notification jobs (slow Hangfire operation)
         _ = Task.Run(async () =>
@@ -401,9 +429,16 @@ public class ReminderInstancesController : ControllerBase
         await _context.SaveChangesAsync();
 
         var dto = MapToDto(instance);
+        var dependentId = instance.Reminder.DependentId;
 
-        // SignalR notifications - send to both dependent and caregivers
-        await _hubContext.SendInstanceStatusChangedAsync(instance.Reminder.DependentId, dto);
+        // Query caregivers directly from database to ensure SignalR delivery
+        var caregiverIds = await _context.CareRelationships
+            .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
+            .Select(cr => cr.CaregiverId)
+            .ToListAsync();
+
+        // SignalR notifications - send to both dependent and caregivers by user ID
+        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
 
         _logger.LogInformation("Instance {InstanceId} escalated to level {Level}", id, instance.EscalationLevel);
 

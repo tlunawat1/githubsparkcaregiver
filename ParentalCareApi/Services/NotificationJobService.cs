@@ -77,14 +77,30 @@ public class NotificationJobService : INotificationJobService
             instance.EscalationLevel = escalationLevel;
             await context.SaveChangesAsync();
 
-            // Notify via SignalR
-            var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<SyncHub>>();
-            await hubContext.Clients.Group($"user:{dependent.Id}").SendAsync("InstanceStatusChanged", new
+            // Query caregivers directly from database to ensure SignalR delivery
+            var caregiverIds = await context.CareRelationships
+                .Where(cr => cr.DependentId == dependent.Id && cr.Status == "active")
+                .Select(cr => cr.CaregiverId)
+                .ToListAsync();
+
+            var instanceDto = new
             {
                 instanceId = instance.Id,
                 status = instance.Status,
                 escalationLevel = instance.EscalationLevel
-            });
+            };
+
+            // Notify via SignalR - send directly to dependent and each caregiver
+            var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<SyncHub>>();
+            await hubContext.Clients.User(dependent.Id).SendAsync("InstanceStatusChanged", instanceDto);
+
+            foreach (var caregiverId in caregiverIds)
+            {
+                await hubContext.Clients.User(caregiverId).SendAsync("InstanceStatusChanged", instanceDto);
+            }
+
+            // Also send to group as fallback
+            await hubContext.Clients.Group($"dependent:{dependent.Id}").SendAsync("InstanceStatusChanged", instanceDto);
         }
 
         _logger.LogInformation(
@@ -128,24 +144,35 @@ public class NotificationJobService : INotificationJobService
         instance.Status = "missed";
         await context.SaveChangesAsync();
 
-        // Notify via SignalR
+        var dependentId = instance.Reminder.DependentId;
+
+        // Query caregivers directly from database to ensure SignalR delivery
+        var caregiverIds = await context.CareRelationships
+            .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
+            .Select(cr => cr.CaregiverId)
+            .ToListAsync();
+
+        var instanceDto = new
+        {
+            instanceId = instance.Id,
+            status = instance.Status,
+            escalationLevel = instance.EscalationLevel
+        };
+
+        // Notify via SignalR - send directly to dependent and each caregiver
         var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<SyncHub>>();
-        await hubContext.Clients.Group($"user:{instance.Reminder.DependentId}").SendAsync("InstanceStatusChanged", new
-        {
-            instanceId = instance.Id,
-            status = instance.Status,
-            escalationLevel = instance.EscalationLevel
-        });
+        await hubContext.Clients.User(dependentId).SendAsync("InstanceStatusChanged", instanceDto);
 
-        // Also notify caregivers
-        await hubContext.Clients.Group($"dependent:{instance.Reminder.DependentId}").SendAsync("InstanceStatusChanged", new
+        foreach (var caregiverId in caregiverIds)
         {
-            instanceId = instance.Id,
-            status = instance.Status,
-            escalationLevel = instance.EscalationLevel
-        });
+            await hubContext.Clients.User(caregiverId).SendAsync("InstanceStatusChanged", instanceDto);
+        }
 
-        _logger.LogInformation("Auto-marked instance {InstanceId} as missed", instanceId);
+        // Also send to group as fallback
+        await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceStatusChanged", instanceDto);
+
+        _logger.LogInformation("Auto-marked instance {InstanceId} as missed, notified dependent and {CaregiverCount} caregivers",
+            instanceId, caregiverIds.Count);
     }
 
     public async Task ScheduleNotificationJobsAsync(string instanceId, DateTime scheduledTimeUtc)

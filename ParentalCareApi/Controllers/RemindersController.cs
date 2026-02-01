@@ -21,6 +21,7 @@ public class RemindersController : ControllerBase
     private readonly IHubContext<SyncHub> _hubContext;
     private readonly INotificationService _notificationService;
     private readonly INotificationJobService _notificationJobService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<RemindersController> _logger;
 
     public RemindersController(
@@ -28,12 +29,14 @@ public class RemindersController : ControllerBase
         IHubContext<SyncHub> hubContext,
         INotificationService notificationService,
         INotificationJobService notificationJobService,
+        IServiceScopeFactory scopeFactory,
         ILogger<RemindersController> logger)
     {
         _context = context;
         _hubContext = hubContext;
         _notificationService = notificationService;
         _notificationJobService = notificationJobService;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -185,11 +188,21 @@ public class RemindersController : ControllerBase
         // Enqueue background job to schedule all notification jobs (decoupled from HTTP request)
         BackgroundJob.Enqueue<INotificationJobService>(x => x.ProcessReminderNotificationsAsync(reminderId));
 
-        // SignalR notifications - must await to ensure dependent receives instant UI update
-        await _hubContext.Clients.User(dependentId).SendAsync("ReminderCreated", reminderDto);
+        // Query caregivers directly from database to ensure SignalR delivery
+        var caregiverIds = await _context.CareRelationships
+            .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
+            .Select(cr => cr.CaregiverId)
+            .ToListAsync();
 
-        // Notify about created instances - fire-and-forget for better response time
-        var instanceNotificationTasks = instances.Select(instance =>
+        // SignalR: Send ReminderCreated to dependent
+        _logger.LogInformation("Sending ReminderCreated SignalR to dependent {DependentId}", dependentId);
+        await _hubContext.Clients.User(dependentId).SendAsync("ReminderCreated", reminderDto);
+        _logger.LogInformation("ReminderCreated SignalR sent successfully to dependent {DependentId}", dependentId);
+
+        // SignalR: Notify about created instances - MUST await to ensure delivery
+        _logger.LogInformation("Sending {Count} InstanceCreated SignalR notifications to dependent {DependentId} and {CaregiverCount} caregivers",
+            instances.Count, dependentId, caregiverIds.Count);
+        foreach (var instance in instances)
         {
             var instanceDto = new
             {
@@ -206,27 +219,30 @@ public class RemindersController : ControllerBase
                 VoiceNoteUrl = reminder.VoiceNoteUrl,
                 Priority = reminder.Priority
             };
-            return _hubContext.SendInstanceCreatedAsync(dependentId, instanceDto);
-        });
-        // Fire all SignalR notifications in parallel (non-blocking)
-        _ = Task.WhenAll(instanceNotificationTasks);
+            await _hubContext.SendInstanceCreatedAsync(dependentId, instanceDto, caregiverIds);
+        }
+        _logger.LogInformation("All InstanceCreated SignalR notifications sent successfully");
 
         // Fire-and-forget: Push notification (external Firebase API call - slow)
+        // Use IServiceScopeFactory instead of HttpContext.RequestServices to avoid ObjectDisposedException
+        var scopeFactory = _scopeFactory;
+        var notificationService = _notificationService;
+        var reminderTitle = reminder.Title;
         _ = Task.Run(async () =>
         {
             try
             {
-                using var scope = HttpContext.RequestServices.CreateScope();
+                using var scope = scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
                 var dependent = await context.Users.FindAsync(dependentId);
                 if (!string.IsNullOrEmpty(dependent?.DeviceToken))
                 {
                     var creator = await context.Users.FindAsync(userId);
-                    await _notificationService.SendPushNotificationAsync(
+                    await notificationService.SendPushNotificationAsync(
                         dependent.DeviceToken,
                         "New Reminder",
-                        $"{creator?.Name ?? "Your caregiver"} created a reminder: {reminder.Title}",
+                        $"{creator?.Name ?? "Your caregiver"} created a reminder: {reminderTitle}",
                         new Dictionary<string, string>
                         {
                             { "type", "reminder_created" },
@@ -373,31 +389,43 @@ public class RemindersController : ControllerBase
         var reminderDto = MapToDto(reminder);
         var dependentId = reminder.DependentId;
 
-        // SignalR notifications - must await to ensure delivery
-        await _hubContext.Clients.User(dependentId).SendAsync("ReminderUpdated", reminderDto);
+        // Query caregivers directly from database to ensure SignalR delivery
+        var caregiverIds = await _context.CareRelationships
+            .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
+            .Select(cr => cr.CaregiverId)
+            .ToListAsync();
 
-        // Notify about updated instances - fire-and-forget for better response time
-        var instanceNotificationTasks = updatedInstances.Select(instance =>
+        // SignalR: Send ReminderUpdated to dependent
+        _logger.LogInformation("Sending ReminderUpdated SignalR to dependent {DependentId}", dependentId);
+        await _hubContext.Clients.User(dependentId).SendAsync("ReminderUpdated", reminderDto);
+        _logger.LogInformation("ReminderUpdated SignalR sent successfully to dependent {DependentId}", dependentId);
+
+        // SignalR: Notify about updated instances - MUST await to ensure delivery
+        if (updatedInstances.Count > 0)
         {
-            var instanceDto = new
+            _logger.LogInformation("Sending {Count} InstanceStatusChanged SignalR notifications to dependent {DependentId} and {CaregiverCount} caregivers",
+                updatedInstances.Count, dependentId, caregiverIds.Count);
+            foreach (var instance in updatedInstances)
             {
-                instance.Id,
-                instance.ReminderId,
-                instance.ScheduledTime,
-                instance.Status,
-                instance.CompletedAt,
-                instance.SnoozedUntil,
-                instance.EscalationLevel,
-                instance.CreatedAt,
-                ReminderTitle = reminder.Title,
-                ReminderDescription = reminder.Description,
-                VoiceNoteUrl = reminder.VoiceNoteUrl,
-                Priority = reminder.Priority
-            };
-            return _hubContext.Clients.User(dependentId).SendAsync("InstanceStatusChanged", instanceDto);
-        });
-        // Fire all SignalR notifications in parallel (non-blocking)
-        _ = Task.WhenAll(instanceNotificationTasks);
+                var instanceDto = new
+                {
+                    instance.Id,
+                    instance.ReminderId,
+                    instance.ScheduledTime,
+                    instance.Status,
+                    instance.CompletedAt,
+                    instance.SnoozedUntil,
+                    instance.EscalationLevel,
+                    instance.CreatedAt,
+                    ReminderTitle = reminder.Title,
+                    ReminderDescription = reminder.Description,
+                    VoiceNoteUrl = reminder.VoiceNoteUrl,
+                    Priority = reminder.Priority
+                };
+                await _hubContext.SendInstanceStatusChangedAsync(dependentId, instanceDto, caregiverIds);
+            }
+            _logger.LogInformation("All InstanceStatusChanged SignalR notifications sent successfully");
+        }
 
         return Ok(reminderDto);
     }
