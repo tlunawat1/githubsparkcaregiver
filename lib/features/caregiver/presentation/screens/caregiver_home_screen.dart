@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -18,20 +20,70 @@ class CaregiverHomeScreen extends StatefulWidget {
   State<CaregiverHomeScreen> createState() => _CaregiverHomeScreenState();
 }
 
-class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
+class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
+    with WidgetsBindingObserver {
   final _userApi = getIt<UserApi>();
   final _relationshipApi = getIt<RelationshipApi>();
   final _settingsRepository = getIt<SettingsRepository>();
+  final _signalRService = getIt<SignalRService>();
 
   UserData? _currentUser;
   List<RelationshipData> _relationships = [];
   bool _isLoading = true;
   String _themeMode = 'system';
+  
+  StreamSubscription<SignalREvent>? _signalRSubscription;
+  StreamSubscription<SignalRConnectionState>? _connectionStateSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
+    _setupSignalRListeners();
+    _setupConnectionStateListener();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _signalRSubscription?.cancel();
+    _connectionStateSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('CaregiverHomeScreen: App resumed, refreshing data');
+      _loadData();
+    }
+  }
+
+  void _setupConnectionStateListener() {
+    _connectionStateSubscription = _signalRService.connectionState.listen((state) {
+      debugPrint('CaregiverHomeScreen: SignalR connection state changed to $state');
+      
+      if (state == SignalRConnectionState.connected) {
+        // Connection restored - refresh data
+        debugPrint('CaregiverHomeScreen: Connection restored, refreshing data');
+        _loadData();
+      }
+    });
+  }
+
+  void _setupSignalRListeners() {
+    _signalRSubscription = _signalRService.events.listen((event) {
+      debugPrint('CaregiverHomeScreen: Received SignalR event: ${event.type}');
+      
+      // Refresh on relationship changes
+      if (event.type == SignalREventType.linkVerified ||
+          event.type == SignalREventType.linkRequestReceived ||
+          event.type == SignalREventType.linkRemoved) {
+        debugPrint('CaregiverHomeScreen: Refreshing data due to ${event.type}');
+        _loadData();
+      }
+    });
   }
 
   Future<void> _loadData() async {

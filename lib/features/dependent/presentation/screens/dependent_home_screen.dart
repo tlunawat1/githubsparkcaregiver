@@ -44,6 +44,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   String _themeMode = 'system';
   Set<String> _completingInstances = {};
   StreamSubscription<SignalREvent>? _signalRSubscription;
+  StreamSubscription<SignalRConnectionState>? _connectionStateSubscription;
 
   @override
   void initState() {
@@ -51,31 +52,42 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     WidgetsBinding.instance.addObserver(this);
     _loadData();
     _setupSignalRListeners();
+    _setupConnectionStateListener();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _signalRSubscription?.cancel();
+    _connectionStateSubscription?.cancel();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      debugPrint('DependentHomeScreen: App resumed, refreshing data');
       // Refresh data when app comes to foreground
+      // SignalR connection will be handled by app-level lifecycle observer
       _loadData();
     }
+  }
+
+  void _setupConnectionStateListener() {
+    _connectionStateSubscription = _signalRService.connectionState.listen((state) {
+      debugPrint('DependentHomeScreen: SignalR connection state changed to $state');
+      
+      if (state == SignalRConnectionState.connected) {
+        // Connection restored - refresh data to get any updates we missed
+        debugPrint('DependentHomeScreen: Connection restored, refreshing data');
+        _loadData();
+      }
+    });
   }
 
   void _setupSignalRListeners() {
     debugPrint('DependentHomeScreen: Setting up SignalR listeners');
     debugPrint('DependentHomeScreen: SignalR isConnected=${_signalRService.isConnected}');
-
-    // Also listen for connection state changes
-    _signalRService.connectionState.listen((state) {
-      debugPrint('DependentHomeScreen: SignalR connection state changed to $state');
-    });
 
     _signalRSubscription = _signalRService.events.listen((event) {
       debugPrint('DependentHomeScreen: Received SignalR event: ${event.type}');
@@ -83,7 +95,9 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
           event.type == SignalREventType.instanceStatusChanged ||
           event.type == SignalREventType.reminderCreated ||
           event.type == SignalREventType.reminderUpdated ||
-          event.type == SignalREventType.reminderDeleted) {
+          event.type == SignalREventType.reminderDeleted ||
+          event.type == SignalREventType.linkVerified ||
+          event.type == SignalREventType.linkRequestReceived) {
         debugPrint('DependentHomeScreen: Refreshing data due to ${event.type}');
         _loadData();
       }

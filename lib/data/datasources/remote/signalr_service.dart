@@ -45,6 +45,7 @@ class SignalRService {
   static const String _defaultHubUrl = 'https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net/hubs/sync';
   static const Duration _reconnectDelay = Duration(seconds: 5);
   static const int _maxReconnectAttempts = 10;
+  static const int _maxSubscriptionRetries = 3;
 
   final String hubUrl;
   HubConnection? _connection;
@@ -54,6 +55,12 @@ class SignalRService {
   int _reconnectAttempts = 0;
   Timer? _reconnectTimer;
   Timer? _pingTimer;
+
+  // Subscription tracking for restoration after reconnection
+  final Set<String> _subscribedDependents = {};
+  
+  // Pending subscriptions that failed and need retry
+  final Set<String> _pendingSubscriptions = {};
 
   // Stream controllers for events
   final _connectionStateController =
@@ -67,6 +74,9 @@ class SignalRService {
 
   SignalRConnectionState get currentState => _connectionState;
   bool get isConnected => _connectionState == SignalRConnectionState.connected;
+  
+  /// Get list of currently subscribed dependents (for debugging)
+  Set<String> get subscribedDependents => Set.unmodifiable(_subscribedDependents);
 
   SignalRService({String? hubUrl}) : hubUrl = hubUrl ?? _defaultHubUrl;
 
@@ -112,9 +122,12 @@ class SignalRService {
       });
 
       _connection!.onreconnected(({connectionId}) {
+        debugPrint('SignalR: Reconnected with connectionId: $connectionId');
         _updateState(SignalRConnectionState.connected);
         _reconnectAttempts = 0;
         _startPing();
+        // Restore subscriptions after reconnection
+        _restoreSubscriptions();
       });
 
       debugPrint('SignalR: Starting connection to $hubUrl');
@@ -122,6 +135,10 @@ class SignalRService {
       _updateState(SignalRConnectionState.connected);
       _reconnectAttempts = 0;
       _startPing();
+      
+      // Restore any tracked subscriptions and process pending ones
+      _restoreSubscriptions();
+      _processPendingSubscriptions();
 
       debugPrint('SignalR: Connected successfully');
     } catch (e) {
@@ -132,7 +149,8 @@ class SignalRService {
   }
 
   /// Disconnect from SignalR hub
-  Future<void> disconnect() async {
+  /// Set [clearTracking] to true to also clear subscription tracking (e.g., on logout)
+  Future<void> disconnect({bool clearTracking = false}) async {
     _stopPing();
     _stopReconnect();
 
@@ -144,32 +162,145 @@ class SignalRService {
       }
       _connection = null;
     }
+    
+    if (clearTracking) {
+      clearSubscriptions();
+    }
 
     _updateState(SignalRConnectionState.disconnected);
   }
+  
+  /// Ensure connection is active, reconnect if needed
+  /// Returns true if connected, false if connection failed
+  Future<bool> ensureConnected() async {
+    if (isConnected) {
+      debugPrint('SignalR: Already connected');
+      return true;
+    }
+    
+    if (_accessToken == null || _accessToken!.isEmpty) {
+      debugPrint('SignalR: Cannot connect - no access token');
+      return false;
+    }
+    
+    debugPrint('SignalR: Connection not active, attempting to connect...');
+    await connect();
+    
+    // Wait a bit for connection to establish
+    int attempts = 0;
+    while (!isConnected && attempts < 10) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      attempts++;
+    }
+    
+    return isConnected;
+  }
 
   /// Subscribe to updates for a specific dependent (for caregivers)
-  Future<void> subscribeToDependent(String dependentId) async {
-    if (!isConnected) return;
+  /// Tracks the subscription for automatic restoration after reconnection
+  Future<bool> subscribeToDependent(String dependentId) async {
+    // Always track the subscription intent, even if not connected
+    _subscribedDependents.add(dependentId);
+    
+    if (!isConnected) {
+      // Queue for later when connected
+      _pendingSubscriptions.add(dependentId);
+      debugPrint('SignalR: Queued subscription to dependent: $dependentId (not connected)');
+      return false;
+    }
 
     try {
       await _connection!.invoke('SubscribeToDependent', args: [dependentId]);
-      debugPrint('Subscribed to dependent: $dependentId');
+      _pendingSubscriptions.remove(dependentId);
+      debugPrint('SignalR: Subscribed to dependent: $dependentId');
+      return true;
     } catch (e) {
-      debugPrint('Error subscribing to dependent: $e');
+      debugPrint('SignalR: Error subscribing to dependent $dependentId: $e');
+      _pendingSubscriptions.add(dependentId);
+      return false;
     }
   }
 
   /// Unsubscribe from dependent updates
+  /// Removes tracking so subscription won't be restored after reconnection
   Future<void> unsubscribeFromDependent(String dependentId) async {
-    if (!isConnected) return;
+    // Always remove from tracking
+    _subscribedDependents.remove(dependentId);
+    _pendingSubscriptions.remove(dependentId);
+    
+    if (!isConnected) {
+      debugPrint('SignalR: Removed subscription tracking for dependent: $dependentId (not connected)');
+      return;
+    }
 
     try {
       await _connection!.invoke('UnsubscribeFromDependent', args: [dependentId]);
-      debugPrint('Unsubscribed from dependent: $dependentId');
+      debugPrint('SignalR: Unsubscribed from dependent: $dependentId');
     } catch (e) {
-      debugPrint('Error unsubscribing from dependent: $e');
+      debugPrint('SignalR: Error unsubscribing from dependent $dependentId: $e');
     }
+  }
+  
+  /// Restore all tracked subscriptions after reconnection
+  Future<void> _restoreSubscriptions() async {
+    if (_subscribedDependents.isEmpty) {
+      debugPrint('SignalR: No subscriptions to restore');
+      return;
+    }
+    
+    debugPrint('SignalR: Restoring ${_subscribedDependents.length} subscriptions...');
+    
+    for (final dependentId in _subscribedDependents.toList()) {
+      await _subscribeWithRetry(dependentId);
+    }
+    
+    debugPrint('SignalR: Subscription restoration complete');
+  }
+  
+  /// Process any pending subscriptions that failed earlier
+  Future<void> _processPendingSubscriptions() async {
+    if (_pendingSubscriptions.isEmpty) return;
+    
+    debugPrint('SignalR: Processing ${_pendingSubscriptions.length} pending subscriptions...');
+    
+    final pending = _pendingSubscriptions.toList();
+    for (final dependentId in pending) {
+      await _subscribeWithRetry(dependentId);
+    }
+  }
+  
+  /// Subscribe with retry logic
+  Future<bool> _subscribeWithRetry(String dependentId, {int retries = 0}) async {
+    if (!isConnected) return false;
+    
+    try {
+      await _connection!.invoke('SubscribeToDependent', args: [dependentId]);
+      _pendingSubscriptions.remove(dependentId);
+      debugPrint('SignalR: Successfully subscribed to dependent: $dependentId');
+      return true;
+    } catch (e) {
+      debugPrint('SignalR: Subscription attempt ${retries + 1} failed for $dependentId: $e');
+      
+      if (retries < _maxSubscriptionRetries) {
+        await Future.delayed(Duration(milliseconds: 500 * (retries + 1)));
+        return _subscribeWithRetry(dependentId, retries: retries + 1);
+      }
+      
+      debugPrint('SignalR: Max retries reached for subscription to $dependentId');
+      return false;
+    }
+  }
+  
+  /// Check if currently subscribed to a dependent
+  bool isSubscribedToDependent(String dependentId) {
+    return _subscribedDependents.contains(dependentId);
+  }
+  
+  /// Clear all subscriptions (useful for logout)
+  void clearSubscriptions() {
+    _subscribedDependents.clear();
+    _pendingSubscriptions.clear();
+    debugPrint('SignalR: All subscriptions cleared');
   }
 
   /// Notify that user is online

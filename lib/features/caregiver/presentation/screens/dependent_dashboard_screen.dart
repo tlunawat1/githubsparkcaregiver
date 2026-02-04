@@ -23,7 +23,8 @@ class DependentDashboardScreen extends StatefulWidget {
   State<DependentDashboardScreen> createState() => _DependentDashboardScreenState();
 }
 
-class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
+class _DependentDashboardScreenState extends State<DependentDashboardScreen>
+    with WidgetsBindingObserver {
   final _userApi = getIt<UserApi>();
   final _reminderApi = getIt<ReminderApi>();
   final _reminderInstanceApi = getIt<ReminderInstanceApi>();
@@ -35,40 +36,72 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen> {
   bool _isLoading = true;
   bool _isInitialLoad = true;
   StreamSubscription<SignalREvent>? _signalRSubscription;
+  StreamSubscription<SignalRConnectionState>? _connectionStateSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
     _setupSignalRListeners();
+    _setupConnectionStateListener();
     _subscribeToDependent();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _signalRSubscription?.cancel();
+    _connectionStateSubscription?.cancel();
     _unsubscribeFromDependent();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('DependentDashboardScreen: App resumed, refreshing data');
+      _loadData();
+      // Subscription will be restored by SignalRService automatically
+    }
+  }
+
   void _subscribeToDependent() {
     // Subscribe to real-time updates for this dependent
+    // The SignalRService now tracks this subscription for restoration
+    debugPrint('DependentDashboardScreen: Subscribing to dependent ${widget.dependentId}');
     _signalRService.subscribeToDependent(widget.dependentId);
   }
 
   void _unsubscribeFromDependent() {
     // Unsubscribe when leaving the screen
+    debugPrint('DependentDashboardScreen: Unsubscribing from dependent ${widget.dependentId}');
     _signalRService.unsubscribeFromDependent(widget.dependentId);
+  }
+
+  void _setupConnectionStateListener() {
+    _connectionStateSubscription = _signalRService.connectionState.listen((state) {
+      debugPrint('DependentDashboardScreen: SignalR connection state changed to $state');
+      
+      if (state == SignalRConnectionState.connected) {
+        // Connection restored - subscription will be auto-restored by SignalRService
+        // Refresh data to ensure we have latest
+        debugPrint('DependentDashboardScreen: Connection restored, refreshing data');
+        _loadData();
+      }
+    });
   }
 
   void _setupSignalRListeners() {
     _signalRSubscription = _signalRService.events.listen((event) {
+      debugPrint('DependentDashboardScreen: Received SignalR event: ${event.type}');
       // Refresh when dependent completes/snoozes a reminder or when instances change
       if (event.type == SignalREventType.instanceStatusChanged ||
           event.type == SignalREventType.instanceCreated ||
           event.type == SignalREventType.reminderCreated ||
           event.type == SignalREventType.reminderUpdated ||
           event.type == SignalREventType.reminderDeleted) {
+        debugPrint('DependentDashboardScreen: Refreshing data due to ${event.type}');
         _loadData();
       }
     });

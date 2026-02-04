@@ -15,7 +15,8 @@ class ParentalCareApp extends StatefulWidget {
   State<ParentalCareApp> createState() => _ParentalCareAppState();
 }
 
-class _ParentalCareAppState extends State<ParentalCareApp> {
+class _ParentalCareAppState extends State<ParentalCareApp>
+    with WidgetsBindingObserver {
   late AppRouter _appRouter;
   bool _isLoading = true;
   bool _isOnboardingComplete = false;
@@ -24,7 +25,57 @@ class _ParentalCareAppState extends State<ParentalCareApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeApp();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.resumed) {
+      _onAppResumed();
+    } else if (state == AppLifecycleState.paused) {
+      debugPrint('App: Paused (going to background)');
+    }
+  }
+
+  /// Handle app resume from background
+  Future<void> _onAppResumed() async {
+    debugPrint('App: Resumed from background');
+    
+    final apiClient = getIt<ApiClient>();
+    final signalRService = getIt<SignalRService>();
+    
+    // Only manage SignalR if user is authenticated
+    if (apiClient.isAuthenticated) {
+      // Ensure SignalR is connected
+      final wasConnected = signalRService.isConnected;
+      debugPrint('App: SignalR was connected: $wasConnected');
+      
+      if (!wasConnected) {
+        debugPrint('App: Reconnecting SignalR after resume...');
+        signalRService.setAccessToken(apiClient.accessToken);
+        await signalRService.ensureConnected();
+      } else {
+        // Even if appears connected, verify by attempting a ping
+        // The connection might be stale
+        debugPrint('App: Verifying SignalR connection...');
+        try {
+          // Force a connection check by ensuring we're connected
+          await signalRService.ensureConnected();
+        } catch (e) {
+          debugPrint('App: SignalR verification failed, reconnecting: $e');
+          await signalRService.connect();
+        }
+      }
+    }
   }
 
   Future<void> _initializeApp() async {

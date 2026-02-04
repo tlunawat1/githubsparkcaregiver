@@ -30,6 +30,7 @@ A Flutter mobile application for caregivers and dependents to stay connected thr
 ## Prerequisites
 
 ### For Flutter App
+
 - Flutter SDK 3.x or later
 - Dart SDK 3.x or later
 - Xcode 15+ (for iOS development)
@@ -37,6 +38,7 @@ A Flutter mobile application for caregivers and dependents to stay connected thr
 - CocoaPods (for iOS dependencies)
 
 ### For Backend Development
+
 - .NET 8.0 SDK
 - Azure CLI (for deployment)
 - SQL Server or Azure SQL Database
@@ -67,6 +69,7 @@ cd ..
 ### 4. Run the App
 
 #### On iOS Simulator
+
 ```bash
 # List available simulators
 flutter devices
@@ -79,11 +82,13 @@ flutter run
 ```
 
 #### On Android Emulator
+
 ```bash
 flutter run -d android
 ```
 
 #### On Multiple Devices
+
 ```bash
 # Run on two simulators simultaneously
 flutter run -d <device-id-1> &
@@ -128,6 +133,7 @@ Base URL: https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azureweb
 ```
 
 #### Key Endpoints
+
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - Email/password login
 - `POST /api/auth/login-code` - Login with verification code
@@ -142,11 +148,13 @@ For development/testing, use verification code: `123456`
 ### Building for Production
 
 #### iOS
+
 ```bash
 flutter build ios --release
 ```
 
 #### Android
+
 ```bash
 flutter build apk --release
 # or for app bundle
@@ -189,6 +197,7 @@ static const String _defaultBaseUrl = 'https://your-api-url.azurewebsites.net';
 ### Environment Variables
 
 For backend, configure these in Azure App Settings or `appsettings.json`:
+
 - `ConnectionStrings__DefaultConnection` - Database connection
 - `Jwt__Key` - JWT signing key (32+ characters)
 - `Jwt__Issuer` - Token issuer name
@@ -197,11 +206,13 @@ For backend, configure these in Azure App Settings or `appsettings.json`:
 ## Testing
 
 ### Run Unit Tests
+
 ```bash
 flutter test
 ```
 
 ### Run Integration Tests
+
 ```bash
 flutter test integration_test/
 ```
@@ -222,6 +233,7 @@ Enable debug logging by checking console output during `flutter run`.
 ### Hot Reload
 
 While running:
+
 - Press `r` for hot reload
 - Press `R` for hot restart
 - Press `q` to quit
@@ -241,3 +253,23 @@ This project is proprietary software.
 ## Support
 
 For issues and questions, please open a GitHub issue.
+
+To deploy and build backend
+
+Bash(/opt/homebrew/opt/dotnet@8/bin/dotnet build /Users/pmagre/MobileApp/ParentalCareApi 2>&1)  
+ az webapp deploy --resource-group RemoteCaregiverRG --name RemoteCareGiver-api --src-path /Users/pmagre/MobileApp/ParentalCareApi/deploy.zip  
+ --type zip 2>&1
+
+https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net/health
+
+⏺ Bash(xcrun simctl uninstall 80F54299-B78B-4984-B72B-4BDF509AB26A com.parentalcare.parentalCareApp 2>/dev/null || echo "App not installed on iPhone
+17 Pro")
+
+⏺ Bash(xcrun simctl uninstall 7CA51281-D717-48D9-9E81-0348D3C11006 com.parentalcare.parentalCareApp 2>/dev/null || echo "App not installed on iPhone
+17")
+
+Bash(flutter run -d 80F54299-B78B-4984-B72B-4BDF509AB26A)
+
+⎿ Waiting…un simctl uninstall 80F54299-B78B-4984-B72B-4BDF509AB26A com.parentalcare.parentalCareApp && echo "✓ Uninstalled from iPhone 17 Pro")
+
+     Waiting…un simctl uninstall 7CA51281-D717-48D9-9E81-0348D3C11006 com.parentalcare.parentalCareApp && echo "✓ Uninstalled from iPhone 17")
