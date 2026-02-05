@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -280,6 +281,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       final password = _passwordController.text;
       final phone = _phoneController.text.trim();
 
+      // Detect device timezone
+      String? deviceTimezone;
+      try {
+        deviceTimezone = await FlutterTimezone.getLocalTimezone();
+      } catch (e) {
+        debugPrint('Could not detect timezone: $e');
+      }
+
       // Register via remote API
       final response = await _authApi.register(
         name: name,
@@ -287,6 +296,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         password: password,
         role: widget.role,
         phoneNumber: phone.isEmpty ? null : phone,
+        timezone: deviceTimezone,
       );
 
       HapticFeedback.mediumImpact();

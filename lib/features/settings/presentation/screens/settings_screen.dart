@@ -7,6 +7,7 @@ import '../../../../core/constants/app_config.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/accessible_card.dart';
 
@@ -20,10 +21,12 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _settingsRepository = getIt<SettingsRepository>();
+  final _userApi = getIt<UserApi>();
 
   String _userRole = '';
   String _userName = '';
   String _uniqueCode = '';
+  String _userTimezone = 'UTC';
   String _themeMode = 'system';
   bool _highContrast = false;
   bool _notificationSound = true;
@@ -49,6 +52,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final user = await getIt<UserRepository>().getUserById(userId);
         _userName = user?.name ?? '';
         _uniqueCode = user?.uniqueCode ?? '';
+
+        // Fetch timezone from API
+        try {
+          final userData = await _userApi.getCurrentUser();
+          _userTimezone = userData.timezone;
+        } catch (e) {
+          debugPrint('Error fetching user timezone: $e');
+        }
       }
     } catch (e) {
       debugPrint('Error loading settings: $e');
@@ -255,6 +266,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Timezone section
+          _buildSectionHeader('Time & Location'),
+          AccessibleCard(
+            child: ListTile(
+              leading: const Icon(Icons.schedule),
+              title: const Text('Timezone'),
+              subtitle: Text(_userTimezone),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                await context.push(AppRoutes.timezoneSettings);
+                // Reload settings when returning from timezone screen
+                _loadSettings();
+              },
             ),
           ),
           const SizedBox(height: AppSpacing.lg),

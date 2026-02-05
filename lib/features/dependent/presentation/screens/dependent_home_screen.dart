@@ -285,17 +285,18 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                     orElse: () => null,
                                   );
 
-                                  // For pending instances, use reminder template time
-                                  // (workaround for backend not updating instance time on edit)
+                                  // For pending instances, use reminder template time (hour/minute are in local time)
+                                  // For completed/missed instances, convert UTC scheduledTime to local time
+                                  final localScheduledTime = instance.scheduledTime.toLocal();
                                   final displayTime = instance.status == 'pending' && reminder != null
                                       ? DateTime(
-                                          instance.scheduledTime.year,
-                                          instance.scheduledTime.month,
-                                          instance.scheduledTime.day,
+                                          localScheduledTime.year,
+                                          localScheduledTime.month,
+                                          localScheduledTime.day,
                                           reminder.hour,
                                           reminder.minute,
                                         )
-                                      : instance.scheduledTime;
+                                      : localScheduledTime;
 
                                   return ReminderButton(
                                     title: reminder?.title ??
@@ -455,7 +456,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     ReminderDetailsModal.show(
       context,
       title: reminder?.title ?? instance.reminderTitle ?? 'Reminder',
-      scheduledTime: instance.scheduledTime,
+      scheduledTime: instance.scheduledTime.toLocal(),
       status: _getInstanceStatus(instance.status),
       description: reminder?.description ?? instance.reminderDescription,
       voiceNoteUrl: reminder?.voiceNoteUrl ?? instance.voiceNoteUrl,

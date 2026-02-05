@@ -10,6 +10,7 @@ class UserData {
   final String uniqueCode;
   final String? avatarUrl;
   final bool emailVerified;
+  final String timezone;
   final DateTime createdAt;
   final DateTime? lastLoginAt;
 
@@ -22,6 +23,7 @@ class UserData {
     required this.uniqueCode,
     this.avatarUrl,
     required this.emailVerified,
+    required this.timezone,
     required this.createdAt,
     this.lastLoginAt,
   });
@@ -36,6 +38,7 @@ class UserData {
       uniqueCode: json['uniqueCode'] as String,
       avatarUrl: json['avatarUrl'] as String?,
       emailVerified: json['emailVerified'] as bool? ?? false,
+      timezone: json['timezone'] as String? ?? 'UTC',
       createdAt: DateTime.parse(json['createdAt'] as String),
       lastLoginAt: json['lastLoginAt'] != null
           ? DateTime.parse(json['lastLoginAt'] as String)
@@ -52,6 +55,7 @@ class UserData {
         'uniqueCode': uniqueCode,
         'avatarUrl': avatarUrl,
         'emailVerified': emailVerified,
+        'timezone': timezone,
         'createdAt': createdAt.toIso8601String(),
         'lastLoginAt': lastLoginAt?.toIso8601String(),
       };
@@ -165,6 +169,7 @@ class AuthApi {
     required String password,
     required String role,
     String? phoneNumber,
+    String? timezone,
   }) async {
     final response = await _client.post(
       '/api/auth/register',
@@ -174,6 +179,7 @@ class AuthApi {
         'password': password,
         'role': role,
         if (phoneNumber != null) 'phoneNumber': phoneNumber,
+        if (timezone != null) 'timezone': timezone,
       },
       requiresAuth: false,
     );

@@ -313,17 +313,18 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
       _ => ReminderStatus.pending,
     };
 
-    // For pending instances, use reminder template time as fallback
-    // (in case backend hasn't updated instance time yet)
+    // For pending instances, use reminder template time (hour/minute are stored in local time)
+    // For completed/missed instances, convert UTC scheduledTime to local time for display
+    final localScheduledTime = instance.scheduledTime.toLocal();
     final displayTime = instance.status == 'pending'
         ? DateTime(
-            instance.scheduledTime.year,
-            instance.scheduledTime.month,
-            instance.scheduledTime.day,
+            localScheduledTime.year,
+            localScheduledTime.month,
+            localScheduledTime.day,
             reminder.hour,
             reminder.minute,
           )
-        : instance.scheduledTime;
+        : localScheduledTime;
     final time = DateFormat.jm().format(displayTime);
 
     return ReminderCard(

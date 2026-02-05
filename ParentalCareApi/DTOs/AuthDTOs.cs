@@ -8,7 +8,8 @@ public record RegisterRequest(
     [Required][EmailAddress] string Email,
     [Required][MinLength(6)] string Password,
     [Required] string Role, // "caregiver" or "dependent"
-    string? PhoneNumber
+    string? PhoneNumber,
+    string? Timezone // IANA format, e.g., "America/New_York"
 );
 
 public record RegisterResponse(

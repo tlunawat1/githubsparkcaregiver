@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParentalCareApi.Data;
 using ParentalCareApi.DTOs;
+using ParentalCareApi.Services;
 
 namespace ParentalCareApi.Controllers;
 
@@ -14,11 +15,16 @@ public class UsersController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly ILogger<UsersController> _logger;
+    private readonly INotificationJobService _notificationJobService;
 
-    public UsersController(AppDbContext context, ILogger<UsersController> logger)
+    public UsersController(
+        AppDbContext context,
+        ILogger<UsersController> logger,
+        INotificationJobService notificationJobService)
     {
         _context = context;
         _logger = logger;
+        _notificationJobService = notificationJobService;
     }
 
     [HttpGet("me")]
@@ -67,12 +73,22 @@ public class UsersController : ControllerBase
         if (request.AvatarUrl != null)
             user.AvatarUrl = request.AvatarUrl;
 
+        // Check if timezone is being changed
+        var oldTimezone = user.Timezone;
+        var timezoneChanged = !string.IsNullOrWhiteSpace(request.Timezone) && request.Timezone != oldTimezone;
+
         if (!string.IsNullOrWhiteSpace(request.Timezone))
             user.Timezone = request.Timezone;
 
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        // If timezone changed, recalculate all pending reminder instances for this user
+        if (timezoneChanged)
+        {
+            await RecalculatePendingInstancesAsync(userId, request.Timezone!);
+        }
 
         return Ok(new UserDto(
             user.Id,
@@ -87,6 +103,50 @@ public class UsersController : ControllerBase
             user.CreatedAt,
             user.LastLoginAt
         ));
+    }
+
+    private async Task RecalculatePendingInstancesAsync(string userId, string newTimezone)
+    {
+        // Get all pending instances for reminders where this user is the dependent
+        var instances = await _context.ReminderInstances
+            .Include(i => i.Reminder)
+            .Where(i => i.Reminder.DependentId == userId
+                     && i.Status == "pending"
+                     && i.ScheduledTime > DateTime.UtcNow)
+            .ToListAsync();
+
+        if (instances.Count == 0)
+        {
+            _logger.LogInformation("No pending instances found for user {UserId} to recalculate", userId);
+            return;
+        }
+
+        var reminderIds = new HashSet<string>();
+
+        foreach (var instance in instances)
+        {
+            // Recalculate UTC time using new timezone
+            var newScheduledTime = NotificationJobService.ConvertToUtc(
+                instance.Reminder.Hour,
+                instance.Reminder.Minute,
+                instance.ScheduledTime.Date,
+                newTimezone
+            );
+            instance.ScheduledTime = newScheduledTime;
+            reminderIds.Add(instance.ReminderId);
+        }
+
+        await _context.SaveChangesAsync();
+
+        // Reschedule Hangfire notification jobs for each affected reminder
+        foreach (var reminderId in reminderIds)
+        {
+            await _notificationJobService.RescheduleReminderNotificationsAsync(reminderId);
+        }
+
+        _logger.LogInformation(
+            "Recalculated {InstanceCount} instances for {ReminderCount} reminders after timezone change to {Timezone} for user {UserId}",
+            instances.Count, reminderIds.Count, newTimezone, userId);
     }
 
     [HttpGet("code/{code}")]

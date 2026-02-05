@@ -247,10 +247,10 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
-              // Time
+              // Time (convert UTC to local)
               Text(
                 _instance != null
-                    ? DateFormat.jm().format(_instance!.scheduledTime)
+                    ? DateFormat.jm().format(_instance!.scheduledTime.toLocal())
                     : '',
                 style: theme.textTheme.headlineMedium?.copyWith(
                   color: accentColor,

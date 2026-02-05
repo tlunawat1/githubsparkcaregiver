@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using NodaTime;
 using ParentalCareApi.Data;
 using ParentalCareApi.Hubs;
 using ParentalCareApi.Models;
@@ -64,19 +65,23 @@ public class ReminderInstanceBackgroundService : BackgroundService
         INotificationJobService notificationJobService,
         CancellationToken stoppingToken)
     {
-        var today = DateTime.UtcNow.Date;
-        var windowEnd = today.AddDays(RollingWindowDays);
+        // Use UTC date for the initial query filter (conservative - includes reminders that might still be active)
+        var utcToday = DateTime.UtcNow.Date;
 
         // Get all active recurring reminders
         var recurringReminders = await context.Reminders
             .Include(r => r.Dependent)
             .Where(r => r.IsActive &&
                         r.RepeatPattern != "once" &&
-                        (r.EndDate == null || r.EndDate >= today))
+                        (r.EndDate == null || r.EndDate >= utcToday.AddDays(-1))) // -1 to handle timezone edge cases
             .ToListAsync(stoppingToken);
 
         foreach (var reminder in recurringReminders)
         {
+            // Calculate "today" based on the dependent's timezone
+            var timezone = reminder.Dependent?.Timezone ?? "UTC";
+            var today = GetCurrentDateInTimezone(timezone);
+            var windowEnd = today.AddDays(RollingWindowDays);
             await GenerateInstancesForReminderAsync(context, hubContext, notificationJobService, reminder, today, windowEnd, stoppingToken);
         }
     }
@@ -212,5 +217,29 @@ public class ReminderInstanceBackgroundService : BackgroundService
             EscalationLevel = 0,
             CreatedAt = DateTime.UtcNow
         };
+    }
+
+    /// <summary>
+    /// Gets the current date in the specified timezone.
+    /// This is important for determining "today" from the user's perspective.
+    /// </summary>
+    private static DateTime GetCurrentDateInTimezone(string timezone)
+    {
+        try
+        {
+            var tz = DateTimeZoneProviders.Tzdb.GetZoneOrNull(timezone);
+            if (tz == null)
+            {
+                return DateTime.UtcNow.Date;
+            }
+
+            var now = SystemClock.Instance.GetCurrentInstant();
+            var zonedDateTime = now.InZone(tz);
+            return new DateTime(zonedDateTime.Year, zonedDateTime.Month, zonedDateTime.Day);
+        }
+        catch
+        {
+            return DateTime.UtcNow.Date;
+        }
     }
 }

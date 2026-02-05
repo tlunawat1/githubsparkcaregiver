@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using NodaTime;
 using ParentalCareApi.Data;
 using ParentalCareApi.DTOs;
 using ParentalCareApi.Hubs;
@@ -20,17 +21,23 @@ public class ReminderInstancesController : ControllerBase
     private readonly IHubContext<SyncHub> _hubContext;
     private readonly INotificationJobService _notificationJobService;
     private readonly ILogger<ReminderInstancesController> _logger;
+    private readonly IConfiguration _configuration;
+    private readonly INotificationService _notificationService;
 
     public ReminderInstancesController(
         AppDbContext context,
         IHubContext<SyncHub> hubContext,
         INotificationJobService notificationJobService,
-        ILogger<ReminderInstancesController> logger)
+        ILogger<ReminderInstancesController> logger,
+        IConfiguration configuration,
+        INotificationService notificationService)
     {
         _context = context;
         _hubContext = hubContext;
         _notificationJobService = notificationJobService;
         _logger = logger;
+        _configuration = configuration;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -72,11 +79,21 @@ public class ReminderInstancesController : ControllerBase
                 return Forbid();
             }
 
+            // Log dependent's timezone for debugging
+            var dependent = await _context.Users.FindAsync(dependentId);
+            _logger.LogInformation("=== TIMEZONE DEBUG: Dependent {DependentId} has timezone: '{Timezone}' ===",
+                dependentId, dependent?.Timezone ?? "NULL");
+
             query = query.Where(i => i.Reminder.DependentId == dependentId);
         }
         else if (userRole == "dependent")
         {
             // Dependents can only see their own instances
+            // Log dependent's timezone for debugging
+            var dependent = await _context.Users.FindAsync(userId);
+            _logger.LogInformation("=== TIMEZONE DEBUG: Dependent {DependentId} has timezone: '{Timezone}' ===",
+                userId, dependent?.Timezone ?? "NULL");
+
             query = query.Where(i => i.Reminder.DependentId == userId);
         }
         else
@@ -90,19 +107,30 @@ public class ReminderInstancesController : ControllerBase
             query = query.Where(i => dependentIds.Contains(i.Reminder.DependentId));
         }
 
-        // Filter by date (use UTC date range)
+        // Filter by date - convert local date to UTC range using dependent's timezone
         if (date.HasValue)
         {
-            // Convert to UTC if not already, and use the date part
-            var dateUtc = date.Value.Kind == DateTimeKind.Utc
-                ? date.Value.Date
-                : DateTime.SpecifyKind(date.Value.Date, DateTimeKind.Utc);
-            var startOfDay = dateUtc;
-            var endOfDay = startOfDay.AddDays(1);
+            // Get the target dependent's timezone for proper date conversion
+            string? targetTimezone = null;
+            if (!string.IsNullOrEmpty(dependentId))
+            {
+                var dep = await _context.Users.FindAsync(dependentId);
+                targetTimezone = dep?.Timezone;
+            }
+            else if (userRole == "dependent")
+            {
+                var dep = await _context.Users.FindAsync(userId);
+                targetTimezone = dep?.Timezone;
+            }
 
-            _logger.LogInformation("Filtering instances for date range: {Start} to {End}", startOfDay, endOfDay);
+            // Convert local date to UTC range
+            var localDate = date.Value.Date;
+            var (startOfDayUtc, endOfDayUtc) = ConvertLocalDateRangeToUtc(localDate, targetTimezone ?? "UTC");
 
-            query = query.Where(i => i.ScheduledTime >= startOfDay && i.ScheduledTime < endOfDay);
+            _logger.LogInformation("Filtering instances for local date {LocalDate} in timezone {Tz} -> UTC range: {Start} to {End}",
+                localDate, targetTimezone ?? "UTC", startOfDayUtc, endOfDayUtc);
+
+            query = query.Where(i => i.ScheduledTime >= startOfDayUtc && i.ScheduledTime < endOfDayUtc);
         }
 
         // Only get instances for active reminders
@@ -112,6 +140,13 @@ public class ReminderInstancesController : ControllerBase
             .OrderBy(i => i.ScheduledTime)
             .Select(i => MapToDto(i))
             .ToListAsync();
+
+        _logger.LogInformation("=== GetInstances: Fetched {Count} instances, calling MarkOverdueInstancesAsMissedAsync ===", instances.Count);
+
+        // Mark overdue pending instances as missed
+        instances = await MarkOverdueInstancesAsMissedAsync(instances);
+
+        _logger.LogInformation("=== GetInstances: After MarkOverdueInstancesAsMissedAsync, returning {Count} instances ===", instances.Count);
 
         return Ok(new { data = instances });
     }
@@ -445,6 +480,131 @@ public class ReminderInstancesController : ControllerBase
         return Ok(dto);
     }
 
+    /// <summary>
+    /// Marks overdue pending instances as missed and sends notifications
+    /// </summary>
+    private async Task<List<ReminderInstanceDto>> MarkOverdueInstancesAsMissedAsync(
+        List<ReminderInstanceDto> instances)
+    {
+        _logger.LogInformation("=== MarkOverdueInstancesAsMissedAsync START ===");
+        _logger.LogInformation("Total instances received: {Count}", instances.Count);
+
+        var gracePeriod = _configuration.GetValue<int>("Notifications:MissedGracePeriodMinutes", 5);
+        var now = DateTime.UtcNow;
+        var cutoffTime = now.AddMinutes(-gracePeriod);
+
+        _logger.LogInformation("Grace period: {GracePeriod} minutes, Now (UTC): {Now}, Cutoff time: {Cutoff}",
+            gracePeriod, now, cutoffTime);
+
+        // Log all instances for debugging
+        foreach (var inst in instances)
+        {
+            _logger.LogInformation("Instance {Id}: Status={Status}, ScheduledTime={ScheduledTime}, IsPastCutoff={IsPast}",
+                inst.Id, inst.Status, inst.ScheduledTime, inst.ScheduledTime < cutoffTime);
+        }
+
+        // Find pending instances past grace period
+        var overdueIds = instances
+            .Where(i => i.Status == "pending" && i.ScheduledTime < cutoffTime)
+            .Select(i => i.Id)
+            .ToList();
+
+        _logger.LogInformation("Found {Count} overdue pending instances", overdueIds.Count);
+
+        if (!overdueIds.Any())
+        {
+            _logger.LogInformation("No overdue instances found, returning original list");
+            return instances;
+        }
+
+        _logger.LogInformation("Overdue instance IDs: {Ids}", string.Join(", ", overdueIds));
+
+        // Load and update database records
+        var dbInstances = await _context.ReminderInstances
+            .Include(i => i.Reminder)
+                .ThenInclude(r => r.Dependent)
+            .Where(i => overdueIds.Contains(i.Id) && i.Status == "pending")
+            .ToListAsync();
+
+        _logger.LogInformation("Loaded {Count} instances from DB that are still pending", dbInstances.Count);
+
+        if (!dbInstances.Any())
+        {
+            _logger.LogInformation("No DB instances found (may have been updated already), returning original list");
+            return instances;
+        }
+
+        // Group by dependent for notifications
+        var instancesByDependent = dbInstances
+            .GroupBy(i => i.Reminder.DependentId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var instance in dbInstances)
+        {
+            _logger.LogInformation("Marking instance {Id} as missed (was: {OldStatus})", instance.Id, instance.Status);
+            instance.Status = "missed";
+        }
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Database updated successfully");
+
+        // Rebuild result list with corrected statuses
+        var updatedInstances = instances.Select(i =>
+            overdueIds.Contains(i.Id)
+                ? i with { Status = "missed" }
+                : i
+        ).ToList();
+
+        _logger.LogInformation("=== Marked {Count} overdue instances as missed on fetch ===", dbInstances.Count);
+
+        // Fire-and-forget: notifications and job cancellation
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                foreach (var (dependentId, depInstances) in instancesByDependent)
+                {
+                    // Get caregivers for this dependent
+                    var caregiverIds = await _context.CareRelationships
+                        .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
+                        .Select(cr => cr.CaregiverId)
+                        .ToListAsync();
+
+                    foreach (var instance in depInstances)
+                    {
+                        var dto = MapToDto(instance);
+
+                        // SignalR notifications
+                        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
+
+                        // Push notification to caregivers
+                        foreach (var caregiverId in caregiverIds)
+                        {
+                            await _notificationService.SendToUserAsync(
+                                caregiverId,
+                                $"Missed: {instance.Reminder.Title}",
+                                $"{instance.Reminder.Dependent?.Name ?? "Dependent"} missed their reminder",
+                                new Dictionary<string, string>
+                                {
+                                    { "type", "missed_reminder" },
+                                    { "instanceId", instance.Id },
+                                    { "dependentId", dependentId }
+                                });
+                        }
+
+                        // Cancel Hangfire jobs
+                        await _notificationJobService.CancelNotificationJobsAsync(instance.Id);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send notifications for missed instances");
+            }
+        });
+
+        return updatedInstances;
+    }
+
     private static ReminderInstanceDto MapToDto(ReminderInstance instance)
     {
         return new ReminderInstanceDto(
@@ -461,5 +621,41 @@ public class ReminderInstancesController : ControllerBase
             instance.Reminder?.VoiceNoteUrl,
             instance.Reminder?.Priority
         );
+    }
+
+    /// <summary>
+    /// Converts a local date to a UTC date range.
+    /// For example, Feb 6 in IST (UTC+5:30) becomes:
+    /// - Start: Feb 5, 18:30 UTC
+    /// - End: Feb 6, 18:30 UTC
+    /// </summary>
+    private static (DateTime StartUtc, DateTime EndUtc) ConvertLocalDateRangeToUtc(DateTime localDate, string timezone)
+    {
+        try
+        {
+            var tz = DateTimeZoneProviders.Tzdb.GetZoneOrNull(timezone);
+            if (tz == null)
+            {
+                // Fallback to treating as UTC
+                return (localDate.Date, localDate.Date.AddDays(1));
+            }
+
+            // Start of day in local timezone
+            var startLocal = new LocalDateTime(localDate.Year, localDate.Month, localDate.Day, 0, 0);
+            var startZoned = startLocal.InZoneLeniently(tz);
+            var startUtc = startZoned.ToDateTimeUtc();
+
+            // End of day (start of next day) in local timezone
+            var endLocal = new LocalDateTime(localDate.Year, localDate.Month, localDate.Day, 0, 0).PlusDays(1);
+            var endZoned = endLocal.InZoneLeniently(tz);
+            var endUtc = endZoned.ToDateTimeUtc();
+
+            return (startUtc, endUtc);
+        }
+        catch
+        {
+            // Fallback to treating as UTC
+            return (localDate.Date, localDate.Date.AddDays(1));
+        }
     }
 }

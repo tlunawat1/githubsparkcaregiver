@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using NodaTime;
 using ParentalCareApi.Data;
 using ParentalCareApi.DTOs;
 using ParentalCareApi.Hubs;
@@ -493,14 +494,16 @@ public class RemindersController : ControllerBase
     private async Task<List<ReminderInstance>> GenerateInstancesForReminder(Reminder reminder)
     {
         var instances = new List<ReminderInstance>();
-        var today = DateTime.UtcNow.Date;
-        var startDate = reminder.StartDate.Date >= today ? reminder.StartDate.Date : today;
-        var endDate = reminder.EndDate?.Date ?? today.AddDays(7);
-        var windowEnd = today.AddDays(7);
 
         // Get dependent's timezone for proper UTC conversion
         var dependent = await _context.Users.FindAsync(reminder.DependentId);
         var timezone = dependent?.Timezone ?? "UTC";
+
+        // Calculate "today" in the dependent's timezone, not UTC
+        var today = GetCurrentDateInTimezone(timezone);
+        var startDate = reminder.StartDate.Date >= today ? reminder.StartDate.Date : today;
+        var endDate = reminder.EndDate?.Date ?? today.AddDays(7);
+        var windowEnd = today.AddDays(7);
 
         // Don't generate past the window or the reminder's end date
         endDate = endDate < windowEnd ? endDate : windowEnd;
@@ -511,15 +514,23 @@ public class RemindersController : ControllerBase
                 // Create single instance for the start date
                 if (reminder.StartDate.Date >= today && reminder.StartDate.Date <= windowEnd)
                 {
-                    instances.Add(CreateInstance(reminder, reminder.StartDate.Date, timezone));
+                    _logger.LogInformation("=== TIMEZONE FIX: Creating 'once' instance - StartDate={StartDate}, Hour={Hour}, Min={Min}, Timezone={Tz} ===",
+                        reminder.StartDate.Date, reminder.Hour, reminder.Minute, timezone);
+                    var instance = CreateInstance(reminder, reminder.StartDate.Date, timezone);
+                    _logger.LogInformation("=== TIMEZONE FIX: Created instance with ScheduledTime={ScheduledTime} ===", instance.ScheduledTime);
+                    instances.Add(instance);
                 }
                 break;
 
             case "daily":
                 // Create instances for each day in the window
+                _logger.LogInformation("=== TIMEZONE FIX: Creating 'daily' instances - StartDate={StartDate}, EndDate={EndDate}, Today={Today}, Hour={Hour}, Min={Min}, Timezone={Tz} ===",
+                    startDate, endDate, today, reminder.Hour, reminder.Minute, timezone);
                 for (var date = startDate; date <= endDate; date = date.AddDays(1))
                 {
-                    instances.Add(CreateInstance(reminder, date, timezone));
+                    var inst = CreateInstance(reminder, date, timezone);
+                    _logger.LogInformation("=== TIMEZONE FIX: Daily instance Date={Date} -> ScheduledTime={ScheduledTime} ===", date, inst.ScheduledTime);
+                    instances.Add(inst);
                 }
                 break;
 
@@ -593,5 +604,36 @@ public class RemindersController : ControllerBase
             EscalationLevel = 0,
             CreatedAt = DateTime.UtcNow
         };
+    }
+
+    /// <summary>
+    /// Gets the current date in the specified timezone.
+    /// This is important for determining "today" from the user's perspective.
+    /// </summary>
+    private DateTime GetCurrentDateInTimezone(string timezone)
+    {
+        try
+        {
+            var tz = DateTimeZoneProviders.Tzdb.GetZoneOrNull(timezone);
+            if (tz == null)
+            {
+                _logger.LogWarning("=== TIMEZONE FIX: Invalid timezone '{Timezone}', falling back to UTC date", timezone);
+                return DateTime.UtcNow.Date;
+            }
+
+            var now = SystemClock.Instance.GetCurrentInstant();
+            var zonedDateTime = now.InZone(tz);
+            var localDate = new DateTime(zonedDateTime.Year, zonedDateTime.Month, zonedDateTime.Day);
+
+            _logger.LogInformation("=== TIMEZONE FIX: UTC now={UtcNow}, Timezone={Tz}, LocalDate={LocalDate} ===",
+                DateTime.UtcNow, timezone, localDate);
+
+            return localDate;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "=== TIMEZONE FIX: Error getting local date for timezone {Timezone}", timezone);
+            return DateTime.UtcNow.Date;
+        }
     }
 }

@@ -65,6 +65,7 @@ public class AuthController : ControllerBase
             Role = request.Role,
             PhoneNumber = request.PhoneNumber,
             UniqueCode = uniqueCode,
+            Timezone = request.Timezone ?? "UTC",
             EmailVerified = false,
             VerificationCode = _authService.GenerateVerificationCode(),
             VerificationCodeExpiry = DateTime.UtcNow.AddHours(24),
