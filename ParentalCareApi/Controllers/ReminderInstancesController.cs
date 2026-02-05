@@ -607,15 +607,21 @@ public class ReminderInstancesController : ControllerBase
 
     private static ReminderInstanceDto MapToDto(ReminderInstance instance)
     {
+        // Explicitly mark all DateTime values as UTC so JSON serializer adds 'Z' suffix
+        // This ensures Flutter's DateTime.parse() correctly identifies them as UTC
         return new ReminderInstanceDto(
             instance.Id,
             instance.ReminderId,
-            instance.ScheduledTime,
+            DateTime.SpecifyKind(instance.ScheduledTime, DateTimeKind.Utc),
             instance.Status,
-            instance.CompletedAt,
-            instance.SnoozedUntil,
+            instance.CompletedAt.HasValue
+                ? DateTime.SpecifyKind(instance.CompletedAt.Value, DateTimeKind.Utc)
+                : null,
+            instance.SnoozedUntil.HasValue
+                ? DateTime.SpecifyKind(instance.SnoozedUntil.Value, DateTimeKind.Utc)
+                : null,
             instance.EscalationLevel,
-            instance.CreatedAt,
+            DateTime.SpecifyKind(instance.CreatedAt, DateTimeKind.Utc),
             instance.Reminder?.Title,
             instance.Reminder?.Description,
             instance.Reminder?.VoiceNoteUrl,

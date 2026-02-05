@@ -37,16 +37,17 @@ class ReminderInstanceData {
     return ReminderInstanceData(
       id: json['id'] as String,
       reminderId: json['reminderId'] as String,
-      scheduledTime: DateTime.parse(json['scheduledTime'] as String),
+      // Ensure UTC times are properly marked so .toLocal() works correctly
+      scheduledTime: DateTime.parse(json['scheduledTime'] as String).toUtc(),
       status: json['status'] as String,
       completedAt: json['completedAt'] != null
-          ? DateTime.parse(json['completedAt'] as String)
+          ? DateTime.parse(json['completedAt'] as String).toUtc()
           : null,
       snoozedUntil: json['snoozedUntil'] != null
-          ? DateTime.parse(json['snoozedUntil'] as String)
+          ? DateTime.parse(json['snoozedUntil'] as String).toUtc()
           : null,
       escalationLevel: json['escalationLevel'] as int? ?? 0,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: DateTime.parse(json['createdAt'] as String).toUtc(),
       reminderTitle: json['reminderTitle'] as String?,
       reminderDescription: json['reminderDescription'] as String?,
       voiceNoteUrl: json['voiceNoteUrl'] as String?,
