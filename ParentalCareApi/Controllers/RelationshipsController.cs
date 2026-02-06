@@ -191,9 +191,9 @@ public class RelationshipsController : ControllerBase
         _logger.LogInformation("Relationship created: {Id}, Caregiver: {CaregiverId}, Dependent: {DependentId}",
             relationship.Id, caregiverId, dependentId);
 
-        // Notify the other party via SignalR
+        // Notify the other party via SignalR (using user group for reliable delivery)
         var notifyUserId = userRole == "caregiver" ? dependentId : caregiverId;
-        await _hubContext.Clients.User(notifyUserId).SendAsync("LinkRequestReceived", new
+        await _hubContext.Clients.Group($"user:{notifyUserId}").SendAsync("LinkRequestReceived", new
         {
             relationshipId = relationship.Id,
             initiatedBy = request.InitiatedBy,
@@ -277,15 +277,15 @@ public class RelationshipsController : ControllerBase
 
         _logger.LogInformation("Relationship verified: {Id}", relationship.Id);
 
-        // Notify both parties via SignalR
-        await _hubContext.Clients.User(relationship.CaregiverId).SendAsync("LinkVerified", new
+        // Notify both parties via SignalR (using user groups for reliable delivery)
+        await _hubContext.Clients.Group($"user:{relationship.CaregiverId}").SendAsync("LinkVerified", new
         {
             relationshipId = relationship.Id,
             dependentId = relationship.DependentId,
             dependentName = relationship.Dependent.Name
         });
 
-        await _hubContext.Clients.User(relationship.DependentId).SendAsync("LinkVerified", new
+        await _hubContext.Clients.Group($"user:{relationship.DependentId}").SendAsync("LinkVerified", new
         {
             relationshipId = relationship.Id,
             caregiverId = relationship.CaregiverId,
@@ -339,9 +339,9 @@ public class RelationshipsController : ControllerBase
 
         _logger.LogInformation("Relationship removed: {Id}", id);
 
-        // Notify the other party
+        // Notify the other party (using user group for reliable delivery)
         var notifyUserId = userId == relationship.CaregiverId ? relationship.DependentId : relationship.CaregiverId;
-        await _hubContext.Clients.User(notifyUserId).SendAsync("LinkRemoved", new
+        await _hubContext.Clients.Group($"user:{notifyUserId}").SendAsync("LinkRemoved", new
         {
             relationshipId = relationship.Id
         });

@@ -51,17 +51,66 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
       }
     });
   }
+
   StreamSubscription<SignalREvent>? _signalRSubscription;
   StreamSubscription<SignalRConnectionState>? _connectionStateSubscription;
+  bool _isSignalRInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadData();
-    _setupSignalRListeners();
+    _initializeScreen();
+  }
+
+  /// Initialize screen with proper SignalR connection sequence
+  Future<void> _initializeScreen() async {
+    debugPrint('DependentDashboardScreen: Starting screen initialization for dependent ${widget.dependentId}');
+
+    // 1. Set up connection state listener first (to handle reconnections)
     _setupConnectionStateListener();
-    _subscribeToDependent();
+
+    // 2. Ensure SignalR is connected (silent background connection with retry)
+    await _ensureSignalRConnected();
+
+    // 3. Subscribe to dependent's updates (MUST await to ensure subscription completes)
+    await _subscribeToDependent();
+
+    // 4. Set up event listeners (now guaranteed to receive events)
+    _setupSignalRListeners();
+    _isSignalRInitialized = true;
+    debugPrint('DependentDashboardScreen: SignalR initialization complete');
+
+    // 5. Load data (fresh data + real-time updates ready)
+    _loadData();
+  }
+
+  /// Ensure SignalR is connected with automatic retry
+  Future<void> _ensureSignalRConnected() async {
+    debugPrint('DependentDashboardScreen: Ensuring SignalR connection...');
+    debugPrint('DependentDashboardScreen: Current SignalR state: ${_signalRService.currentState}');
+
+    const maxRetries = 3;
+    const retryDelay = Duration(seconds: 2);
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      final connected = await _signalRService.ensureConnected();
+
+      if (connected) {
+        debugPrint('DependentDashboardScreen: SignalR connected successfully on attempt $attempt');
+        return;
+      }
+
+      debugPrint('DependentDashboardScreen: SignalR connection attempt $attempt/$maxRetries failed');
+
+      if (attempt < maxRetries) {
+        debugPrint('DependentDashboardScreen: Retrying in ${retryDelay.inSeconds} seconds...');
+        await Future.delayed(retryDelay);
+      }
+    }
+
+    debugPrint('DependentDashboardScreen: SignalR connection failed after $maxRetries attempts, continuing without real-time updates');
+    // Continue anyway - user can still use pull-to-refresh
   }
 
   @override
@@ -75,55 +124,104 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    debugPrint('DependentDashboardScreen: App lifecycle state changed to $state');
+
     if (state == AppLifecycleState.resumed) {
-      debugPrint('DependentDashboardScreen: App resumed, refreshing data');
-      _loadData();
-      // Subscription will be restored by SignalRService automatically
+      debugPrint('DependentDashboardScreen: App resumed from background');
+      debugPrint('DependentDashboardScreen: Current SignalR state: ${_signalRService.currentState}');
+
+      // Ensure SignalR is connected and subscription is active after resume
+      _ensureSignalRConnected().then((_) async {
+        // Re-subscribe in case the subscription was lost
+        await _subscribeToDependent();
+        debugPrint('DependentDashboardScreen: SignalR check complete after resume, refreshing data');
+        _loadData();
+      });
+    } else if (state == AppLifecycleState.paused) {
+      debugPrint('DependentDashboardScreen: App going to background');
     }
   }
 
-  void _subscribeToDependent() {
-    // Subscribe to real-time updates for this dependent
-    // The SignalRService now tracks this subscription for restoration
+  /// Subscribe to real-time updates for this dependent (for caregivers)
+  Future<void> _subscribeToDependent() async {
     debugPrint('DependentDashboardScreen: Subscribing to dependent ${widget.dependentId}');
-    _signalRService.subscribeToDependent(widget.dependentId);
+    debugPrint('DependentDashboardScreen: SignalR isConnected=${_signalRService.isConnected}');
+
+    final success = await _signalRService.subscribeToDependent(widget.dependentId);
+
+    if (success) {
+      debugPrint('DependentDashboardScreen: Successfully subscribed to dependent ${widget.dependentId}');
+    } else {
+      debugPrint('DependentDashboardScreen: Subscription queued (SignalR not connected) for dependent ${widget.dependentId}');
+    }
   }
 
   void _unsubscribeFromDependent() {
-    // Unsubscribe when leaving the screen
     debugPrint('DependentDashboardScreen: Unsubscribing from dependent ${widget.dependentId}');
     _signalRService.unsubscribeFromDependent(widget.dependentId);
   }
 
   void _setupConnectionStateListener() {
+    debugPrint('DependentDashboardScreen: Setting up connection state listener');
     _connectionStateSubscription = _signalRService.connectionState.listen((state) {
-      debugPrint('DependentDashboardScreen: SignalR connection state changed to $state');
-      
+      debugPrint('DependentDashboardScreen: SignalR connection state changed: $state');
+
       if (state == SignalRConnectionState.connected) {
-        // Connection restored - subscription will be auto-restored by SignalRService
-        // Refresh data to ensure we have latest
-        debugPrint('DependentDashboardScreen: Connection restored, refreshing data');
+        debugPrint('DependentDashboardScreen: Connection restored, refreshing data to sync missed updates');
         _loadData();
+
+        // If SignalR wasn't initialized yet, set up listeners now
+        if (!_isSignalRInitialized) {
+          debugPrint('DependentDashboardScreen: Late initialization - setting up SignalR listeners after reconnection');
+          _setupSignalRListeners();
+          _isSignalRInitialized = true;
+        }
+      } else if (state == SignalRConnectionState.disconnected) {
+        debugPrint('DependentDashboardScreen: SignalR disconnected - real-time updates paused');
+      } else if (state == SignalRConnectionState.reconnecting) {
+        debugPrint('DependentDashboardScreen: SignalR reconnecting...');
       }
     });
   }
 
   void _setupSignalRListeners() {
+    // Avoid duplicate subscriptions
+    if (_signalRSubscription != null) {
+      debugPrint('DependentDashboardScreen: SignalR event listener already set up, skipping');
+      return;
+    }
+
+    debugPrint('DependentDashboardScreen: Setting up SignalR event listeners');
+    debugPrint('DependentDashboardScreen: SignalR isConnected=${_signalRService.isConnected}, state=${_signalRService.currentState}');
+    debugPrint('DependentDashboardScreen: Subscribed dependents: ${_signalRService.subscribedDependents}');
+
     _signalRSubscription = _signalRService.events.listen((event) {
-      debugPrint('DependentDashboardScreen: Received SignalR event: ${event.type}');
+      debugPrint('DependentDashboardScreen: ========== SignalR EVENT RECEIVED ==========');
+      debugPrint('DependentDashboardScreen: Event type: ${event.type}');
+      debugPrint('DependentDashboardScreen: Event data: ${event.data}');
+      debugPrint('DependentDashboardScreen: Event timestamp: ${event.timestamp}');
+      debugPrint('DependentDashboardScreen: ============================================');
+
       // Refresh when dependent completes/snoozes a reminder or when instances change
       if (event.type == SignalREventType.instanceStatusChanged ||
           event.type == SignalREventType.instanceCreated ||
           event.type == SignalREventType.reminderCreated ||
           event.type == SignalREventType.reminderUpdated ||
           event.type == SignalREventType.reminderDeleted) {
-        debugPrint('DependentDashboardScreen: Refreshing data due to ${event.type}');
+        debugPrint('DependentDashboardScreen: Event matched! Triggering data refresh for ${event.type}');
         _loadData();
+      } else {
+        debugPrint('DependentDashboardScreen: Event ${event.type} not handled by this screen');
       }
     });
+
+    debugPrint('DependentDashboardScreen: SignalR event listener registered successfully');
   }
 
   Future<void> _loadData() async {
+    debugPrint('DependentDashboardScreen: _loadData() called for dependent ${widget.dependentId}');
+    debugPrint('DependentDashboardScreen: isInitialLoad=$_isInitialLoad, SignalR state=${_signalRService.currentState}');
+
     // Only show loading indicator on initial load to avoid jarring screen flashes
     if (_isInitialLoad) {
       setState(() => _isLoading = true);
@@ -131,13 +229,27 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
 
     try {
       _dependent = await _userApi.getById(widget.dependentId);
+      debugPrint('DependentDashboardScreen: Dependent loaded: ${_dependent?.name}');
+
       _reminders = await _reminderApi.getReminders(dependentId: widget.dependentId);
+      debugPrint('DependentDashboardScreen: Loaded ${_reminders.length} reminders');
+
       _todayInstances = await _reminderInstanceApi.getInstances(
         dependentId: widget.dependentId,
         date: DateTime.now(),
       );
+      debugPrint('DependentDashboardScreen: Loaded ${_todayInstances.length} instances for today');
+
+      // Log instance statuses for debugging
+      final statusCounts = <String, int>{};
+      for (final instance in _todayInstances) {
+        statusCounts[instance.status] = (statusCounts[instance.status] ?? 0) + 1;
+      }
+      debugPrint('DependentDashboardScreen: Instance statuses: $statusCounts');
+
+      debugPrint('DependentDashboardScreen: Data load completed successfully');
     } catch (e) {
-      debugPrint('Error loading data: $e');
+      debugPrint('DependentDashboardScreen: Error loading data: $e');
     }
 
     if (mounted) {
@@ -145,6 +257,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
         _isLoading = false;
         _isInitialLoad = false;
       });
+      debugPrint('DependentDashboardScreen: UI state updated');
     }
   }
 

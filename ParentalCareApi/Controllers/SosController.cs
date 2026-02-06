@@ -180,11 +180,11 @@ public class SosController : ControllerBase
         var dependent = await _context.Users.FindAsync(userId);
         var notifiedCount = 0;
 
-        // Notify all caregivers
+        // Notify all caregivers (using user groups for reliable delivery)
         foreach (var relationship in caregiverRelationships)
         {
-            // SignalR notification
-            await _hubContext.Clients.User(relationship.CaregiverId).SendAsync("SosTriggered", new
+            // SignalR notification via user group
+            await _hubContext.Clients.Group($"user:{relationship.CaregiverId}").SendAsync("SosTriggered", new
             {
                 sosEventId = sosEvent.Id,
                 dependentId = userId,
@@ -275,10 +275,10 @@ public class SosController : ControllerBase
             .Where(cr => cr.DependentId == sosEvent!.DependentId && cr.Status == "active")
             .ToListAsync();
 
-        // Notify caregivers
+        // Notify caregivers (using user groups for reliable delivery)
         foreach (var relationship in caregiverRelationships)
         {
-            await _hubContext.Clients.User(relationship.CaregiverId).SendAsync("SosResolved", new
+            await _hubContext.Clients.Group($"user:{relationship.CaregiverId}").SendAsync("SosResolved", new
             {
                 sosEventId = sosEvent!.Id,
                 resolvedBy = userId,
@@ -286,8 +286,8 @@ public class SosController : ControllerBase
             });
         }
 
-        // Notify dependent
-        await _hubContext.Clients.User(sosEvent!.DependentId).SendAsync("SosResolved", new
+        // Notify dependent (using user group for reliable delivery)
+        await _hubContext.Clients.Group($"user:{sosEvent!.DependentId}").SendAsync("SosResolved", new
         {
             sosEventId = sosEvent.Id,
             resolvedBy = userId,
@@ -329,9 +329,10 @@ public class SosController : ControllerBase
             .Where(cr => cr.DependentId == userId && cr.Status == "active")
             .ToListAsync();
 
+        // Notify caregivers via user groups for reliable delivery
         foreach (var relationship in caregiverRelationships)
         {
-            await _hubContext.Clients.User(relationship.CaregiverId).SendAsync("SosCancelled", new
+            await _hubContext.Clients.Group($"user:{relationship.CaregiverId}").SendAsync("SosCancelled", new
             {
                 sosEventId = sosEvent.Id
             });

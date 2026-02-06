@@ -90,16 +90,16 @@ public class NotificationJobService : INotificationJobService
                 escalationLevel = instance.EscalationLevel
             };
 
-            // Notify via SignalR - send directly to dependent and each caregiver
+            // Notify via SignalR - send to user groups (created on connect) for reliable delivery
             var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<SyncHub>>();
-            await hubContext.Clients.User(dependent.Id).SendAsync("InstanceStatusChanged", instanceDto);
+            await hubContext.Clients.Group($"user:{dependent.Id}").SendAsync("InstanceStatusChanged", instanceDto);
 
             foreach (var caregiverId in caregiverIds)
             {
-                await hubContext.Clients.User(caregiverId).SendAsync("InstanceStatusChanged", instanceDto);
+                await hubContext.Clients.Group($"user:{caregiverId}").SendAsync("InstanceStatusChanged", instanceDto);
             }
 
-            // Also send to group as fallback
+            // Also send to dependent group as fallback (for subscribed caregivers)
             await hubContext.Clients.Group($"dependent:{dependent.Id}").SendAsync("InstanceStatusChanged", instanceDto);
         }
 
@@ -159,16 +159,16 @@ public class NotificationJobService : INotificationJobService
             escalationLevel = instance.EscalationLevel
         };
 
-        // Notify via SignalR - send directly to dependent and each caregiver
+        // Notify via SignalR - send to user groups for reliable delivery
         var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<SyncHub>>();
-        await hubContext.Clients.User(dependentId).SendAsync("InstanceStatusChanged", instanceDto);
+        await hubContext.Clients.Group($"user:{dependentId}").SendAsync("InstanceStatusChanged", instanceDto);
 
         foreach (var caregiverId in caregiverIds)
         {
-            await hubContext.Clients.User(caregiverId).SendAsync("InstanceStatusChanged", instanceDto);
+            await hubContext.Clients.Group($"user:{caregiverId}").SendAsync("InstanceStatusChanged", instanceDto);
         }
 
-        // Also send to group as fallback
+        // Also send to dependent group as fallback
         await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceStatusChanged", instanceDto);
 
         _logger.LogInformation("Auto-marked instance {InstanceId} as missed, notified dependent and {CaregiverCount} caregivers",

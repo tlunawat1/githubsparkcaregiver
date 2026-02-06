@@ -43,14 +43,60 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   final Set<String> _completingInstances = {};
   StreamSubscription<SignalREvent>? _signalRSubscription;
   StreamSubscription<SignalRConnectionState>? _connectionStateSubscription;
+  bool _isSignalRInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadData();
-    _setupSignalRListeners();
+    _initializeScreen();
+  }
+
+  /// Initialize screen with proper SignalR connection sequence
+  Future<void> _initializeScreen() async {
+    debugPrint('DependentHomeScreen: Starting screen initialization');
+
+    // 1. Set up connection state listener first (to handle reconnections)
     _setupConnectionStateListener();
+
+    // 2. Ensure SignalR is connected (silent background connection with retry)
+    await _ensureSignalRConnected();
+
+    // 3. Set up event listeners (now guaranteed to receive events)
+    _setupSignalRListeners();
+    _isSignalRInitialized = true;
+    debugPrint('DependentHomeScreen: SignalR initialization complete');
+
+    // 4. Load data (fresh data + real-time updates ready)
+    _loadData();
+  }
+
+  /// Ensure SignalR is connected with automatic retry
+  Future<void> _ensureSignalRConnected() async {
+    debugPrint('DependentHomeScreen: Ensuring SignalR connection...');
+    debugPrint('DependentHomeScreen: Current SignalR state: ${_signalRService.currentState}');
+
+    const maxRetries = 3;
+    const retryDelay = Duration(seconds: 2);
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      final connected = await _signalRService.ensureConnected();
+
+      if (connected) {
+        debugPrint('DependentHomeScreen: SignalR connected successfully on attempt $attempt');
+        return;
+      }
+
+      debugPrint('DependentHomeScreen: SignalR connection attempt $attempt/$maxRetries failed');
+
+      if (attempt < maxRetries) {
+        debugPrint('DependentHomeScreen: Retrying in ${retryDelay.inSeconds} seconds...');
+        await Future.delayed(retryDelay);
+      }
+    }
+
+    debugPrint('DependentHomeScreen: SignalR connection failed after $maxRetries attempts, continuing without real-time updates');
+    // Continue anyway - user can still use pull-to-refresh
   }
 
   @override
@@ -63,32 +109,63 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    debugPrint('DependentHomeScreen: App lifecycle state changed to $state');
+
     if (state == AppLifecycleState.resumed) {
-      debugPrint('DependentHomeScreen: App resumed, refreshing data');
-      // Refresh data when app comes to foreground
-      // SignalR connection will be handled by app-level lifecycle observer
-      _loadData();
+      debugPrint('DependentHomeScreen: App resumed from background');
+      debugPrint('DependentHomeScreen: Current SignalR state: ${_signalRService.currentState}');
+
+      // Ensure SignalR is connected after resume (in background)
+      _ensureSignalRConnected().then((_) {
+        debugPrint('DependentHomeScreen: SignalR check complete after resume, refreshing data');
+        _loadData();
+      });
+    } else if (state == AppLifecycleState.paused) {
+      debugPrint('DependentHomeScreen: App going to background');
     }
   }
 
   void _setupConnectionStateListener() {
+    debugPrint('DependentHomeScreen: Setting up connection state listener');
     _connectionStateSubscription = _signalRService.connectionState.listen((state) {
-      debugPrint('DependentHomeScreen: SignalR connection state changed to $state');
-      
+      debugPrint('DependentHomeScreen: SignalR connection state changed: $state');
+
       if (state == SignalRConnectionState.connected) {
         // Connection restored - refresh data to get any updates we missed
-        debugPrint('DependentHomeScreen: Connection restored, refreshing data');
+        debugPrint('DependentHomeScreen: Connection restored, refreshing data to sync missed updates');
         _loadData();
+
+        // If SignalR wasn't initialized yet, set up listeners now
+        if (!_isSignalRInitialized) {
+          debugPrint('DependentHomeScreen: Late initialization - setting up SignalR listeners after reconnection');
+          _setupSignalRListeners();
+          _isSignalRInitialized = true;
+        }
+      } else if (state == SignalRConnectionState.disconnected) {
+        debugPrint('DependentHomeScreen: SignalR disconnected - real-time updates paused');
+      } else if (state == SignalRConnectionState.reconnecting) {
+        debugPrint('DependentHomeScreen: SignalR reconnecting...');
       }
     });
   }
 
   void _setupSignalRListeners() {
-    debugPrint('DependentHomeScreen: Setting up SignalR listeners');
-    debugPrint('DependentHomeScreen: SignalR isConnected=${_signalRService.isConnected}');
+    // Avoid duplicate subscriptions
+    if (_signalRSubscription != null) {
+      debugPrint('DependentHomeScreen: SignalR event listener already set up, skipping');
+      return;
+    }
+
+    debugPrint('DependentHomeScreen: Setting up SignalR event listeners');
+    debugPrint('DependentHomeScreen: SignalR isConnected=${_signalRService.isConnected}, state=${_signalRService.currentState}');
 
     _signalRSubscription = _signalRService.events.listen((event) {
-      debugPrint('DependentHomeScreen: Received SignalR event: ${event.type}');
+      debugPrint('DependentHomeScreen: ========== SignalR EVENT RECEIVED ==========');
+      debugPrint('DependentHomeScreen: Event type: ${event.type}');
+      debugPrint('DependentHomeScreen: Event data: ${event.data}');
+      debugPrint('DependentHomeScreen: Event timestamp: ${event.timestamp}');
+      debugPrint('DependentHomeScreen: ============================================');
+
       if (event.type == SignalREventType.instanceCreated ||
           event.type == SignalREventType.instanceStatusChanged ||
           event.type == SignalREventType.reminderCreated ||
@@ -96,13 +173,20 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
           event.type == SignalREventType.reminderDeleted ||
           event.type == SignalREventType.linkVerified ||
           event.type == SignalREventType.linkRequestReceived) {
-        debugPrint('DependentHomeScreen: Refreshing data due to ${event.type}');
+        debugPrint('DependentHomeScreen: Event matched! Triggering data refresh for ${event.type}');
         _loadData();
+      } else {
+        debugPrint('DependentHomeScreen: Event ${event.type} not handled by this screen');
       }
     });
+
+    debugPrint('DependentHomeScreen: SignalR event listener registered successfully');
   }
 
   Future<void> _loadData() async {
+    debugPrint('DependentHomeScreen: _loadData() called');
+    debugPrint('DependentHomeScreen: isInitialLoad=$_isInitialLoad, SignalR state=${_signalRService.currentState}');
+
     // Only show loading indicator on initial load to avoid jarring screen flashes
     if (_isInitialLoad) {
       setState(() => _isLoading = true);
@@ -111,18 +195,30 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     try {
       // Load current user from remote API
       _user = await _userApi.getCurrentUser();
+      debugPrint('DependentHomeScreen: User loaded: ${_user?.id}');
 
       if (_user != null) {
         final userId = _user!.id;
         _reminders = await _reminderApi.getReminders(dependentId: userId);
+        debugPrint('DependentHomeScreen: Loaded ${_reminders.length} reminders');
+
         _todayInstances = await _reminderInstanceApi.getInstances(
           dependentId: userId,
           date: DateTime.now(),
         );
+        debugPrint('DependentHomeScreen: Loaded ${_todayInstances.length} instances for today');
+
+        // Log instance statuses for debugging
+        final statusCounts = <String, int>{};
+        for (final instance in _todayInstances) {
+          statusCounts[instance.status] = (statusCounts[instance.status] ?? 0) + 1;
+        }
+        debugPrint('DependentHomeScreen: Instance statuses: $statusCounts');
 
         // Load pending link requests
         _pendingLinks = await _careRelationshipRepository
             .getPendingLinksForDependent(userId);
+        debugPrint('DependentHomeScreen: Loaded ${_pendingLinks.length} pending links');
 
         // Load caregiver info for each pending link
         _pendingLinkCaregivers = {};
@@ -134,8 +230,10 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
           }
         }
       }
+
+      debugPrint('DependentHomeScreen: Data load completed successfully');
     } catch (e) {
-      debugPrint('Error loading data: $e');
+      debugPrint('DependentHomeScreen: Error loading data: $e');
     }
 
     if (mounted) {
@@ -143,6 +241,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
         _isLoading = false;
         _isInitialLoad = false;
       });
+      debugPrint('DependentHomeScreen: UI state updated');
     }
   }
 

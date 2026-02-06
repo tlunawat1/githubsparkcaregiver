@@ -18,12 +18,19 @@ public class SyncHub : Hub
     {
         var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var userName = Context.User?.FindFirst(ClaimTypes.Name)?.Value;
+        var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
 
         if (userId != null)
         {
             // Add user to their personal group for targeted messages
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"user:{userId}");
-            _logger.LogInformation("User connected: {UserId} ({UserName})", userId, userName);
+            var groupName = $"user:{userId}";
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+            _logger.LogInformation("User connected: {UserId} ({UserName}), Role: {Role}, Added to group: {GroupName}, ConnectionId: {ConnectionId}",
+                userId, userName, userRole, groupName, Context.ConnectionId);
+        }
+        else
+        {
+            _logger.LogWarning("User connected but no userId found in claims. ConnectionId: {ConnectionId}", Context.ConnectionId);
         }
 
         await base.OnConnectedAsync();
@@ -35,8 +42,10 @@ public class SyncHub : Hub
 
         if (userId != null)
         {
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user:{userId}");
-            _logger.LogInformation("User disconnected: {UserId}", userId);
+            var groupName = $"user:{userId}";
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+            _logger.LogInformation("User disconnected: {UserId}, Removed from group: {GroupName}, ConnectionId: {ConnectionId}",
+                userId, groupName, Context.ConnectionId);
         }
 
         await base.OnDisconnectedAsync(exception);
@@ -91,13 +100,16 @@ public class SyncHub : Hub
 public static class SyncHubExtensions
 {
     // Send to specific user by their user ID
+    // Uses the user:{userId} group created on connect for reliable delivery
     public static async Task SendToUserAsync(
         this IHubContext<SyncHub> hubContext,
         string userId,
         string method,
         object? arg = null)
     {
-        await hubContext.Clients.User(userId).SendAsync(method, arg);
+        // Use group instead of Clients.User() for more reliable delivery
+        // The user:{userId} group is created when user connects in OnConnectedAsync
+        await hubContext.Clients.Group($"user:{userId}").SendAsync(method, arg);
     }
 
     // Send to all caregivers of a dependent (via group - may be empty if caregivers disconnected)
@@ -111,50 +123,50 @@ public static class SyncHubExtensions
     }
 
     // Send instance status changed event to dependent and their caregivers
-    // Uses direct user IDs instead of groups to ensure delivery even after reconnection
+    // Uses user:{userId} groups for reliable delivery
     public static async Task SendInstanceStatusChangedAsync(
         this IHubContext<SyncHub> hubContext,
         string dependentId,
         object instanceDto,
         IEnumerable<string>? caregiverIds = null)
     {
-        // Send to dependent user
-        await hubContext.Clients.User(dependentId).SendAsync("InstanceStatusChanged", instanceDto);
+        // Send to dependent via their user group (created on connect)
+        await hubContext.Clients.Group($"user:{dependentId}").SendAsync("InstanceStatusChanged", instanceDto);
 
-        // Send directly to each caregiver by user ID (reliable even after reconnection)
+        // Send to each caregiver via their user group
         if (caregiverIds != null)
         {
             foreach (var caregiverId in caregiverIds)
             {
-                await hubContext.Clients.User(caregiverId).SendAsync("InstanceStatusChanged", instanceDto);
+                await hubContext.Clients.Group($"user:{caregiverId}").SendAsync("InstanceStatusChanged", instanceDto);
             }
         }
 
-        // Also send to group as fallback (for any caregivers who are subscribed)
+        // Also send to dependent:{dependentId} group as fallback (for subscribed caregivers)
         await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceStatusChanged", instanceDto);
     }
 
     // Send instance created event to dependent and their caregivers
-    // Uses direct user IDs instead of groups to ensure delivery even after reconnection
+    // Uses user:{userId} groups for reliable delivery
     public static async Task SendInstanceCreatedAsync(
         this IHubContext<SyncHub> hubContext,
         string dependentId,
         object instanceDto,
         IEnumerable<string>? caregiverIds = null)
     {
-        // Send to dependent user
-        await hubContext.Clients.User(dependentId).SendAsync("InstanceCreated", instanceDto);
+        // Send to dependent via their user group (created on connect)
+        await hubContext.Clients.Group($"user:{dependentId}").SendAsync("InstanceCreated", instanceDto);
 
-        // Send directly to each caregiver by user ID (reliable even after reconnection)
+        // Send to each caregiver via their user group
         if (caregiverIds != null)
         {
             foreach (var caregiverId in caregiverIds)
             {
-                await hubContext.Clients.User(caregiverId).SendAsync("InstanceCreated", instanceDto);
+                await hubContext.Clients.Group($"user:{caregiverId}").SendAsync("InstanceCreated", instanceDto);
             }
         }
 
-        // Also send to group as fallback (for any caregivers who are subscribed)
+        // Also send to dependent:{dependentId} group as fallback (for subscribed caregivers)
         await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceCreated", instanceDto);
     }
 }

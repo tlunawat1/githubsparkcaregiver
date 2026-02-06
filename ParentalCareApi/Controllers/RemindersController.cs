@@ -195,14 +195,16 @@ public class RemindersController : ControllerBase
             .Select(cr => cr.CaregiverId)
             .ToListAsync();
 
-        // SignalR: Send ReminderCreated to dependent
-        _logger.LogInformation("Sending ReminderCreated SignalR to dependent {DependentId}", dependentId);
-        await _hubContext.Clients.User(dependentId).SendAsync("ReminderCreated", reminderDto);
-        _logger.LogInformation("ReminderCreated SignalR sent successfully to dependent {DependentId}", dependentId);
+        // SignalR: Send ReminderCreated to dependent via their user group (created on connect)
+        var dependentGroupName = $"user:{dependentId}";
+        _logger.LogInformation("Sending ReminderCreated SignalR to group '{GroupName}' for dependent {DependentId}", dependentGroupName, dependentId);
+        await _hubContext.Clients.Group(dependentGroupName).SendAsync("ReminderCreated", reminderDto);
+        _logger.LogInformation("ReminderCreated SignalR sent to group '{GroupName}'", dependentGroupName);
 
         // SignalR: Notify about created instances - MUST await to ensure delivery
-        _logger.LogInformation("Sending {Count} InstanceCreated SignalR notifications to dependent {DependentId} and {CaregiverCount} caregivers",
-            instances.Count, dependentId, caregiverIds.Count);
+        var caregiverGroupNames = caregiverIds.Select(id => $"user:{id}").ToList();
+        _logger.LogInformation("Sending {Count} InstanceCreated SignalR to groups: dependent='{DependentGroup}', caregivers=[{CaregiverGroups}]",
+            instances.Count, dependentGroupName, string.Join(", ", caregiverGroupNames));
         foreach (var instance in instances)
         {
             var instanceDto = new
@@ -396,9 +398,9 @@ public class RemindersController : ControllerBase
             .Select(cr => cr.CaregiverId)
             .ToListAsync();
 
-        // SignalR: Send ReminderUpdated to dependent
+        // SignalR: Send ReminderUpdated to dependent via their user group
         _logger.LogInformation("Sending ReminderUpdated SignalR to dependent {DependentId}", dependentId);
-        await _hubContext.Clients.User(dependentId).SendAsync("ReminderUpdated", reminderDto);
+        await _hubContext.Clients.Group($"user:{dependentId}").SendAsync("ReminderUpdated", reminderDto);
         _logger.LogInformation("ReminderUpdated SignalR sent successfully to dependent {DependentId}", dependentId);
 
         // SignalR: Notify about updated instances - MUST await to ensure delivery
@@ -456,8 +458,8 @@ public class RemindersController : ControllerBase
 
         _logger.LogInformation("Reminder deleted: {Id}", id);
 
-        // SignalR notification - must await to ensure delivery
-        await _hubContext.Clients.User(reminder.DependentId).SendAsync("ReminderDeleted", new { reminderId = id });
+        // SignalR notification via user group - must await to ensure delivery
+        await _hubContext.Clients.Group($"user:{reminder.DependentId}").SendAsync("ReminderDeleted", new { reminderId = id });
 
         return Ok(new { message = "Reminder deleted" });
     }
