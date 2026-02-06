@@ -18,6 +18,7 @@ import '../../features/reminders/presentation/screens/add_reminder_screen.dart';
 import '../../features/reminders/presentation/screens/edit_reminder_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/settings/presentation/screens/timezone_settings_screen.dart';
+import '../../features/settings/presentation/screens/edit_profile_screen.dart';
 
 /// Route names for type-safe navigation
 class AppRoutes {
@@ -46,6 +47,7 @@ class AppRoutes {
   // Shared routes
   static const String settings = '/settings';
   static const String timezoneSettings = '/settings/timezone';
+  static const String editProfile = '/settings/edit-profile';
 }
 
 /// App router configuration
@@ -190,6 +192,11 @@ class AppRouter {
             path: 'timezone',
             name: 'timezoneSettings',
             builder: (context, state) => const TimezoneSettingsScreen(),
+          ),
+          GoRoute(
+            path: 'edit-profile',
+            name: 'editProfile',
+            builder: (context, state) => const EditProfileScreen(),
           ),
         ],
       ),

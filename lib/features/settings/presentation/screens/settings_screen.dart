@@ -329,6 +329,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
+                // Edit profile button
+                IconButton(
+                  icon: Icon(
+                    Icons.edit_outlined,
+                    color: colorScheme.primary,
+                  ),
+                  onPressed: () async {
+                    final updated = await context.push<bool>(AppRoutes.editProfile);
+                    if (updated == true) {
+                      _loadSettings(); // Reload to show updated name
+                    }
+                  },
+                  tooltip: 'Edit profile',
+                ),
               ],
             ),
           ),
@@ -440,9 +454,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: SelectableText(
                             _uniqueCode,
                             maxLines: 1,
-                            style: theme.textTheme.titleLarge?.copyWith(
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
+                              letterSpacing: 1,
                               color: colorScheme.primary,
                             ),
                           ),
