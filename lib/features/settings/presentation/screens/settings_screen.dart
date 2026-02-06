@@ -129,6 +129,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         debugPrint('Error during logout: $e');
       }
 
+      // Disconnect SignalR and clear subscriptions before clearing settings
+      final signalRService = getIt<SignalRService>();
+      await signalRService.disconnect(clearTracking: true);
+      debugPrint('SignalR disconnected on logout');
+
       // Clear local settings
       await _settingsRepository.clearAllSettings();
 

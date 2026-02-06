@@ -100,16 +100,14 @@ public class SyncHub : Hub
 public static class SyncHubExtensions
 {
     // Send to specific user by their user ID
-    // Uses the user:{userId} group created on connect for reliable delivery
+    // Uses Clients.User() (framework-managed IUserIdProvider) for reliable delivery
     public static async Task SendToUserAsync(
         this IHubContext<SyncHub> hubContext,
         string userId,
         string method,
         object? arg = null)
     {
-        // Use group instead of Clients.User() for more reliable delivery
-        // The user:{userId} group is created when user connects in OnConnectedAsync
-        await hubContext.Clients.Group($"user:{userId}").SendAsync(method, arg);
+        await hubContext.Clients.User(userId).SendAsync(method, arg);
     }
 
     // Send to all caregivers of a dependent (via group - may be empty if caregivers disconnected)
@@ -123,22 +121,22 @@ public static class SyncHubExtensions
     }
 
     // Send instance status changed event to dependent and their caregivers
-    // Uses user:{userId} groups for reliable delivery
+    // Uses Clients.User() for reliable delivery, with dependent group as fallback
     public static async Task SendInstanceStatusChangedAsync(
         this IHubContext<SyncHub> hubContext,
         string dependentId,
         object instanceDto,
         IEnumerable<string>? caregiverIds = null)
     {
-        // Send to dependent via their user group (created on connect)
-        await hubContext.Clients.Group($"user:{dependentId}").SendAsync("InstanceStatusChanged", instanceDto);
+        // Send to dependent via framework-managed user mapping (robust across reconnections)
+        await hubContext.Clients.User(dependentId).SendAsync("InstanceStatusChanged", instanceDto);
 
-        // Send to each caregiver via their user group
+        // Send directly to each caregiver by user ID
         if (caregiverIds != null)
         {
             foreach (var caregiverId in caregiverIds)
             {
-                await hubContext.Clients.Group($"user:{caregiverId}").SendAsync("InstanceStatusChanged", instanceDto);
+                await hubContext.Clients.User(caregiverId).SendAsync("InstanceStatusChanged", instanceDto);
             }
         }
 
@@ -147,26 +145,98 @@ public static class SyncHubExtensions
     }
 
     // Send instance created event to dependent and their caregivers
-    // Uses user:{userId} groups for reliable delivery
+    // Uses Clients.User() for reliable delivery, with dependent group as fallback
     public static async Task SendInstanceCreatedAsync(
         this IHubContext<SyncHub> hubContext,
         string dependentId,
         object instanceDto,
         IEnumerable<string>? caregiverIds = null)
     {
-        // Send to dependent via their user group (created on connect)
-        await hubContext.Clients.Group($"user:{dependentId}").SendAsync("InstanceCreated", instanceDto);
+        // Send to dependent via framework-managed user mapping (robust across reconnections)
+        await hubContext.Clients.User(dependentId).SendAsync("InstanceCreated", instanceDto);
 
-        // Send to each caregiver via their user group
+        // Send directly to each caregiver by user ID
         if (caregiverIds != null)
         {
             foreach (var caregiverId in caregiverIds)
             {
-                await hubContext.Clients.Group($"user:{caregiverId}").SendAsync("InstanceCreated", instanceDto);
+                await hubContext.Clients.User(caregiverId).SendAsync("InstanceCreated", instanceDto);
             }
         }
 
         // Also send to dependent:{dependentId} group as fallback (for subscribed caregivers)
         await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceCreated", instanceDto);
+    }
+
+    // Send reminder created event to dependent and their caregivers
+    // Uses Clients.User() for reliable delivery, with dependent group as fallback
+    public static async Task SendReminderCreatedAsync(
+        this IHubContext<SyncHub> hubContext,
+        string dependentId,
+        object reminderDto,
+        IEnumerable<string>? caregiverIds = null)
+    {
+        // Send to dependent via framework-managed user mapping
+        await hubContext.Clients.User(dependentId).SendAsync("ReminderCreated", reminderDto);
+
+        // Send directly to each caregiver by user ID
+        if (caregiverIds != null)
+        {
+            foreach (var caregiverId in caregiverIds)
+            {
+                await hubContext.Clients.User(caregiverId).SendAsync("ReminderCreated", reminderDto);
+            }
+        }
+
+        // Also send to dependent:{dependentId} group as fallback (for subscribed caregivers)
+        await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("ReminderCreated", reminderDto);
+    }
+
+    // Send reminder updated event to dependent and their caregivers
+    // Uses Clients.User() for reliable delivery, with dependent group as fallback
+    public static async Task SendReminderUpdatedAsync(
+        this IHubContext<SyncHub> hubContext,
+        string dependentId,
+        object reminderDto,
+        IEnumerable<string>? caregiverIds = null)
+    {
+        // Send to dependent via framework-managed user mapping
+        await hubContext.Clients.User(dependentId).SendAsync("ReminderUpdated", reminderDto);
+
+        // Send directly to each caregiver by user ID
+        if (caregiverIds != null)
+        {
+            foreach (var caregiverId in caregiverIds)
+            {
+                await hubContext.Clients.User(caregiverId).SendAsync("ReminderUpdated", reminderDto);
+            }
+        }
+
+        // Also send to dependent:{dependentId} group as fallback (for subscribed caregivers)
+        await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("ReminderUpdated", reminderDto);
+    }
+
+    // Send reminder deleted event to dependent and their caregivers
+    // Uses Clients.User() for reliable delivery, with dependent group as fallback
+    public static async Task SendReminderDeletedAsync(
+        this IHubContext<SyncHub> hubContext,
+        string dependentId,
+        object data,
+        IEnumerable<string>? caregiverIds = null)
+    {
+        // Send to dependent via framework-managed user mapping
+        await hubContext.Clients.User(dependentId).SendAsync("ReminderDeleted", data);
+
+        // Send directly to each caregiver by user ID
+        if (caregiverIds != null)
+        {
+            foreach (var caregiverId in caregiverIds)
+            {
+                await hubContext.Clients.User(caregiverId).SendAsync("ReminderDeleted", data);
+            }
+        }
+
+        // Also send to dependent:{dependentId} group as fallback (for subscribed caregivers)
+        await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("ReminderDeleted", data);
     }
 }

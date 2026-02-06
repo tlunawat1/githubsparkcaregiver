@@ -50,6 +50,7 @@ class SignalRService {
   final String hubUrl;
   HubConnection? _connection;
   String? _accessToken;
+  String? _connectedWithToken; // Track which token the current connection was made with
 
   SignalRConnectionState _connectionState = SignalRConnectionState.disconnected;
   int _reconnectAttempts = 0;
@@ -88,9 +89,15 @@ class SignalRService {
 
   /// Connect to SignalR hub
   Future<void> connect() async {
+    // If already connected, check if the access token has changed (e.g., user switched accounts)
     if (_connection != null &&
         _connectionState == SignalRConnectionState.connected) {
-      return;
+      if (_accessToken != null && _accessToken != _connectedWithToken) {
+        debugPrint('SignalR: Access token changed while connected - reconnecting with new token');
+        await disconnect(clearTracking: true);
+      } else {
+        return;
+      }
     }
 
     _updateState(SignalRConnectionState.connecting);
@@ -132,6 +139,7 @@ class SignalRService {
 
       debugPrint('SignalR: Starting connection to $hubUrl');
       await _connection!.start();
+      _connectedWithToken = _accessToken; // Track which token this connection used
       _updateState(SignalRConnectionState.connected);
       _reconnectAttempts = 0;
       _startPing();
@@ -162,6 +170,8 @@ class SignalRService {
       }
       _connection = null;
     }
+    
+    _connectedWithToken = null;
     
     if (clearTracking) {
       clearSubscriptions();
