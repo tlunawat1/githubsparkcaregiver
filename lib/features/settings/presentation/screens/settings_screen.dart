@@ -10,6 +10,7 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/accessible_card.dart';
+import '../../../../shared/widgets/swipe_to_logout_button.dart';
 
 /// Settings screen for app preferences
 class SettingsScreen extends StatefulWidget {
@@ -22,9 +23,12 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _settingsRepository = getIt<SettingsRepository>();
   final _userApi = getIt<UserApi>();
+  final _authApi = getIt<AuthApi>();
 
   String _userRole = '';
   String _userName = '';
+  String _userEmail = '';
+  String? _userPhone;
   String _uniqueCode = '';
   String _userTimezone = 'UTC';
   String _themeMode = 'system';
@@ -47,18 +51,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _notificationSound = await _settingsRepository.isNotificationSoundEnabled();
       _hapticFeedback = await _settingsRepository.isHapticFeedbackEnabled();
 
-      final userId = await _settingsRepository.getCurrentUserId();
-      if (userId != null) {
-        final user = await getIt<UserRepository>().getUserById(userId);
-        _userName = user?.name ?? '';
-        _uniqueCode = user?.uniqueCode ?? '';
-
-        // Fetch timezone from API
-        try {
-          final userData = await _userApi.getCurrentUser();
-          _userTimezone = userData.timezone;
-        } catch (e) {
-          debugPrint('Error fetching user timezone: $e');
+      // Fetch user data from API
+      try {
+        final userData = await _userApi.getCurrentUser();
+        _userName = userData.name;
+        _userEmail = userData.email;
+        _userPhone = userData.phoneNumber;
+        _uniqueCode = userData.uniqueCode;
+        _userTimezone = userData.timezone;
+      } catch (e) {
+        debugPrint('Error fetching user data: $e');
+        // Fallback to local data
+        final userId = await _settingsRepository.getCurrentUserId();
+        if (userId != null) {
+          final user = await getIt<UserRepository>().getUserById(userId);
+          _userName = user?.name ?? '';
+          _uniqueCode = user?.uniqueCode ?? '';
         }
       }
     } catch (e) {
@@ -70,11 +78,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        // Call API logout (clears device token from server)
+        await _authApi.logout();
+      } catch (e) {
+        debugPrint('Error during logout: $e');
+      }
+
+      // Clear local settings
+      await _settingsRepository.clearAllSettings();
+
+      if (mounted) {
+        context.go(AppRoutes.welcome);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Settings')),
@@ -101,114 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           // Profile section
           _buildSectionHeader('Profile'),
-          AccessibleCard(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: colorScheme.primaryContainer,
-                    child: Text(
-                      _userName.isNotEmpty ? _userName[0].toUpperCase() : '?',
-                      style: TextStyle(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  title: Text(
-                    _userName.isEmpty ? 'User' : _userName,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text(
-                    _userRole == 'caregiver' ? 'Caregiver' : 'Dependent',
-                  ),
-                ),
-                if (_uniqueCode.isNotEmpty) ...[
-                  const Divider(height: 1),
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Your Unique Code',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.qr_code,
-                                color: colorScheme.primary,
-                              ),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: SelectableText(
-                                  _uniqueCode,
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 2,
-                                    color: colorScheme.primary,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.copy),
-                                onPressed: () {
-                                  Clipboard.setData(
-                                    ClipboardData(text: _uniqueCode),
-                                  );
-                                  HapticFeedback.lightImpact();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Code copied to clipboard'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                },
-                                tooltip: 'Copy code',
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.share),
-                                onPressed: () {
-                                  Share.share(
-                                    'My Parental Care code is: $_uniqueCode\n\nUse this code to connect with me in the app.',
-                                    subject: 'My Parental Care Code',
-                                  );
-                                },
-                                tooltip: 'Share code',
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          'Share this code with ${_userRole == 'caregiver' ? 'your dependents' : 'your caregiver'} to connect.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+          _buildProfileCard(),
           const SizedBox(height: AppSpacing.lg),
 
           // Appearance section
@@ -322,38 +259,234 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.xl),
 
-          // Danger zone
+          // Logout section
           _buildSectionHeader('Account'),
-          AccessibleCard(
-            borderColor: colorScheme.error,
-            borderWidth: 1,
-            child: Column(
+          SwipeToLogoutButton(
+            onSwipeComplete: _handleLogout,
+          ),
+          const SizedBox(height: AppSpacing.xxl),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileCard() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return AccessibleCard(
+      child: Column(
+        children: [
+          // User info with avatar
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
               children: [
-                ListTile(
-                  leading: Icon(Icons.swap_horiz, color: colorScheme.primary),
-                  title: const Text('Switch Role'),
-                  subtitle: Text(
-                    'Currently: ${_userRole == 'caregiver' ? 'Caregiver' : 'Dependent'}',
+                // Avatar
+                CircleAvatar(
+                  backgroundColor: colorScheme.primaryContainer,
+                  radius: 32,
+                  child: Text(
+                    _userName.isNotEmpty ? _userName[0].toUpperCase() : '?',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _showSwitchRoleDialog,
                 ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: Icon(Icons.logout, color: colorScheme.error),
-                  title: Text(
-                    'Reset App',
-                    style: TextStyle(color: colorScheme.error),
+                const SizedBox(width: AppSpacing.md),
+                // Name and role
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _userName.isEmpty ? 'User' : _userName,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _userRole == 'caregiver' ? 'Caregiver' : 'Dependent',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  subtitle: const Text('Clear all data and start over'),
-                  onTap: _showResetDialog,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.xxl),
+
+          const Divider(height: 1),
+
+          // Contact details
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              children: [
+                // Email
+                Row(
+                  children: [
+                    Icon(
+                      Icons.email_outlined,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Email',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Text(
+                            _userEmail.isEmpty ? 'Not set' : _userEmail,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Phone (if available)
+                if (_userPhone != null && _userPhone!.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.phone_outlined,
+                        color: colorScheme.onSurfaceVariant,
+                        size: 20,
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Phone',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              _userPhone!,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Unique code section
+          if (_uniqueCode.isNotEmpty) ...[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your Unique Code',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.qr_code,
+                          color: colorScheme.primary,
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: SelectableText(
+                            _uniqueCode,
+                            maxLines: 1,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy),
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(text: _uniqueCode),
+                            );
+                            HapticFeedback.lightImpact();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Code copied to clipboard'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          tooltip: 'Copy code',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.share),
+                          onPressed: () {
+                            Share.share(
+                              'My Parental Care code is: $_uniqueCode\n\nUse this code to connect with me in the app.',
+                              subject: 'My Parental Care Code',
+                            );
+                          },
+                          tooltip: 'Share code',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Share this code with ${_userRole == 'caregiver' ? 'your dependents' : 'your caregiver'} to connect.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -415,151 +548,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() => _themeMode = value);
         if (mounted) Navigator.pop(context);
       },
-    );
-  }
-
-  void _showSwitchRoleDialog() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final newRole = _userRole == 'caregiver' ? 'dependent' : 'caregiver';
-    final newRoleLabel = newRole == 'caregiver' ? 'Caregiver' : 'Dependent';
-    final currentRoleLabel = _userRole == 'caregiver' ? 'Caregiver' : 'Dependent';
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: colorScheme.error, size: 28),
-            const SizedBox(width: 8),
-            const Text('Change Role?'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: colorScheme.onErrorContainer),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This will completely change your app experience!',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onErrorContainer,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'You are about to switch from:',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildRoleBadge(currentRoleLabel, colorScheme.primary, theme),
-                const SizedBox(width: 8),
-                Icon(Icons.arrow_forward, color: colorScheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                _buildRoleBadge(newRoleLabel, colorScheme.secondary, theme),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              newRole == 'dependent'
-                  ? '• You will see the simplified Dependent interface\n• Your caregiver dashboard will be hidden\n• You can switch back anytime'
-                  : '• You will see the full Caregiver interface\n• You can manage dependents and reminders\n• You can switch back anytime',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await _settingsRepository.setUserRole(newRole);
-              if (mounted) {
-                Navigator.pop(dialogContext);
-                if (newRole == 'caregiver') {
-                  context.go(AppRoutes.caregiverHome);
-                } else {
-                  context.go(AppRoutes.dependentHome);
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-            ),
-            child: Text('Switch to $newRoleLabel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRoleBadge(String label, Color color, ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  void _showResetDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset App'),
-        content: const Text(
-          'This will delete all your data including reminders, contacts, and settings. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await _settingsRepository.clearAllSettings();
-              if (mounted) {
-                Navigator.pop(context);
-                context.go(AppRoutes.welcome);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
     );
   }
 }

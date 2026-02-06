@@ -30,7 +30,6 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   final _userRepository = getIt<UserRepository>();
   final _reminderApi = getIt<ReminderApi>();
   final _reminderInstanceApi = getIt<ReminderInstanceApi>();
-  final _settingsRepository = getIt<SettingsRepository>();
   final _careRelationshipRepository = getIt<CareRelationshipRepository>();
   final _signalRService = getIt<SignalRService>();
 
@@ -41,8 +40,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   Map<String, User> _pendingLinkCaregivers = {};
   bool _isLoading = true;
   bool _isInitialLoad = true;
-  String _themeMode = 'system';
-  Set<String> _completingInstances = {};
+  final Set<String> _completingInstances = {};
   StreamSubscription<SignalREvent>? _signalRSubscription;
   StreamSubscription<SignalRConnectionState>? _connectionStateSubscription;
 
@@ -111,7 +109,6 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     }
 
     try {
-      _themeMode = await _settingsRepository.getThemeMode();
       // Load current user from remote API
       _user = await _userApi.getCurrentUser();
 
@@ -198,7 +195,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.settings, size: 28),
-                                      onPressed: () => _showSettingsBottomSheet(context),
+                                      onPressed: () => context.go(AppRoutes.settings),
                                       tooltip: 'Settings',
                                     ),
                                   ],
@@ -592,235 +589,4 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     );
   }
 
-  void _showSettingsBottomSheet(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Settings',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: Icon(
-                  _themeMode == 'dark' ? Icons.dark_mode : Icons.light_mode,
-                  color: colorScheme.primary,
-                ),
-                title: const Text('Theme'),
-                subtitle: Text(_getThemeLabel(_themeMode)),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showThemeDialog(context);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.swap_horiz, color: colorScheme.secondary),
-                title: const Text('Switch to Caregiver'),
-                subtitle: const Text('Change app mode'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showSwitchRoleDialog(context);
-                },
-              ),
-              const Divider(),
-              ListTile(
-                leading: Icon(Icons.logout, color: colorScheme.error),
-                title: Text('Reset App', style: TextStyle(color: colorScheme.error)),
-                subtitle: const Text('Clear all data'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showResetDialog(context);
-                },
-              ),
-              const Divider(),
-              ListTile(
-                leading: Icon(Icons.settings, color: colorScheme.onSurfaceVariant),
-                title: const Text('All Settings'),
-                subtitle: const Text('View more options'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.go(AppRoutes.settings);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _getThemeLabel(String mode) {
-    switch (mode) {
-      case 'light':
-        return 'Light';
-      case 'dark':
-        return 'Dark';
-      default:
-        return 'System default';
-    }
-  }
-
-  void _showThemeDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Choose Theme'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildThemeOption(dialogContext, 'system', 'System default', Icons.settings_suggest),
-            _buildThemeOption(dialogContext, 'light', 'Light', Icons.light_mode),
-            _buildThemeOption(dialogContext, 'dark', 'Dark', Icons.dark_mode),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildThemeOption(BuildContext dialogContext, String value, String label, IconData icon) {
-    final isSelected = _themeMode == value;
-
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(label),
-      trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
-      onTap: () async {
-        await _settingsRepository.setThemeMode(value);
-        setState(() => _themeMode = value);
-        if (mounted) Navigator.pop(dialogContext);
-      },
-    );
-  }
-
-  void _showSwitchRoleDialog(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: colorScheme.error, size: 28),
-            const SizedBox(width: 8),
-            const Text('Switch to Caregiver?'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: colorScheme.onErrorContainer),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This will change your app experience!',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onErrorContainer,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '• You will see the Caregiver interface\n• You can manage dependents and reminders\n• You can switch back anytime',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await _settingsRepository.setUserRole('caregiver');
-              Navigator.pop(dialogContext);
-              if (mounted) {
-                // Use the widget's context for navigation after dialog is closed
-                GoRouter.of(this.context).go(AppRoutes.caregiverHome);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-            ),
-            child: const Text('Switch to Caregiver'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showResetDialog(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Reset App'),
-        content: const Text(
-          'This will delete all your data including reminders, contacts, and settings. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await _settingsRepository.clearAllSettings();
-              if (mounted) {
-                Navigator.pop(dialogContext);
-                context.go(AppRoutes.welcome);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.error,
-            ),
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
-    );
-  }
 }

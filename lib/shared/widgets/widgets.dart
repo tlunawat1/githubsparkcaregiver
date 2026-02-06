@@ -7,3 +7,4 @@ export 'reminder_button.dart';
 export 'reminder_card.dart';
 export 'reminder_details_modal.dart';
 export 'sos_button.dart';
+export 'swipe_to_logout_button.dart';
