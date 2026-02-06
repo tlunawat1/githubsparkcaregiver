@@ -1,5 +1,71 @@
 # Change Log
 
+## 2026-02-06: Edit Profile & Email Verification Improvements
+
+### Summary
+Added Edit Profile screen accessible from Settings, improved unique code display, and replaced email verification modal with a simple toast message.
+
+### Changes Made
+
+#### New Files
+- `lib/features/settings/presentation/screens/edit_profile_screen.dart` - Edit Profile screen with:
+  - Editable name field with validation (required, min 2 characters)
+  - Read-only email and phone fields with visible borders and lock icons
+  - Avatar display with user's initial
+  - Cancel and Update buttons
+  - API integration via `UserApi.updateCurrentUser()`
+
+#### Modified Files
+
+**`lib/core/routing/app_router.dart`**
+- Added `editProfile` route constant (`/settings/edit-profile`)
+- Added import for `EditProfileScreen`
+- Added nested route under `/settings` for edit profile screen
+
+**`lib/features/settings/presentation/screens/settings_screen.dart`**
+- Added edit icon button next to user name in profile card
+- Edit icon navigates to Edit Profile screen
+- Reloads settings on return if profile was updated
+- Fixed unique code display being cropped by icons:
+  - Reduced font from `titleLarge` to `titleMedium`
+  - Reduced letter spacing from `2` to `1`
+
+**`lib/features/auth/presentation/screens/email_verification_screen.dart`**
+- Removed `_showSuccessDialog` modal popup
+- Replaced with simple SnackBar toast: "Email verified! Copy and share your code to connect."
+- Now navigates directly to home screen after verification
+
+### User Flow Changes
+
+#### Edit Profile
+1. User taps edit icon on Settings page profile section
+2. Edit Profile screen opens with current user data
+3. User can modify name (email/phone are read-only)
+4. Cancel returns without saving, Update saves and returns
+
+#### Email Verification (Before)
+1. User enters verification code
+2. Modal dialog shows with unique code
+3. User taps Continue to proceed
+
+#### Email Verification (After)
+1. User enters verification code
+2. Toast message appears: "Email verified! Copy and share your code to connect."
+3. Automatically navigates to home screen
+
+### Testing Checklist
+- [ ] Tap edit icon on Settings → opens Edit Profile screen
+- [ ] Edit Profile shows name (editable), email (read-only), phone (read-only)
+- [ ] Name validation: empty or < 2 chars shows error
+- [ ] Cancel button returns to Settings without saving
+- [ ] Update button saves name and returns to Settings
+- [ ] Settings page shows updated name after edit
+- [ ] Unique code fully visible (not cropped by icons)
+- [ ] Email verification shows toast instead of modal
+- [ ] After verification, navigates directly to home screen
+
+---
+
 ## 2026-02-06: Settings Page Redesign
 
 ### Summary

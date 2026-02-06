@@ -269,8 +269,21 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       HapticFeedback.mediumImpact();
 
       if (mounted) {
-        // Show success dialog with unique code
-        _showSuccessDialog(verifyResponse.uniqueCode);
+        // Show success toast
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email verified! Copy and share your code to connect.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+
+        // Navigate to home screen
+        if (widget.role == 'caregiver') {
+          context.go(AppRoutes.caregiverHome);
+        } else {
+          context.go(AppRoutes.dependentHome);
+        }
       }
     } catch (e) {
       setState(() {
@@ -278,84 +291,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         _isLoading = false;
       });
     }
-  }
-
-  void _showSuccessDialog(String uniqueCode) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 28),
-            const SizedBox(width: 8),
-            const Text('Email Verified!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Your account has been created successfully.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Your Unique Code',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.md,
-              ),
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: SelectableText(
-                uniqueCode,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                  color: colorScheme.primary,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Share this code with ${widget.role == 'caregiver' ? 'your dependents' : 'your caregiver'} to connect.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              debugPrint('Email verification complete - widget.role: "${widget.role}", navigating to ${widget.role == 'caregiver' ? 'caregiverHome' : 'dependentHome'}');
-              if (widget.role == 'caregiver') {
-                debugPrint('Navigating to: ${AppRoutes.caregiverHome}');
-                this.context.go(AppRoutes.caregiverHome);
-              } else {
-                debugPrint('Navigating to: ${AppRoutes.dependentHome}');
-                this.context.go(AppRoutes.dependentHome);
-              }
-            },
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _handleResend() async {
