@@ -35,6 +35,22 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   List<ReminderInstanceData> _todayInstances = [];
   bool _isLoading = true;
   bool _isInitialLoad = true;
+  String? _activeStatusFilter; // null = show all, 'completed'/'pending'/'missed'
+
+  List<ReminderInstanceData> get _filteredInstances {
+    if (_activeStatusFilter == null) return _todayInstances;
+    return _todayInstances.where((i) => i.status == _activeStatusFilter).toList();
+  }
+
+  void _toggleStatusFilter(String status) {
+    setState(() {
+      if (_activeStatusFilter == status) {
+        _activeStatusFilter = null; // Tap same filter = clear
+      } else {
+        _activeStatusFilter = status; // Tap different filter = switch
+      }
+    });
+  }
   StreamSubscription<SignalREvent>? _signalRSubscription;
   StreamSubscription<SignalRConnectionState>? _connectionStateSubscription;
 
@@ -162,19 +178,37 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: AppSpacing.screenPaddingHorizontal,
-                      child: Text(
-                        'Today\'s Reminders',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Today\'s Reminders',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (_activeStatusFilter != null)
+                            GestureDetector(
+                              onTap: () => setState(() => _activeStatusFilter = null),
+                              child: Text(
+                                'Clear filter',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                  if (_todayInstances.isEmpty)
+                  if (_filteredInstances.isEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: AppSpacing.screenPadding,
-                        child: _EmptyRemindersCard(),
+                        child: _activeStatusFilter != null
+                            ? _NoFilterResultsCard(status: _activeStatusFilter!)
+                            : _EmptyRemindersCard(),
                       ),
                     )
                   else
@@ -183,14 +217,14 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
-                            final instance = _todayInstances[index];
+                            final instance = _filteredInstances[index];
                             final reminder = _reminders.firstWhere(
                               (r) => r.id == instance.reminderId,
                               orElse: () => _reminders.first,
                             );
                             return _buildReminderCard(reminder, instance);
                           },
-                          childCount: _todayInstances.length,
+                          childCount: _filteredInstances.length,
                         ),
                       ),
                     ),
@@ -289,16 +323,22 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
             label: 'Completed',
             value: completed.toString(),
             color: AppColors.success,
+            isSelected: _activeStatusFilter == 'completed',
+            onTap: () => _toggleStatusFilter('completed'),
           ),
           _StatItem(
             label: 'Pending',
             value: pending.toString(),
             color: AppColors.warning,
+            isSelected: _activeStatusFilter == 'pending',
+            onTap: () => _toggleStatusFilter('pending'),
           ),
           _StatItem(
             label: 'Missed',
             value: missed.toString(),
             color: AppColors.error,
+            isSelected: _activeStatusFilter == 'missed',
+            onTap: () => _toggleStatusFilter('missed'),
           ),
         ],
       ),
@@ -429,42 +469,52 @@ class _StatItem extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   const _StatItem({
     required this.label,
     required this.value,
     required this.color,
+    required this.isSelected,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              value,
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: isSelected ? 0.4 : 0.2),
+              shape: BoxShape.circle,
+              border: isSelected ? Border.all(color: color, width: 2) : null,
+            ),
+            child: Center(
+              child: Text(
+                value,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall,
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -491,6 +541,44 @@ class _EmptyRemindersCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             'No reminders for today',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoFilterResultsCard extends StatelessWidget {
+  final String status;
+
+  const _NoFilterResultsCard({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final statusLabel = status[0].toUpperCase() + status.substring(1);
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.filter_list_off,
+            size: 48,
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'No $statusLabel reminders today',
             style: theme.textTheme.bodyLarge?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
