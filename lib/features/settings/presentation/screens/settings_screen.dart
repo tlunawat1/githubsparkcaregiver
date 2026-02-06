@@ -11,6 +11,7 @@ import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/accessible_card.dart';
 import '../../../../shared/widgets/swipe_to_logout_button.dart';
+import 'linked_user_detail_screen.dart';
 
 /// Settings screen for app preferences
 class SettingsScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _settingsRepository = getIt<SettingsRepository>();
   final _userApi = getIt<UserApi>();
   final _authApi = getIt<AuthApi>();
+  final _relationshipApi = getIt<RelationshipApi>();
 
   String _userRole = '';
   String _userName = '';
@@ -36,6 +38,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationSound = true;
   bool _hapticFeedback = true;
   bool _isLoading = true;
+  List<RelationshipData> _linkedUsers = [];
+  bool _isLoadingLinkedUsers = true;
 
   @override
   void initState() {
@@ -69,12 +73,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _uniqueCode = user?.uniqueCode ?? '';
         }
       }
+
+      // Fetch linked users
+      _loadLinkedUsers();
     } catch (e) {
       debugPrint('Error loading settings: $e');
     }
 
     if (mounted) {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadLinkedUsers() async {
+    setState(() => _isLoadingLinkedUsers = true);
+    try {
+      final relationships = await _relationshipApi.getRelationships();
+      _linkedUsers = relationships.where((r) => r.isActive).toList();
+    } catch (e) {
+      debugPrint('Error fetching linked users: $e');
+      _linkedUsers = [];
+    }
+    if (mounted) {
+      setState(() => _isLoadingLinkedUsers = false);
     }
   }
 
@@ -146,6 +167,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Profile section
           _buildSectionHeader('Profile'),
           _buildProfileCard(),
+          const SizedBox(height: AppSpacing.lg),
+
+          // My Dependents / My Caregivers section
+          _buildSectionHeader(_userRole == 'caregiver' ? 'My Dependents' : 'My Caregivers'),
+          _buildLinkedUsersSection(),
           const SizedBox(height: AppSpacing.lg),
 
           // Appearance section
@@ -504,6 +530,134 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildLinkedUsersSection() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    if (_isLoadingLinkedUsers) {
+      return AccessibleCard(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Center(
+            child: CircularProgressIndicator(
+              color: colorScheme.primary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_linkedUsers.isEmpty) {
+      final isCaregiver = _userRole == 'caregiver';
+      return AccessibleCard(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            children: [
+              Icon(
+                isCaregiver ? Icons.people_outline : Icons.person_outline,
+                size: 48,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                isCaregiver
+                    ? 'No dependents linked yet'
+                    : 'No caregivers linked yet',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Share your unique code to connect',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return AccessibleCard(
+      child: Column(
+        children: _linkedUsers.asMap().entries.map((entry) {
+          final index = entry.key;
+          final relationship = entry.value;
+          final linkedUser = _userRole == 'caregiver'
+              ? relationship.dependent
+              : relationship.caregiver;
+
+          if (linkedUser == null) return const SizedBox.shrink();
+
+          return Column(
+            children: [
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: colorScheme.primaryContainer,
+                  child: Text(
+                    linkedUser.name.isNotEmpty
+                        ? linkedUser.name[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  linkedUser.name,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  linkedUser.email ?? linkedUser.uniqueCode,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _navigateToLinkedUserDetail(relationship, linkedUser),
+              ),
+              if (index < _linkedUsers.length - 1)
+                const Divider(height: 1),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Future<void> _navigateToLinkedUserDetail(
+    RelationshipData relationship,
+    UserSearchResult linkedUser,
+  ) async {
+    final isCaregiver = _userRole == 'caregiver';
+    final userData = LinkedUserData(
+      relationshipId: relationship.id,
+      userId: linkedUser.id,
+      userName: linkedUser.name,
+      userEmail: linkedUser.email,
+      userPhone: linkedUser.phoneNumber,
+      userCode: linkedUser.uniqueCode,
+      isEditable: isCaregiver, // Caregiver can edit dependent's name
+      linkedUserRole: linkedUser.role,
+    );
+
+    final result = await context.push<bool>(
+      AppRoutes.linkedUserDetail,
+      extra: userData,
+    );
+
+    if (result == true) {
+      _loadLinkedUsers();
+    }
   }
 
   Widget _buildSectionHeader(String title) {

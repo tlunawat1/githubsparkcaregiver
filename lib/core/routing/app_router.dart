@@ -19,6 +19,7 @@ import '../../features/reminders/presentation/screens/edit_reminder_screen.dart'
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/settings/presentation/screens/timezone_settings_screen.dart';
 import '../../features/settings/presentation/screens/edit_profile_screen.dart';
+import '../../features/settings/presentation/screens/linked_user_detail_screen.dart';
 
 /// Route names for type-safe navigation
 class AppRoutes {
@@ -48,6 +49,7 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String timezoneSettings = '/settings/timezone';
   static const String editProfile = '/settings/edit-profile';
+  static const String linkedUserDetail = '/settings/linked-user';
 }
 
 /// App router configuration
@@ -197,6 +199,14 @@ class AppRouter {
             path: 'edit-profile',
             name: 'editProfile',
             builder: (context, state) => const EditProfileScreen(),
+          ),
+          GoRoute(
+            path: 'linked-user',
+            name: 'linkedUserDetail',
+            builder: (context, state) {
+              final userData = state.extra as LinkedUserData;
+              return LinkedUserDetailScreen(userData: userData);
+            },
           ),
         ],
       ),

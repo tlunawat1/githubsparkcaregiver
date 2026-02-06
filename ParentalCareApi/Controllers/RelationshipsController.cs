@@ -426,14 +426,18 @@ public class RelationshipsController : ControllerBase
                 r.Caregiver.Name,
                 r.Caregiver.Role,
                 r.Caregiver.UniqueCode,
-                r.Caregiver.AvatarUrl
+                r.Caregiver.AvatarUrl,
+                r.Caregiver.Email,
+                r.Caregiver.PhoneNumber
             ) : null,
             r.Dependent != null ? new UserSearchResult(
                 r.Dependent.Id,
                 r.Dependent.Name,
                 r.Dependent.Role,
                 r.Dependent.UniqueCode,
-                r.Dependent.AvatarUrl
+                r.Dependent.AvatarUrl,
+                r.Dependent.Email,
+                r.Dependent.PhoneNumber
             ) : null
         );
     }

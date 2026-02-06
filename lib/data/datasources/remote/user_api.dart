@@ -8,6 +8,8 @@ class UserSearchResult {
   final String role;
   final String uniqueCode;
   final String? avatarUrl;
+  final String? email;
+  final String? phoneNumber;
 
   UserSearchResult({
     required this.id,
@@ -15,6 +17,8 @@ class UserSearchResult {
     required this.role,
     required this.uniqueCode,
     this.avatarUrl,
+    this.email,
+    this.phoneNumber,
   });
 
   factory UserSearchResult.fromJson(Map<String, dynamic> json) {
@@ -24,6 +28,8 @@ class UserSearchResult {
       role: json['role'] as String,
       uniqueCode: json['uniqueCode'] as String,
       avatarUrl: json['avatarUrl'] as String?,
+      email: json['email'] as String?,
+      phoneNumber: json['phoneNumber'] as String?,
     );
   }
 
@@ -33,6 +39,8 @@ class UserSearchResult {
         'role': role,
         'uniqueCode': uniqueCode,
         'avatarUrl': avatarUrl,
+        'email': email,
+        'phoneNumber': phoneNumber,
       };
 }
 
@@ -132,5 +140,14 @@ class UserApi {
       body: {'timezone': timezone},
     );
     return UserData.fromJson(response);
+  }
+
+  /// Update a linked user's name (caregiver updating dependent)
+  Future<UserSearchResult> updateLinkedUserName(String userId, String name) async {
+    final response = await _client.put(
+      '/api/users/$userId',
+      body: {'name': name},
+    );
+    return UserSearchResult.fromJson(response);
   }
 }

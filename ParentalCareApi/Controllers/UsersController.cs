@@ -163,7 +163,9 @@ public class UsersController : ControllerBase
             user.Name,
             user.Role,
             user.UniqueCode,
-            user.AvatarUrl
+            user.AvatarUrl,
+            user.Email,
+            user.PhoneNumber
         ));
     }
 
@@ -181,7 +183,9 @@ public class UsersController : ControllerBase
             user.Name,
             user.Role,
             user.UniqueCode,
-            user.AvatarUrl
+            user.AvatarUrl,
+            user.Email,
+            user.PhoneNumber
         ));
     }
 
@@ -219,7 +223,60 @@ public class UsersController : ControllerBase
             user.Name,
             user.Role,
             user.UniqueCode,
-            user.AvatarUrl
+            user.AvatarUrl,
+            user.Email,
+            user.PhoneNumber
+        ));
+    }
+
+    /// <summary>
+    /// Update a linked user's name (caregiver can update dependent's name only)
+    /// </summary>
+    [HttpPut("{id}")]
+    public async Task<ActionResult<UserSearchResult>> UpdateLinkedUser(string id, [FromBody] UpdateLinkedUserRequest request)
+    {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+        if (currentUserId == null)
+            return Unauthorized();
+
+        // Only caregivers can update linked users
+        if (currentUserRole != "caregiver")
+            return Forbid();
+
+        // Verify an active relationship exists between the caregiver and the target user
+        var relationship = await _context.CareRelationships
+            .FirstOrDefaultAsync(r =>
+                r.CaregiverId == currentUserId &&
+                r.DependentId == id &&
+                r.Status == "active");
+
+        if (relationship == null)
+            return Forbid();
+
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            return NotFound(new { message = "User not found" });
+
+        // Only allow updating the name
+        if (!string.IsNullOrWhiteSpace(request.Name))
+            user.Name = request.Name;
+
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Caregiver {CaregiverId} updated name for dependent {DependentId}", currentUserId, id);
+
+        return Ok(new UserSearchResult(
+            user.Id,
+            user.Name,
+            user.Role,
+            user.UniqueCode,
+            user.AvatarUrl,
+            user.Email,
+            user.PhoneNumber
         ));
     }
 }

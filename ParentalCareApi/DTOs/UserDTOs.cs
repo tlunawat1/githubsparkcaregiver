@@ -27,10 +27,16 @@ public record UpdateDeviceTokenRequest(
     [Required] string DeviceToken
 );
 
+public record UpdateLinkedUserRequest(
+    string? Name
+);
+
 public record UserSearchResult(
     string Id,
     string Name,
     string Role,
     string UniqueCode,
-    string? AvatarUrl
+    string? AvatarUrl,
+    string? Email,
+    string? PhoneNumber
 );
