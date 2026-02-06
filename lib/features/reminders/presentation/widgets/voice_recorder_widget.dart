@@ -222,33 +222,33 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
     final colorScheme = theme.colorScheme;
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         border: Border.all(color: colorScheme.outline),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Icon(
-            Icons.mic,
-            size: 48,
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Tap to record a voice message',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          Expanded(
+            child: Text(
+              'Add a voice message',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          ElevatedButton.icon(
+          TextButton.icon(
             onPressed: _startRecording,
-            icon: const Icon(Icons.mic),
-            label: const Text('Start Recording'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
+            icon: const Icon(Icons.mic, size: 18),
+            label: const Text('Record'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
             ),
           ),
         ],

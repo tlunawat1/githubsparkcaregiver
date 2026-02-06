@@ -201,23 +201,26 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
             const SizedBox(height: AppSpacing.sm),
             InkWell(
               onTap: _selectTime,
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
               child: Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(color: colorScheme.outline),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.access_time, color: colorScheme.primary),
-                    const SizedBox(width: AppSpacing.md),
+                    Icon(Icons.access_time, color: colorScheme.primary, size: 20),
+                    const SizedBox(width: AppSpacing.sm),
                     Text(
                       _selectedTime.format(context),
-                      style: theme.textTheme.headlineSmall,
+                      style: theme.textTheme.titleLarge,
                     ),
                     const Spacer(),
-                    Icon(Icons.edit, color: colorScheme.onSurfaceVariant),
+                    Icon(Icons.edit, color: colorScheme.onSurfaceVariant, size: 18),
                   ],
                 ),
               ),
@@ -233,49 +236,81 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
             ),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
-              spacing: AppSpacing.sm,
+              spacing: AppSpacing.xs,
               children: _repeatOptions.map((option) {
                 final isSelected = _repeatPattern == option;
-                return ChoiceChip(
-                  label: Text(_repeatLabels[option]!),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        _repeatPattern = option;
-                      });
-                    }
-                  },
+                return GestureDetector(
+                  onTap: () => setState(() => _repeatPattern = option),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Text(
+                      _repeatLabels[option]!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isSelected
+                            ? colorScheme.onPrimary
+                            : colorScheme.onSurface,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ),
                 );
               }).toList(),
             ),
 
             // Day selector for specific days
             if (_repeatPattern == 'specific_days') ...[
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 'Select Days',
-                style: theme.textTheme.bodyMedium?.copyWith(
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.sm,
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(7, (index) {
                   final isSelected = _selectedDays.contains(index);
-                  return FilterChip(
-                    label: Text(_dayNames[index]),
-                    selected: isSelected,
-                    onSelected: (selected) {
+                  return GestureDetector(
+                    onTap: () {
                       setState(() {
-                        if (selected) {
-                          _selectedDays.add(index);
-                        } else {
+                        if (isSelected) {
                           _selectedDays.remove(index);
+                        } else {
+                          _selectedDays.add(index);
                         }
                       });
                     },
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Center(
+                        child: Text(
+                          _dayNames[index],
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: isSelected
+                                ? colorScheme.onPrimary
+                                : colorScheme.onSurface,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ),
                   );
                 }),
               ),
@@ -370,16 +405,19 @@ class _PriorityOption extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: isSelected ? color.withValues(alpha: 0.15) : null,
           border: Border.all(
             color: isSelected ? color : theme.colorScheme.outline,
             width: isSelected ? 2 : 1,
           ),
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -387,11 +425,12 @@ class _PriorityOption extends StatelessWidget {
             Icon(
               isSelected ? Icons.check_circle : Icons.circle_outlined,
               color: isSelected ? color : theme.colorScheme.onSurfaceVariant,
+              size: 18,
             ),
-            const SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               label,
-              style: theme.textTheme.titleMedium?.copyWith(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: isSelected ? color : null,
                 fontWeight: isSelected ? FontWeight.w600 : null,
               ),
