@@ -35,6 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _userTimezone = 'UTC';
   String _themeMode = 'system';
   bool _highContrast = false;
+  bool _reduceAnimations = false;
   bool _notificationSound = true;
   bool _hapticFeedback = true;
   bool _isLoading = true;
@@ -52,6 +53,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _userRole = await _settingsRepository.getUserRole() ?? 'caregiver';
       _themeMode = await _settingsRepository.getThemeMode();
       _highContrast = await _settingsRepository.isHighContrastEnabled();
+      _reduceAnimations = await _settingsRepository.isReduceAnimationsEnabled();
       _notificationSound = await _settingsRepository.isNotificationSoundEnabled();
       _hapticFeedback = await _settingsRepository.isHapticFeedbackEnabled();
 
@@ -200,6 +202,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (value) async {
                     await _settingsRepository.setHighContrast(value);
                     setState(() => _highContrast = value);
+                  },
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  secondary: const Icon(Icons.animation_rounded),
+                  title: const Text('Reduce Animations'),
+                  subtitle: const Text('Simpler, faster transitions'),
+                  value: _reduceAnimations,
+                  onChanged: (value) async {
+                    await _settingsRepository.setReduceAnimations(value);
+                    setState(() => _reduceAnimations = value);
                   },
                 ),
               ],

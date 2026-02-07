@@ -2,13 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/custom_icons.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/animation_settings.dart';
+import '../../../../core/utils/category_inference.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
@@ -32,6 +36,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   final _reminderInstanceApi = getIt<ReminderInstanceApi>();
   final _careRelationshipRepository = getIt<CareRelationshipRepository>();
   final _signalRService = getIt<SignalRService>();
+  final _settingsRepository = getIt<SettingsRepository>();
 
   UserData? _user;
   List<ReminderData> _reminders = [];
@@ -55,6 +60,9 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   /// Initialize screen with proper SignalR connection sequence
   Future<void> _initializeScreen() async {
     debugPrint('DependentHomeScreen: Starting screen initialization');
+
+    // Pre-load animation settings for synchronous access
+    await _settingsRepository.isReduceAnimationsEnabled();
 
     // 1. Set up connection state listener first (to handle reconnections)
     _setupConnectionStateListener();
@@ -255,7 +263,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     return Scaffold(
       body: SafeArea(
         child: _isLoading
-            ? const LoadingIndicator(message: 'Loading...')
+            ? _buildSkeletonLoading()
             : Stack(
                 children: [
                   // Main scrollable content
@@ -359,7 +367,17 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                               child: _buildNoRemindersCard(),
                             ),
                           )
-                        else
+                        else ...[
+                          // "Up Next" hero card for first pending reminder
+                          if (_getNextPendingReminder() != null)
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: AppSpacing.screenPaddingHorizontal,
+                                child: _buildUpNextCard(),
+                              ),
+                            ),
+
+                          // Remaining reminders in 2-column grid with staggered animations
                           SliverPadding(
                             padding: AppSpacing.screenPaddingHorizontal,
                             sliver: SliverGrid(
@@ -372,10 +390,10 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                               ),
                               delegate: SliverChildBuilderDelegate(
                                 (context, index) {
-                                  final sortedReminders = _getSortedReminders();
-                                  if (index >= sortedReminders.length) return null;
+                                  final otherReminders = _getOtherReminders();
+                                  if (index >= otherReminders.length) return null;
 
-                                  final instance = sortedReminders[index];
+                                  final instance = otherReminders[index];
                                   final reminder = _reminders.cast<ReminderData?>().firstWhere(
                                     (r) => r?.id == instance.reminderId,
                                     orElse: () => null,
@@ -394,7 +412,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                         )
                                       : localScheduledTime;
 
-                                  return ReminderButton(
+                                  final button = ReminderButton(
                                     title: reminder?.title ??
                                         instance.reminderTitle ??
                                         'Reminder',
@@ -409,11 +427,30 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                     onDetailsTap: () =>
                                         _showDetailsModal(instance, reminder),
                                   );
+
+                                  // Apply staggered animation if animations are enabled
+                                  if (AnimationSettings.shouldAnimate(context)) {
+                                    return button
+                                        .animate()
+                                        .fadeIn(
+                                          duration: 200.ms,
+                                          delay: (index * 50).ms,
+                                        )
+                                        .slideY(
+                                          begin: 0.1,
+                                          end: 0,
+                                          duration: 200.ms,
+                                          delay: (index * 50).ms,
+                                          curve: Curves.easeOut,
+                                        );
+                                  }
+                                  return button;
                                 },
-                                childCount: _getSortedReminders().length,
+                                childCount: _getOtherReminders().length,
                               ),
                             ),
                           ),
+                        ],
 
                         // Spacer for SOS button
                         const SliverToBoxAdapter(
@@ -685,6 +722,331 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
           ),
         ],
       ),
+    );
+  }
+
+  /// Get the first pending reminder for the "Up Next" hero card
+  ReminderInstanceData? _getNextPendingReminder() {
+    final sorted = _getSortedReminders();
+    try {
+      return sorted.firstWhere((r) => r.status == 'pending' || r.status == 'snoozed');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Get all reminders except the first pending one (for the grid)
+  List<ReminderInstanceData> _getOtherReminders() {
+    final sorted = _getSortedReminders();
+    final nextPending = _getNextPendingReminder();
+    if (nextPending == null) return sorted;
+    return sorted.where((r) => r.id != nextPending.id).toList();
+  }
+
+  /// Build the "Up Next" hero card for the first pending reminder
+  Widget _buildUpNextCard() {
+    final theme = Theme.of(context);
+    final nextReminder = _getNextPendingReminder();
+    if (nextReminder == null) return const SizedBox.shrink();
+
+    final reminder = _reminders.cast<ReminderData?>().firstWhere(
+      (r) => r?.id == nextReminder.reminderId,
+      orElse: () => null,
+    );
+
+    final title = reminder?.title ?? nextReminder.reminderTitle ?? 'Reminder';
+    final category = CategoryInference.inferCategory(title);
+    final categoryColor = AppIcons.getCategoryColor(category);
+    final categoryIcon = AppIcons.getCategoryIcon(category);
+
+    final localScheduledTime = nextReminder.scheduledTime.toLocal();
+    final displayTime = nextReminder.status == 'pending' && reminder != null
+        ? DateTime(
+            localScheduledTime.year,
+            localScheduledTime.month,
+            localScheduledTime.day,
+            reminder.hour,
+            reminder.minute,
+          )
+        : localScheduledTime;
+
+    final isLoading = _completingInstances.contains(nextReminder.id);
+
+    Widget card = Semantics(
+      label: 'Up next: $title at ${DateFormat.jm().format(displayTime)}. Tap to complete.',
+      button: true,
+      child: Material(
+        color: AppColors.warningLight,
+        borderRadius: AppRadius.largeRadius,
+        child: InkWell(
+          onTap: isLoading ? null : () => _markInstanceComplete(nextReminder.id),
+          borderRadius: AppRadius.largeRadius,
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              borderRadius: AppRadius.largeRadius,
+              border: Border.all(color: AppColors.warning, width: 2),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.warningLight,
+                  AppColors.warningLight.withValues(alpha: 0.7),
+                ],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header row with badge and details button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.arrow_upward_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'UP NEXT',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: isLoading
+                          ? null
+                          : () {
+                              HapticFeedback.lightImpact();
+                              _showDetailsModal(nextReminder, reminder);
+                            },
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.help_outline,
+                          size: 20,
+                          color: AppColors.warning,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                // Main content row
+                Row(
+                  children: [
+                    // Category icon
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: categoryColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        categoryIcon,
+                        color: categoryColor,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    // Title and time
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: AppColors.warningDark,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormat.jm().format(displayTime),
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                // Action button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: isLoading ? null : () => _markInstanceComplete(nextReminder.id),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.warning,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.check_circle_outline, size: 24),
+                    label: Text(
+                      isLoading ? 'Completing...' : 'Mark as Done',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Apply entry animation if enabled
+    if (AnimationSettings.shouldAnimate(context)) {
+      card = card
+          .animate()
+          .fadeIn(duration: 300.ms)
+          .scale(
+            begin: const Offset(0.95, 0.95),
+            end: const Offset(1, 1),
+            duration: 300.ms,
+            curve: Curves.easeOut,
+          );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: card,
+    );
+  }
+
+  /// Build skeleton loading state
+  Widget _buildSkeletonLoading() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final now = DateTime.now();
+    final greeting = _getGreeting(now.hour);
+
+    return CustomScrollView(
+      slivers: [
+        // Header (same as real content)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: AppSpacing.screenPadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$greeting,',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          // Skeleton for name
+                          Container(
+                            width: 150,
+                            height: 32,
+                            margin: const EdgeInsets.only(top: 4),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.settings, size: 28),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  DateFormat('EEEE, MMMM d').format(now),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Today's reminders header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: Text(
+              'Today\'s Reminders',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+
+        // Skeleton grid
+        SliverPadding(
+          padding: AppSpacing.screenPaddingHorizontal,
+          sliver: SliverToBoxAdapter(
+            child: const ReminderSkeletonGrid(itemCount: 4),
+          ),
+        ),
+
+        // Spacer for SOS button
+        const SliverToBoxAdapter(
+          child: SizedBox(height: 200),
+        ),
+      ],
     );
   }
 

@@ -15,6 +15,10 @@ class SettingsRepository {
   static const String keyFontScale = 'font_scale';
   static const String keyNotificationSoundEnabled = 'notification_sound_enabled';
   static const String keyHapticFeedbackEnabled = 'haptic_feedback_enabled';
+  static const String keyReduceAnimations = 'reduce_animations';
+
+  // In-memory cache for synchronous access
+  bool? _reduceAnimationsCache;
 
   SettingsRepository(this._db);
 
@@ -128,6 +132,23 @@ class SettingsRepository {
   /// Set haptic feedback enabled
   Future<void> setHapticFeedbackEnabled(bool enabled) =>
       setSetting(keyHapticFeedbackEnabled, enabled.toString());
+
+  /// Check if reduce animations is enabled
+  Future<bool> isReduceAnimationsEnabled() async {
+    final value = await getSetting(keyReduceAnimations);
+    _reduceAnimationsCache = value == 'true';
+    return _reduceAnimationsCache!;
+  }
+
+  /// Set reduce animations enabled
+  Future<void> setReduceAnimations(bool enabled) async {
+    _reduceAnimationsCache = enabled;
+    await setSetting(keyReduceAnimations, enabled.toString());
+  }
+
+  /// Synchronous access to reduce animations setting (uses cached value)
+  /// Returns false if cache is not yet populated
+  bool get reduceAnimationsSync => _reduceAnimationsCache ?? false;
 
   /// Clear all settings (for logout/reset)
   Future<void> clearAllSettings() {

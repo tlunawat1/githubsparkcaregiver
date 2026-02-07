@@ -2,14 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/custom_icons.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/animation_settings.dart';
 import '../../../../core/utils/category_inference.dart';
 import '../../../../data/datasources/remote/remote.dart';
+import '../../../../data/repositories/settings_repository.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Dashboard screen showing a dependent's reminders and status
@@ -32,6 +35,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   final _reminderApi = getIt<ReminderApi>();
   final _reminderInstanceApi = getIt<ReminderInstanceApi>();
   final _signalRService = getIt<SignalRService>();
+  final _settingsRepository = getIt<SettingsRepository>();
 
   UserSearchResult? _dependent;
   List<ReminderData> _reminders = [];
@@ -84,6 +88,9 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   }
 
   Future<void> _initializeScreen() async {
+    // Pre-load animation settings for synchronous access
+    await _settingsRepository.isReduceAnimationsEnabled();
+
     _setupConnectionStateListener();
     await _ensureSignalRConnected();
     await _subscribeToDependent();
@@ -198,7 +205,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
         ],
       ),
       body: _isLoading
-          ? const LoadingIndicator()
+          ? _buildSkeletonLoading()
           : RefreshIndicator(
               onRefresh: _loadData,
               child: CustomScrollView(
@@ -317,7 +324,25 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             final reminder = _reminders[index];
-                            return _buildReminderTemplateCard(reminder);
+                            final card = _buildReminderTemplateCard(reminder);
+
+                            // Apply staggered animation if enabled
+                            if (AnimationSettings.shouldAnimate(context)) {
+                              return card
+                                  .animate()
+                                  .fadeIn(
+                                    duration: 200.ms,
+                                    delay: (index * 50).ms,
+                                  )
+                                  .slideX(
+                                    begin: 0.05,
+                                    end: 0,
+                                    duration: 200.ms,
+                                    delay: (index * 50).ms,
+                                    curve: Curves.easeOut,
+                                  );
+                            }
+                            return card;
                           },
                           childCount: _reminders.length,
                         ),
@@ -572,6 +597,132 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
           ],
         ),
       ),
+    );
+  }
+
+  /// Build skeleton loading state
+  Widget _buildSkeletonLoading() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return CustomScrollView(
+      slivers: [
+        // Header skeleton with progress bar placeholder
+        SliverToBoxAdapter(
+          child: Container(
+            padding: AppSpacing.screenPadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Progress bar skeleton
+                Container(
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: AppRadius.largeRadius,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Quick stats skeleton
+        SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              0,
+            ),
+            child: Row(
+              children: List.generate(3, (index) {
+                return Expanded(
+                  child: Container(
+                    height: 48,
+                    margin: EdgeInsets.only(
+                      left: index > 0 ? AppSpacing.sm : 0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+
+        // Today's schedule header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: Text(
+              'Today\'s Schedule',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+
+        // Timeline skeleton
+        SliverPadding(
+          padding: AppSpacing.screenPaddingHorizontal,
+          sliver: SliverToBoxAdapter(
+            child: const TimelineSkeletonList(itemCount: 4),
+          ),
+        ),
+
+        // All reminders header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.xl,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: Text(
+              'All Reminders',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+
+        // Reminder cards skeleton
+        SliverPadding(
+          padding: AppSpacing.screenPadding,
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              children: List.generate(3, (index) {
+                return Container(
+                  height: 72,
+                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: AppRadius.mediumRadius,
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+
+        // Bottom padding
+        const SliverToBoxAdapter(
+          child: SizedBox(height: 100),
+        ),
+      ],
     );
   }
 }
