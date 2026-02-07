@@ -1,16 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/custom_icons.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/category_inference.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Dashboard screen showing a dependent's reminders and status
+/// Features a redesigned layout with greeting, progress bar, and timeline view
 class DependentDashboardScreen extends StatefulWidget {
   final String dependentId;
 
@@ -35,19 +38,36 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   List<ReminderInstanceData> _todayInstances = [];
   bool _isLoading = true;
   bool _isInitialLoad = true;
-  String? _activeStatusFilter; // null = show all, 'completed'/'pending'/'missed'
+  String? _activeStatusFilter;
 
   List<ReminderInstanceData> get _filteredInstances {
     if (_activeStatusFilter == null) return _todayInstances;
     return _todayInstances.where((i) => i.status == _activeStatusFilter).toList();
   }
 
+  // Computed stats
+  int get _completedCount => _todayInstances.where((i) => i.status == 'completed').length;
+  int get _pendingCount => _todayInstances.where((i) => i.status == 'pending').length;
+  int get _missedCount => _todayInstances.where((i) => i.status == 'missed').length;
+  int get _totalCount => _todayInstances.length;
+
+  // Get urgent items (missed or pending that should have happened)
+  List<ReminderInstanceData> get _urgentItems {
+    final now = DateTime.now();
+    return _todayInstances.where((i) {
+      if (i.status == 'missed') return true;
+      if (i.status == 'pending' && i.scheduledTime.toLocal().isBefore(now)) return true;
+      return false;
+    }).toList();
+  }
+
   void _toggleStatusFilter(String status) {
+    HapticFeedback.selectionClick();
     setState(() {
       if (_activeStatusFilter == status) {
-        _activeStatusFilter = null; // Tap same filter = clear
+        _activeStatusFilter = null;
       } else {
-        _activeStatusFilter = status; // Tap different filter = switch
+        _activeStatusFilter = status;
       }
     });
   }
@@ -63,54 +83,26 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
     _initializeScreen();
   }
 
-  /// Initialize screen with proper SignalR connection sequence
   Future<void> _initializeScreen() async {
-    debugPrint('DependentDashboardScreen: Starting screen initialization for dependent ${widget.dependentId}');
-
-    // 1. Set up connection state listener first (to handle reconnections)
     _setupConnectionStateListener();
-
-    // 2. Ensure SignalR is connected (silent background connection with retry)
     await _ensureSignalRConnected();
-
-    // 3. Subscribe to dependent's updates (MUST await to ensure subscription completes)
     await _subscribeToDependent();
-
-    // 4. Set up event listeners (now guaranteed to receive events)
     _setupSignalRListeners();
     _isSignalRInitialized = true;
-    debugPrint('DependentDashboardScreen: SignalR initialization complete');
-
-    // 5. Load data (fresh data + real-time updates ready)
     _loadData();
   }
 
-  /// Ensure SignalR is connected with automatic retry
   Future<void> _ensureSignalRConnected() async {
-    debugPrint('DependentDashboardScreen: Ensuring SignalR connection...');
-    debugPrint('DependentDashboardScreen: Current SignalR state: ${_signalRService.currentState}');
-
     const maxRetries = 3;
     const retryDelay = Duration(seconds: 2);
 
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       final connected = await _signalRService.ensureConnected();
-
-      if (connected) {
-        debugPrint('DependentDashboardScreen: SignalR connected successfully on attempt $attempt');
-        return;
-      }
-
-      debugPrint('DependentDashboardScreen: SignalR connection attempt $attempt/$maxRetries failed');
-
+      if (connected) return;
       if (attempt < maxRetries) {
-        debugPrint('DependentDashboardScreen: Retrying in ${retryDelay.inSeconds} seconds...');
         await Future.delayed(retryDelay);
       }
     }
-
-    debugPrint('DependentDashboardScreen: SignalR connection failed after $maxRetries attempts, continuing without real-time updates');
-    // Continue anyway - user can still use pull-to-refresh
   }
 
   @override
@@ -124,132 +116,62 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    debugPrint('DependentDashboardScreen: App lifecycle state changed to $state');
-
     if (state == AppLifecycleState.resumed) {
-      debugPrint('DependentDashboardScreen: App resumed from background');
-      debugPrint('DependentDashboardScreen: Current SignalR state: ${_signalRService.currentState}');
-
-      // Ensure SignalR is connected and subscription is active after resume
       _ensureSignalRConnected().then((_) async {
-        // Re-subscribe in case the subscription was lost
         await _subscribeToDependent();
-        debugPrint('DependentDashboardScreen: SignalR check complete after resume, refreshing data');
         _loadData();
       });
-    } else if (state == AppLifecycleState.paused) {
-      debugPrint('DependentDashboardScreen: App going to background');
     }
   }
 
-  /// Subscribe to real-time updates for this dependent (for caregivers)
   Future<void> _subscribeToDependent() async {
-    debugPrint('DependentDashboardScreen: Subscribing to dependent ${widget.dependentId}');
-    debugPrint('DependentDashboardScreen: SignalR isConnected=${_signalRService.isConnected}');
-
-    final success = await _signalRService.subscribeToDependent(widget.dependentId);
-
-    if (success) {
-      debugPrint('DependentDashboardScreen: Successfully subscribed to dependent ${widget.dependentId}');
-    } else {
-      debugPrint('DependentDashboardScreen: Subscription queued (SignalR not connected) for dependent ${widget.dependentId}');
-    }
+    await _signalRService.subscribeToDependent(widget.dependentId);
   }
 
   void _unsubscribeFromDependent() {
-    debugPrint('DependentDashboardScreen: Unsubscribing from dependent ${widget.dependentId}');
     _signalRService.unsubscribeFromDependent(widget.dependentId);
   }
 
   void _setupConnectionStateListener() {
-    debugPrint('DependentDashboardScreen: Setting up connection state listener');
     _connectionStateSubscription = _signalRService.connectionState.listen((state) {
-      debugPrint('DependentDashboardScreen: SignalR connection state changed: $state');
-
       if (state == SignalRConnectionState.connected) {
-        debugPrint('DependentDashboardScreen: Connection restored, refreshing data to sync missed updates');
         _loadData();
-
-        // If SignalR wasn't initialized yet, set up listeners now
         if (!_isSignalRInitialized) {
-          debugPrint('DependentDashboardScreen: Late initialization - setting up SignalR listeners after reconnection');
           _setupSignalRListeners();
           _isSignalRInitialized = true;
         }
-      } else if (state == SignalRConnectionState.disconnected) {
-        debugPrint('DependentDashboardScreen: SignalR disconnected - real-time updates paused');
-      } else if (state == SignalRConnectionState.reconnecting) {
-        debugPrint('DependentDashboardScreen: SignalR reconnecting...');
       }
     });
   }
 
   void _setupSignalRListeners() {
-    // Avoid duplicate subscriptions
-    if (_signalRSubscription != null) {
-      debugPrint('DependentDashboardScreen: SignalR event listener already set up, skipping');
-      return;
-    }
-
-    debugPrint('DependentDashboardScreen: Setting up SignalR event listeners');
-    debugPrint('DependentDashboardScreen: SignalR isConnected=${_signalRService.isConnected}, state=${_signalRService.currentState}');
-    debugPrint('DependentDashboardScreen: Subscribed dependents: ${_signalRService.subscribedDependents}');
+    if (_signalRSubscription != null) return;
 
     _signalRSubscription = _signalRService.events.listen((event) {
-      debugPrint('DependentDashboardScreen: ========== SignalR EVENT RECEIVED ==========');
-      debugPrint('DependentDashboardScreen: Event type: ${event.type}');
-      debugPrint('DependentDashboardScreen: Event data: ${event.data}');
-      debugPrint('DependentDashboardScreen: Event timestamp: ${event.timestamp}');
-      debugPrint('DependentDashboardScreen: ============================================');
-
-      // Refresh when dependent completes/snoozes a reminder or when instances change
       if (event.type == SignalREventType.instanceStatusChanged ||
           event.type == SignalREventType.instanceCreated ||
           event.type == SignalREventType.reminderCreated ||
           event.type == SignalREventType.reminderUpdated ||
           event.type == SignalREventType.reminderDeleted) {
-        debugPrint('DependentDashboardScreen: Event matched! Triggering data refresh for ${event.type}');
         _loadData();
-      } else {
-        debugPrint('DependentDashboardScreen: Event ${event.type} not handled by this screen');
       }
     });
-
-    debugPrint('DependentDashboardScreen: SignalR event listener registered successfully');
   }
 
   Future<void> _loadData() async {
-    debugPrint('DependentDashboardScreen: _loadData() called for dependent ${widget.dependentId}');
-    debugPrint('DependentDashboardScreen: isInitialLoad=$_isInitialLoad, SignalR state=${_signalRService.currentState}');
-
-    // Only show loading indicator on initial load to avoid jarring screen flashes
     if (_isInitialLoad) {
       setState(() => _isLoading = true);
     }
 
     try {
       _dependent = await _userApi.getById(widget.dependentId);
-      debugPrint('DependentDashboardScreen: Dependent loaded: ${_dependent?.name}');
-
       _reminders = await _reminderApi.getReminders(dependentId: widget.dependentId);
-      debugPrint('DependentDashboardScreen: Loaded ${_reminders.length} reminders');
-
       _todayInstances = await _reminderInstanceApi.getInstances(
         dependentId: widget.dependentId,
         date: DateTime.now(),
       );
-      debugPrint('DependentDashboardScreen: Loaded ${_todayInstances.length} instances for today');
-
-      // Log instance statuses for debugging
-      final statusCounts = <String, int>{};
-      for (final instance in _todayInstances) {
-        statusCounts[instance.status] = (statusCounts[instance.status] ?? 0) + 1;
-      }
-      debugPrint('DependentDashboardScreen: Instance statuses: $statusCounts');
-
-      debugPrint('DependentDashboardScreen: Data load completed successfully');
     } catch (e) {
-      debugPrint('DependentDashboardScreen: Error loading data: $e');
+      debugPrint('Error loading data: $e');
     }
 
     if (mounted) {
@@ -257,21 +179,19 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
         _isLoading = false;
         _isInitialLoad = false;
       });
-      debugPrint('DependentDashboardScreen: UI state updated');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_dependent?.name ?? 'Dependent'),
+        title: Text(_dependent?.name ?? 'Dashboard'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.contacts),
+            icon: Icon(AppIcons.emergencyContact),
             onPressed: () => context.goToEmergencyContacts(widget.dependentId),
             tooltip: 'Emergency Contacts',
           ),
@@ -283,38 +203,53 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
               onRefresh: _loadData,
               child: CustomScrollView(
                 slivers: [
-                  // Summary header
+                  // Header with greeting and progress
                   SliverToBoxAdapter(
-                    child: _buildSummaryHeader(),
+                    child: _buildHeader(),
                   ),
-                  // Today's reminders
+
+                  // Urgent section (if there are missed/overdue items)
+                  if (_urgentItems.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: _buildUrgentSection(),
+                    ),
+
+                  // Quick stats (tappable filters)
+                  SliverToBoxAdapter(
+                    child: _buildQuickStats(),
+                  ),
+
+                  // Today's schedule section
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: AppSpacing.screenPaddingHorizontal,
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.lg,
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Today\'s Reminders',
+                            _activeStatusFilter != null
+                                ? '${_activeStatusFilter![0].toUpperCase()}${_activeStatusFilter!.substring(1)} Reminders'
+                                : 'Today\'s Schedule',
                             style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           if (_activeStatusFilter != null)
-                            GestureDetector(
-                              onTap: () => setState(() => _activeStatusFilter = null),
-                              child: Text(
-                                'Clear filter',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
+                            TextButton(
+                              onPressed: () => setState(() => _activeStatusFilter = null),
+                              child: Text('Clear'),
                             ),
                         ],
                       ),
                     ),
                   ),
+
+                  // Timeline or filtered list
                   if (_filteredInstances.isEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
@@ -327,27 +262,19 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
                   else
                     SliverPadding(
                       padding: AppSpacing.screenPaddingHorizontal,
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final instance = _filteredInstances[index];
-                            final reminder = _reminders.firstWhere(
-                              (r) => r.id == instance.reminderId,
-                              orElse: () => _reminders.first,
-                            );
-                            return _buildReminderCard(reminder, instance);
-                          },
-                          childCount: _filteredInstances.length,
-                        ),
+                      sliver: SliverToBoxAdapter(
+                        child: _buildTimelineView(),
                       ),
                     ),
+
                   // All reminders section
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.only(
-                        left: AppSpacing.md,
-                        right: AppSpacing.md,
-                        top: AppSpacing.lg,
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.xl,
+                        AppSpacing.md,
+                        AppSpacing.sm,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -363,7 +290,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
                               final result = await context.goToAddReminder(widget.dependentId);
                               if (result == true) _loadData();
                             },
-                            icon: const Icon(Icons.add),
+                            icon: Icon(AppIcons.add),
                             label: const Text('Add'),
                           ),
                         ],
@@ -396,9 +323,10 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
                         ),
                       ),
                     ),
+
                   // Bottom padding
                   const SliverToBoxAdapter(
-                    child: SizedBox(height: 80),
+                    child: SizedBox(height: 100),
                   ),
                 ],
               ),
@@ -408,88 +336,163 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
           final result = await context.goToAddReminder(widget.dependentId);
           if (result == true) _loadData();
         },
-        icon: const Icon(Icons.add),
+        icon: Icon(AppIcons.add),
         label: const Text('Add Reminder'),
       ),
     );
   }
 
-  Widget _buildSummaryHeader() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final completed = _todayInstances.where((i) => i.status == 'completed').length;
-    final pending = _todayInstances.where((i) => i.status == 'pending').length;
-    final missed = _todayInstances.where((i) => i.status == 'missed').length;
-
+  Widget _buildHeader() {
     return Container(
-      margin: AppSpacing.screenPadding,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      padding: AppSpacing.screenPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StatItem(
-            label: 'Completed',
-            value: completed.toString(),
-            color: AppColors.success,
-            isSelected: _activeStatusFilter == 'completed',
-            onTap: () => _toggleStatusFilter('completed'),
+          // Time-aware greeting
+          TimeAwareGreeting(
+            userName: _dependent?.name.split(' ').first ?? 'there',
           ),
-          _StatItem(
-            label: 'Pending',
-            value: pending.toString(),
-            color: AppColors.warning,
-            isSelected: _activeStatusFilter == 'pending',
-            onTap: () => _toggleStatusFilter('pending'),
-          ),
-          _StatItem(
-            label: 'Missed',
-            value: missed.toString(),
-            color: AppColors.error,
-            isSelected: _activeStatusFilter == 'missed',
-            onTap: () => _toggleStatusFilter('missed'),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Progress bar
+          DailyProgressBar(
+            completed: _completedCount,
+            total: _totalCount,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildReminderCard(ReminderData reminder, ReminderInstanceData instance) {
-    final status = switch (instance.status) {
-      'completed' => ReminderStatus.completed,
-      'missed' => ReminderStatus.missed,
-      'snoozed' => ReminderStatus.snoozed,
-      _ => ReminderStatus.pending,
-    };
+  Widget _buildUrgentSection() {
+    final theme = Theme.of(context);
 
-    // For pending instances, use reminder template time (hour/minute are stored in local time)
-    // For completed/missed instances, convert UTC scheduledTime to local time for display
-    final localScheduledTime = instance.scheduledTime.toLocal();
-    final displayTime = instance.status == 'pending'
-        ? DateTime(
-            localScheduledTime.year,
-            localScheduledTime.month,
-            localScheduledTime.day,
-            reminder.hour,
-            reminder.minute,
-          )
-        : localScheduledTime;
-    final time = DateFormat.jm().format(displayTime);
+    return Container(
+      margin: AppSpacing.screenPaddingHorizontal,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        gradient: AppColors.missedGradient,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                AppIcons.priorityHigh,
+                color: AppColors.error,
+                size: 24,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'Needs Attention',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: AppColors.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.error,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_urgentItems.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            _urgentItems.length == 1
+                ? '1 reminder needs attention'
+                : '${_urgentItems.length} reminders need attention',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: AppColors.errorDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    return ReminderCard(
-      title: reminder.title,
-      time: time,
-      status: status,
-      subtitle: reminder.description,
-      hasVoiceNote: reminder.voiceNoteUrl != null,
-      priority: reminder.priority == 'high'
-          ? ReminderPriority.high
-          : ReminderPriority.normal,
-      onTap: () async {
+  Widget _buildQuickStats() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        0,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatChip(
+              label: 'Done',
+              value: _completedCount,
+              color: AppColors.success,
+              isSelected: _activeStatusFilter == 'completed',
+              onTap: () => _toggleStatusFilter('completed'),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: _StatChip(
+              label: 'Pending',
+              value: _pendingCount,
+              color: AppColors.warning,
+              isSelected: _activeStatusFilter == 'pending',
+              onTap: () => _toggleStatusFilter('pending'),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: _StatChip(
+              label: 'Missed',
+              value: _missedCount,
+              color: AppColors.error,
+              isSelected: _activeStatusFilter == 'missed',
+              onTap: () => _toggleStatusFilter('missed'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineView() {
+    final timelineItems = _filteredInstances.map((instance) {
+      final reminder = _reminders.firstWhere(
+        (r) => r.id == instance.reminderId,
+        orElse: () => _reminders.first,
+      );
+
+      return TimelineItem(
+        id: instance.id,
+        title: reminder.title,
+        scheduledTime: instance.scheduledTime.toLocal(),
+        status: instance.status,
+        hasVoiceNote: reminder.voiceNoteUrl != null,
+        description: reminder.description,
+      );
+    }).toList();
+
+    return TimelineView(
+      items: timelineItems,
+      onItemTap: (item) async {
+        final reminder = _reminders.firstWhere(
+          (r) => r.title == item.title,
+          orElse: () => _reminders.first,
+        );
         final result = await context.goToEditReminder(reminder.id);
         if (result == true) _loadData();
       },
@@ -499,6 +502,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   Widget _buildReminderTemplateCard(ReminderData reminder) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final category = CategoryInference.inferCategory(reminder.title);
 
     final time = '${reminder.hour.toString().padLeft(2, '0')}:${reminder.minute.toString().padLeft(2, '0')}';
     final repeatLabel = switch (reminder.repeatPattern) {
@@ -509,83 +513,89 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
       _ => reminder.repeatPattern,
     };
 
-    return AccessibleCard(
-      onTap: () async {
-        final result = await context.goToEditReminder(reminder.id);
-        if (result == true) _loadData();
-      },
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: AccessibleCard(
+        onTap: () async {
+          final result = await context.goToEditReminder(reminder.id);
+          if (result == true) _loadData();
+        },
+        child: Row(
+          children: [
+            // Category icon
+            CategoryIconWidget(
+              category: category,
+              size: 48,
+              iconSize: 24,
             ),
-            child: Icon(
-              reminder.voiceNoteUrl != null
-                  ? Icons.mic
-                  : Icons.notifications_active,
-              color: colorScheme.primary,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  reminder.title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    reminder.title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$time • $repeatLabel',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(
+                        AppIcons.time,
+                        size: 14,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$time • $repeatLabel',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          ),
-          if (reminder.priority == 'high')
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.error,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'HIGH',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
+                ],
               ),
             ),
-          const SizedBox(width: AppSpacing.sm),
-          Icon(
-            Icons.chevron_right,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ],
+            if (reminder.priority == 'high')
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.error,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'HIGH',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            const SizedBox(width: AppSpacing.sm),
+            Icon(
+              AppIcons.forward,
+              color: colorScheme.onSurfaceVariant,
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _StatItem extends StatelessWidget {
+class _StatChip extends StatelessWidget {
   final String label;
-  final String value;
+  final int value;
   final Color color;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _StatItem({
+  const _StatChip({
     required this.label,
     required this.value,
     required this.color,
@@ -599,34 +609,51 @@ class _StatItem extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: isSelected ? 0.4 : 0.2),
-              shape: BoxShape.circle,
-              border: isSelected ? Border.all(color: color, width: 2) : null,
-            ),
-            child: Center(
-              child: Text(
-                value,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.bold,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.2) : color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(
+            color: isSelected ? color : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '$value',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? color : null,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -641,21 +668,42 @@ class _EmptyRemindersCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
+        gradient: AppColors.completedGradient,
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Icon(
-            Icons.event_available,
-            size: 48,
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.event_available_rounded,
+              color: AppColors.success,
+              size: 28,
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'No reminders for today',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'All caught up!',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'No reminders scheduled for today',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -673,7 +721,6 @@ class _NoFilterResultsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
     final statusLabel = status[0].toUpperCase() + status.substring(1);
 
     return Container(
@@ -682,18 +729,31 @@ class _NoFilterResultsCard extends StatelessWidget {
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
-      child: Column(
+      child: Row(
         children: [
           Icon(
-            Icons.filter_list_off,
+            Icons.filter_list_off_rounded,
             size: 48,
             color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'No $statusLabel reminders today',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'No $statusLabel Reminders',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'There are no $status reminders for today',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

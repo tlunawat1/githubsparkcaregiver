@@ -20,6 +20,7 @@ import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/settings/presentation/screens/timezone_settings_screen.dart';
 import '../../features/settings/presentation/screens/edit_profile_screen.dart';
 import '../../features/settings/presentation/screens/linked_user_detail_screen.dart';
+import 'app_transitions.dart';
 
 /// Route names for type-safe navigation
 class AppRoutes {
@@ -52,7 +53,7 @@ class AppRoutes {
   static const String linkedUserDetail = '/settings/linked-user';
 }
 
-/// App router configuration
+/// App router configuration with custom transitions
 class AppRouter {
   final bool isOnboardingComplete;
   final String? userRole;
@@ -70,19 +71,28 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.welcome,
         name: 'welcome',
-        builder: (context, state) => const WelcomeScreen(),
+        pageBuilder: (context, state) => AppTransitions.fadeSlide(
+          child: const WelcomeScreen(),
+          state: state,
+        ),
       ),
       GoRoute(
         path: AppRoutes.roleSelection,
         name: 'roleSelection',
-        builder: (context, state) => const RoleSelectionScreen(),
+        pageBuilder: (context, state) => AppTransitions.fadeSlide(
+          child: const RoleSelectionScreen(),
+          state: state,
+        ),
       ),
       GoRoute(
         path: AppRoutes.profileSetup,
         name: 'profileSetup',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final role = state.uri.queryParameters['role'] ?? 'caregiver';
-          return ProfileSetupScreen(role: role);
+          return AppTransitions.slideFromRight(
+            child: ProfileSetupScreen(role: role),
+            state: state,
+          );
         },
       ),
 
@@ -90,27 +100,36 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final role = state.uri.queryParameters['role'] ?? 'caregiver';
-          return LoginScreen(role: role);
+          return AppTransitions.fadeSlide(
+            child: LoginScreen(role: role),
+            state: state,
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.register,
         name: 'register',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final role = state.uri.queryParameters['role'] ?? 'caregiver';
-          return RegistrationScreen(role: role);
+          return AppTransitions.slideFromRight(
+            child: RegistrationScreen(role: role),
+            state: state,
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.emailVerification,
         name: 'emailVerification',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final userId = state.uri.queryParameters['userId'] ?? '';
           final role = state.uri.queryParameters['role'] ?? 'caregiver';
           final email = state.uri.queryParameters['email'] ?? '';
-          return EmailVerificationScreen(userId: userId, role: role, email: email);
+          return AppTransitions.scaleFade(
+            child: EmailVerificationScreen(userId: userId, role: role, email: email),
+            state: state,
+          );
         },
       ),
 
@@ -118,35 +137,50 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.caregiverHome,
         name: 'caregiverHome',
-        builder: (context, state) => const CaregiverHomeScreen(),
+        pageBuilder: (context, state) => AppTransitions.fadeSlide(
+          child: const CaregiverHomeScreen(),
+          state: state,
+        ),
         routes: [
           GoRoute(
             path: 'dependents',
             name: 'dependentSelector',
-            builder: (context, state) => const DependentSelectorScreen(),
+            pageBuilder: (context, state) => AppTransitions.fadeSlide(
+              child: const DependentSelectorScreen(),
+              state: state,
+            ),
           ),
           GoRoute(
             path: 'dependent/:dependentId',
             name: 'dependentDashboard',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final dependentId = state.pathParameters['dependentId']!;
-              return DependentDashboardScreen(dependentId: dependentId);
+              return AppTransitions.slideFromRight(
+                child: DependentDashboardScreen(dependentId: dependentId),
+                state: state,
+              );
             },
             routes: [
               GoRoute(
                 path: 'add-reminder',
                 name: 'addReminder',
-                builder: (context, state) {
+                pageBuilder: (context, state) {
                   final dependentId = state.pathParameters['dependentId']!;
-                  return AddReminderScreen(dependentId: dependentId);
+                  return AppTransitions.slideFromBottom(
+                    child: AddReminderScreen(dependentId: dependentId),
+                    state: state,
+                  );
                 },
               ),
               GoRoute(
                 path: 'emergency-contacts',
                 name: 'emergencyContacts',
-                builder: (context, state) {
+                pageBuilder: (context, state) {
                   final dependentId = state.pathParameters['dependentId']!;
-                  return EmergencyContactsScreen(dependentId: dependentId);
+                  return AppTransitions.slideFromRight(
+                    child: EmergencyContactsScreen(dependentId: dependentId),
+                    state: state,
+                  );
                 },
               ),
             ],
@@ -154,9 +188,12 @@ class AppRouter {
           GoRoute(
             path: 'reminder/:reminderId/edit',
             name: 'editReminder',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final reminderId = state.pathParameters['reminderId']!;
-              return EditReminderScreen(reminderId: reminderId);
+              return AppTransitions.slideFromBottom(
+                child: EditReminderScreen(reminderId: reminderId),
+                state: state,
+              );
             },
           ),
         ],
@@ -166,20 +203,29 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.dependentHome,
         name: 'dependentHome',
-        builder: (context, state) => const DependentHomeScreen(),
+        pageBuilder: (context, state) => AppTransitions.fadeSlide(
+          child: const DependentHomeScreen(),
+          state: state,
+        ),
         routes: [
           GoRoute(
             path: 'reminder/:instanceId',
             name: 'reminderAlert',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final instanceId = state.pathParameters['instanceId']!;
-              return ReminderAlertScreen(instanceId: instanceId);
+              return AppTransitions.scaleFade(
+                child: ReminderAlertScreen(instanceId: instanceId),
+                state: state,
+              );
             },
           ),
           GoRoute(
             path: 'sos',
             name: 'sos',
-            builder: (context, state) => const SosScreen(),
+            pageBuilder: (context, state) => AppTransitions.scaleFade(
+              child: const SosScreen(),
+              state: state,
+            ),
           ),
         ],
       ),
@@ -188,24 +234,36 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.settings,
         name: 'settings',
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) => AppTransitions.slideFromRight(
+          child: const SettingsScreen(),
+          state: state,
+        ),
         routes: [
           GoRoute(
             path: 'timezone',
             name: 'timezoneSettings',
-            builder: (context, state) => const TimezoneSettingsScreen(),
+            pageBuilder: (context, state) => AppTransitions.slideFromRight(
+              child: const TimezoneSettingsScreen(),
+              state: state,
+            ),
           ),
           GoRoute(
             path: 'edit-profile',
             name: 'editProfile',
-            builder: (context, state) => const EditProfileScreen(),
+            pageBuilder: (context, state) => AppTransitions.slideFromRight(
+              child: const EditProfileScreen(),
+              state: state,
+            ),
           ),
           GoRoute(
             path: 'linked-user',
             name: 'linkedUserDetail',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final userData = state.extra as LinkedUserData;
-              return LinkedUserDetailScreen(userData: userData);
+              return AppTransitions.slideFromRight(
+                child: LinkedUserDetailScreen(userData: userData),
+                state: state,
+              );
             },
           ),
         ],

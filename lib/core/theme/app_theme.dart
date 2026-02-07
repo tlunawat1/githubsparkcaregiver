@@ -3,8 +3,13 @@ import '../constants/app_colors.dart';
 
 /// App theme configuration using Material Design 3.
 /// Designed with accessibility in mind for elderly users.
+/// Uses Poppins for headings and Inter for body text.
 class AppTheme {
   AppTheme._();
+
+  /// Font families
+  static const String fontFamilyHeading = 'Poppins';
+  static const String fontFamilyBody = 'Inter';
 
   /// Minimum touch target size for accessibility (48dp recommended, 64dp for elderly)
   static const double minTouchTargetSize = 48.0;
@@ -23,12 +28,16 @@ class AppTheme {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primarySeed,
       brightness: Brightness.light,
+      primary: AppColors.primary,
+      secondary: AppColors.secondary,
+      tertiary: AppColors.accent,
+      error: AppColors.error,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      fontFamily: 'Roboto',
+      fontFamily: fontFamilyBody,
       textTheme: _buildTextTheme(colorScheme),
       appBarTheme: _buildAppBarTheme(colorScheme),
       elevatedButtonTheme: _buildElevatedButtonTheme(colorScheme),
@@ -52,12 +61,16 @@ class AppTheme {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primarySeed,
       brightness: Brightness.dark,
+      primary: AppColors.primaryLight,
+      secondary: AppColors.secondaryLight,
+      tertiary: AppColors.accentLight,
+      error: AppColors.error,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      fontFamily: 'Roboto',
+      fontFamily: fontFamilyBody,
       textTheme: _buildTextTheme(colorScheme),
       appBarTheme: _buildAppBarTheme(colorScheme),
       elevatedButtonTheme: _buildElevatedButtonTheme(colorScheme),
@@ -113,85 +126,108 @@ class AppTheme {
     final fontWeight = highContrast ? FontWeight.w600 : FontWeight.normal;
 
     return TextTheme(
+      // Display styles - Poppins
       displayLarge: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: 57,
         fontWeight: FontWeight.bold,
         color: colorScheme.onSurface,
         letterSpacing: -0.25,
       ),
       displayMedium: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: 45,
         fontWeight: FontWeight.bold,
         color: colorScheme.onSurface,
       ),
       displaySmall: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: fontSizeHeadline,
         fontWeight: FontWeight.bold,
         color: colorScheme.onSurface,
       ),
+      // Headline styles - Poppins
       headlineLarge: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: 32,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
       ),
       headlineMedium: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: fontSizeTitle,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
       ),
       headlineSmall: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: fontSizeLarge,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
       ),
+      // Title styles - Poppins
       titleLarge: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: 22,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface,
       ),
       titleMedium: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: 16,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface,
         letterSpacing: 0.15,
       ),
       titleSmall: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface,
         letterSpacing: 0.1,
       ),
+      // Body styles - Inter
       bodyLarge: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: fontSizeNormal,
         fontWeight: fontWeight,
         color: colorScheme.onSurface,
         letterSpacing: 0.5,
+        height: 1.5,
       ),
       bodyMedium: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: 16,
         fontWeight: fontWeight,
         color: colorScheme.onSurface,
         letterSpacing: 0.25,
+        height: 1.5,
       ),
       bodySmall: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: fontSizeSmall,
         fontWeight: fontWeight,
         color: colorScheme.onSurfaceVariant,
         letterSpacing: 0.4,
+        height: 1.4,
       ),
+      // Label styles - Inter
       labelLarge: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: fontSizeNormal,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
         letterSpacing: 0.1,
       ),
       labelMedium: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface,
         letterSpacing: 0.5,
       ),
       labelSmall: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurfaceVariant,
@@ -208,6 +244,7 @@ class AppTheme {
       backgroundColor: colorScheme.surface,
       foregroundColor: colorScheme.onSurface,
       titleTextStyle: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: fontSizeTitle,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
@@ -226,6 +263,7 @@ class AppTheme {
         minimumSize: const Size(minTouchTargetSize, elderlyTouchTargetSize),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         textStyle: TextStyle(
+          fontFamily: fontFamilyBody,
           fontSize: fontSizeNormal,
           fontWeight: FontWeight.w600,
         ),
@@ -244,6 +282,7 @@ class AppTheme {
         minimumSize: const Size(minTouchTargetSize, elderlyTouchTargetSize),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         textStyle: TextStyle(
+          fontFamily: fontFamilyBody,
           fontSize: fontSizeNormal,
           fontWeight: FontWeight.w600,
         ),
@@ -261,6 +300,7 @@ class AppTheme {
         minimumSize: const Size(minTouchTargetSize, minTouchTargetSize),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         textStyle: TextStyle(
+          fontFamily: fontFamilyBody,
           fontSize: fontSizeNormal,
           fontWeight: FontWeight.w500,
         ),
@@ -275,6 +315,7 @@ class AppTheme {
         borderRadius: BorderRadius.circular(20),
       ),
       extendedTextStyle: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: fontSizeNormal,
         fontWeight: FontWeight.w600,
       ),
@@ -313,8 +354,12 @@ class AppTheme {
         borderSide: BorderSide(color: colorScheme.error, width: 2),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      labelStyle: TextStyle(fontSize: fontSizeNormal),
+      labelStyle: TextStyle(
+        fontFamily: fontFamilyBody,
+        fontSize: fontSizeNormal,
+      ),
       hintStyle: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: fontSizeNormal,
         color: colorScheme.onSurfaceVariant,
       ),
@@ -328,6 +373,7 @@ class AppTheme {
         borderRadius: BorderRadius.circular(12),
       ),
       contentTextStyle: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: fontSizeNormal,
         color: colorScheme.onInverseSurface,
       ),
@@ -340,11 +386,13 @@ class AppTheme {
         borderRadius: BorderRadius.circular(24),
       ),
       titleTextStyle: TextStyle(
+        fontFamily: fontFamilyHeading,
         fontSize: fontSizeLarge,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
       ),
       contentTextStyle: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: fontSizeNormal,
         color: colorScheme.onSurfaceVariant,
       ),
@@ -356,10 +404,12 @@ class AppTheme {
     return BottomNavigationBarThemeData(
       type: BottomNavigationBarType.fixed,
       selectedLabelStyle: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: fontSizeSmall,
         fontWeight: FontWeight.w600,
       ),
       unselectedLabelStyle: TextStyle(
+        fontFamily: fontFamilyBody,
         fontSize: fontSizeSmall,
       ),
       selectedIconTheme: IconThemeData(size: 28),
