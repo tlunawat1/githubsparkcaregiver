@@ -7,7 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'data/datasources/remote/remote.dart';
 import 'data/repositories/repositories.dart';
 
-/// Main application widget
+/// Main application widget 
 class ParentalCareApp extends StatefulWidget {
   const ParentalCareApp({super.key});
 

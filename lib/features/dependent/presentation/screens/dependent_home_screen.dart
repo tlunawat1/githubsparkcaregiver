@@ -336,6 +336,11 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                     );
                                   }),
                                 ],
+                                // Today's Progress section
+                                if (_todayInstances.isNotEmpty) ...[
+                                  const SizedBox(height: AppSpacing.lg),
+                                  _buildTodaysProgress(),
+                                ],
                               ],
                             ),
                           ),
@@ -452,35 +457,41 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                           ),
                         ],
 
-                        // Spacer for SOS button
+                        // Spacer for SOS button (increased to prevent overflow)
                         const SliverToBoxAdapter(
-                          child: SizedBox(height: 200),
+                          child: SizedBox(height: 150),
                         ),
                       ],
                     ),
                   ),
-                  // SOS button fixed at bottom
+                  // SOS button fixed at bottom (further reduced - 25% smaller)
                   Positioned(
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, -5),
+                    child: SafeArea(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.sm,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surface,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, -5),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: SOSButton(
+                            size: 90, // Further reduced (25% smaller than 120px)
+                            onActivated: () {
+                              context.go('${AppRoutes.dependentHome}/sos');
+                            },
                           ),
-                        ],
-                      ),
-                      child: Center(
-                        child: SOSButton(
-                          onActivated: () {
-                            context.go('${AppRoutes.dependentHome}/sos');
-                          },
                         ),
                       ),
                     ),
@@ -673,7 +684,10 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     final uniqueCode = _user?.uniqueCode ?? '';
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -683,27 +697,25 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
       ),
       child: Row(
         children: [
-          Icon(Icons.qr_code, color: colorScheme.secondary, size: 28),
-          const SizedBox(width: AppSpacing.md),
+          Icon(Icons.qr_code, color: colorScheme.secondary, size: 24),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            'Your Code:',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your Code',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Text(
-                  uniqueCode,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                    color: colorScheme.secondary,
-                  ),
-                ),
-              ],
+            child: Text(
+              uniqueCode,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+                color: colorScheme.secondary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           IconButton(
@@ -719,6 +731,12 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
               );
             },
             tooltip: 'Copy code',
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(
+              minWidth: 32,
+              minHeight: 32,
+            ),
           ),
         ],
       ),
@@ -743,7 +761,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     return sorted.where((r) => r.id != nextPending.id).toList();
   }
 
-  /// Build the "Up Next" hero card for the first pending reminder
+  /// Build the "Up Next" hero card for the first pending reminder (reduced height)
   Widget _buildUpNextCard() {
     final theme = Theme.of(context);
     final nextReminder = _getNextPendingReminder();
@@ -782,7 +800,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
           onTap: isLoading ? null : () => _markInstanceComplete(nextReminder.id),
           borderRadius: AppRadius.largeRadius,
           child: Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.all(AppSpacing.md), // Reduced from lg
             decoration: BoxDecoration(
               borderRadius: AppRadius.largeRadius,
               border: Border.all(color: AppColors.warning, width: 2),
@@ -804,8 +822,8 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
+                        horizontal: 8,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.warning,
@@ -817,15 +835,16 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                           const Icon(
                             Icons.arrow_upward_rounded,
                             color: Colors.white,
-                            size: 14,
+                            size: 12,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 3),
                           Text(
                             'UP NEXT',
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.5,
+                              fontSize: 10,
                             ),
                           ),
                         ],
@@ -839,40 +858,40 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                               _showDetailsModal(nextReminder, reminder);
                             },
                       child: Container(
-                        width: 32,
-                        height: 32,
+                        width: 28,
+                        height: 28,
                         decoration: BoxDecoration(
                           color: AppColors.warning.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.help_outline,
-                          size: 20,
+                          size: 18,
                           color: AppColors.warning,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm), // Reduced
                 // Main content row
                 Row(
                   children: [
-                    // Category icon
+                    // Category icon (smaller)
                     Container(
-                      width: 64,
-                      height: 64,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
                         color: categoryColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
                         categoryIcon,
                         color: categoryColor,
-                        size: 32,
+                        size: 28,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.md),
+                    const SizedBox(width: AppSpacing.sm),
                     // Title and time
                     Expanded(
                       child: Column(
@@ -880,17 +899,17 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                         children: [
                           Text(
                             title,
-                            style: theme.textTheme.titleLarge?.copyWith(
+                            style: theme.textTheme.titleMedium?.copyWith(
                               color: AppColors.warningDark,
                               fontWeight: FontWeight.bold,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             DateFormat.jm().format(displayTime),
-                            style: theme.textTheme.headlineSmall?.copyWith(
+                            style: theme.textTheme.titleLarge?.copyWith(
                               color: AppColors.warning,
                               fontWeight: FontWeight.bold,
                             ),
@@ -900,8 +919,8 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-                // Action button
+                const SizedBox(height: AppSpacing.sm), // Reduced
+                // Action button (smaller)
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -909,24 +928,24 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.warning,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 12), // Reduced
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     icon: isLoading
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.check_circle_outline, size: 24),
+                        : const Icon(Icons.check_circle_outline, size: 20),
                     label: Text(
                       isLoading ? 'Completing...' : 'Mark as Done',
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: theme.textTheme.bodyLarge?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
@@ -956,6 +975,17 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: card,
+    );
+  }
+
+  /// Build Today's Progress section - same as caregiver dashboard
+  Widget _buildTodaysProgress() {
+    final total = _todayInstances.length;
+    final completed = _todayInstances.where((i) => i.status == 'completed').length;
+
+    return DailyProgressBar(
+      completed: completed,
+      total: total,
     );
   }
 

@@ -43,6 +43,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   bool _isLoading = true;
   bool _isInitialLoad = true;
   String? _activeStatusFilter;
+  int _lastDismissedMissedCount = 0; // Track count when dismissed
 
   List<ReminderInstanceData> get _filteredInstances {
     if (_activeStatusFilter == null) return _todayInstances;
@@ -379,58 +380,64 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
 
   Widget _buildUrgentSection() {
     final theme = Theme.of(context);
+    final urgentCount = _urgentItems.length;
+
+    // Only show if there are urgent items AND (never dismissed OR count increased)
+    if (urgentCount <= _lastDismissedMissedCount) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       margin: AppSpacing.screenPaddingHorizontal,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         gradient: AppColors.missedGradient,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(
-                AppIcons.priorityHigh,
-                color: AppColors.error,
-                size: 24,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Needs Attention',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: AppColors.error,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${_urgentItems.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
+          Icon(
+            AppIcons.priorityHigh,
+            color: AppColors.error,
+            size: 20,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            _urgentItems.length == 1
-                ? '1 reminder needs attention'
-                : '${_urgentItems.length} reminders need attention',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppColors.errorDark,
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              urgentCount == 1
+                  ? '1 Reminder needs attention!!'
+                  : '$urgentCount Reminders need attention!!',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Close button
+          IconButton(
+            icon: Icon(
+              Icons.close_rounded,
+              color: AppColors.error,
+              size: 20,
+            ),
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              setState(() {
+                _lastDismissedMissedCount = urgentCount;
+              });
+            },
+            tooltip: 'Dismiss',
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(
+              minWidth: 32,
+              minHeight: 32,
             ),
           ),
         ],
