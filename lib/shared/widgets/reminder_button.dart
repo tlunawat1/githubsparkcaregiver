@@ -187,7 +187,7 @@ class ReminderButton extends StatelessWidget {
 
   Widget _buildStatusChip(ThemeData theme, Color textColor, Color borderColor) {
     final (icon, label) = switch (status) {
-      ReminderInstanceStatus.pending => (Icons.touch_app, 'Tap to complete'),
+      ReminderInstanceStatus.pending => (Icons.touch_app, 'Tap to\ncomplete'),
       ReminderInstanceStatus.completed => (Icons.check_circle, 'Done'),
       ReminderInstanceStatus.missed => (Icons.error, 'Missed'),
       ReminderInstanceStatus.snoozed => (Icons.snooze, 'Snoozed'),
@@ -210,7 +210,9 @@ class ReminderButton extends StatelessWidget {
               color: textColor,
               fontWeight: FontWeight.w600,
               fontSize: 10,
+              height: 1.1,
             ),
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
         ],
