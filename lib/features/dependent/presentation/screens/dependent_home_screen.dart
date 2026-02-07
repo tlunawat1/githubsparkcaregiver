@@ -391,7 +391,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                 crossAxisCount: 2,
                                 mainAxisSpacing: AppSpacing.md,
                                 crossAxisSpacing: AppSpacing.md,
-                                childAspectRatio: 1.15,
+                                childAspectRatio: 1.55,
                               ),
                               delegate: SliverChildBuilderDelegate(
                                 (context, index) {

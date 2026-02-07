@@ -87,7 +87,10 @@ class ReminderButton extends StatelessWidget {
                   : null,
           borderRadius: AppRadius.largeRadius,
           child: Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
             decoration: BoxDecoration(
               borderRadius: AppRadius.largeRadius,
               border: Border.all(color: borderColor, width: 2),
@@ -135,7 +138,7 @@ class ReminderButton extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: 4),
                 // Title
                 Text(
                   title,
@@ -191,7 +194,7 @@ class ReminderButton extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: borderColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
