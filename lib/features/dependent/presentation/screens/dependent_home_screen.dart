@@ -391,7 +391,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                 crossAxisCount: 2,
                                 mainAxisSpacing: AppSpacing.md,
                                 crossAxisSpacing: AppSpacing.md,
-                                childAspectRatio: 0.95,
+                                childAspectRatio: 1.15,
                               ),
                               delegate: SliverChildBuilderDelegate(
                                 (context, index) {
@@ -487,7 +487,8 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                         ),
                         child: Center(
                           child: SOSButton(
-                            size: 90, // Further reduced (25% smaller than 120px)
+                            size: 56,
+                            width: double.infinity,
                             onActivated: () {
                               context.go('${AppRoutes.dependentHome}/sos');
                             },

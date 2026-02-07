@@ -14,6 +14,7 @@ class SOSButton extends StatefulWidget {
     required this.onActivated,
     this.onCancelled,
     this.size = AppTouchTargets.sosButton,
+    this.width,
     this.holdDuration = const Duration(
       milliseconds: AppConfig.sosLongPressDurationMs,
     ),
@@ -23,6 +24,7 @@ class SOSButton extends StatefulWidget {
   final VoidCallback onActivated;
   final VoidCallback? onCancelled;
   final double size;
+  final double? width;
   final Duration holdDuration;
   final bool enablePulseAnimation;
 
@@ -128,6 +130,8 @@ class _SOSButtonState extends State<SOSButton>
   @override
   Widget build(BuildContext context) {
     final reduceMotion = _shouldReduceMotion();
+    final height = widget.size;
+    final width = widget.width ?? 280;
 
     // Stop pulse animation if reduce motion is enabled
     if (reduceMotion && _pulseController.isAnimating) {
@@ -145,91 +149,102 @@ class _SOSButtonState extends State<SOSButton>
         child: AnimatedBuilder(
           animation: Listenable.merge([_holdController, _pulseAnimation]),
           builder: (context, child) {
-            final pulseScale = widget.enablePulseAnimation && !reduceMotion && !_isHolding
-                ? _pulseAnimation.value
-                : 1.0;
+            final pulseScale =
+                widget.enablePulseAnimation && !reduceMotion && !_isHolding
+                    ? _pulseAnimation.value
+                    : 1.0;
 
             return Transform.scale(
               scale: pulseScale,
-              child: Container(
-                width: widget.size,
-                height: widget.size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    center: Alignment.center,
-                    radius: 0.8,
-                    colors: _isHolding
-                        ? [
-                            AppColors.sosRedDark,
-                            AppColors.sosRedDark.withValues(alpha: 0.9),
-                          ]
-                        : [
-                            AppColors.sosRed.withValues(alpha: 0.9),
-                            AppColors.sosRed,
-                          ],
-                  ),
-                  boxShadow: [
-                    // Outer glow
-                    BoxShadow(
-                      color: AppColors.sosRed.withValues(
-                        alpha: _isHolding ? 0.6 : 0.4,
-                      ),
-                      blurRadius: _isHolding ? 30 : 20,
-                      spreadRadius: _isHolding ? 8 : 4,
-                    ),
-                    // Inner shadow for depth
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
+              child: SizedBox(
+                width: width,
+                height: height,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Progress indicator
-                    if (_isHolding)
-                      SizedBox(
-                        width: widget.size - 16,
-                        height: widget.size - 16,
-                        child: CircularProgressIndicator(
-                          value: _holdController.value,
-                          strokeWidth: 6,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: _isHolding
+                              ? [
+                                  AppColors.sosRedDark,
+                                  AppColors.sosRedDark.withValues(alpha: 0.9),
+                                ]
+                              : [
+                                  AppColors.sosRed.withValues(alpha: 0.9),
+                                  AppColors.sosRed,
+                                ],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.sosRed.withValues(
+                              alpha: _isHolding ? 0.5 : 0.35,
+                            ),
+                            blurRadius: _isHolding ? 16 : 12,
+                            offset: const Offset(0, 6),
                           ),
-                          backgroundColor: Colors.white.withValues(alpha: 0.3),
+                        ],
+                      ),
+                    ),
+                    if (_isHolding)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Opacity(
+                          opacity: 0.25,
+                          child: LinearProgressIndicator(
+                            value: _holdController.value,
+                            minHeight: height,
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.1),
+                          ),
                         ),
                       ),
-                    // SOS content
-                    Column(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           AppIcons.sos,
                           color: Colors.white,
-                          size: 36,
+                          size: 22,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'SOS',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        if (!_isHolding)
-                          Text(
-                            'Hold',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 12,
+                        const SizedBox(width: AppSpacing.sm),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SOS',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.5,
+                              ),
                             ),
-                          ),
+                            if (!_isHolding)
+                              Text(
+                                'Hold 3s',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize: 12,
+                                ),
+                              )
+                            else
+                              Text(
+                                'Activating...',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: 12,
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                   ],

@@ -87,96 +87,93 @@ class ReminderButton extends StatelessWidget {
                   : null,
           borderRadius: AppRadius.largeRadius,
           child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
               borderRadius: AppRadius.largeRadius,
               border: Border.all(color: borderColor, width: 2),
             ),
-            child: Stack(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Details button (top-right)
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: isLoading
-                        ? null
-                        : () {
-                            HapticFeedback.lightImpact();
-                            onDetailsTap?.call();
-                          },
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: borderColor.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.help_outline,
-                        size: 18,
-                        color: borderColor,
-                      ),
-                    ),
-                  ),
-                ),
-                // Main content
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
+                // Top row with category icon and details button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Category icon
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: 38,
+                      height: 38,
                       decoration: BoxDecoration(
                         color: categoryColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         categoryIcon,
                         color: categoryColor,
-                        size: 24,
+                        size: 22,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    // Title
-                    Text(
-                      title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: textColor,
-                        fontWeight: FontWeight.w600,
-                        decoration: status == ReminderInstanceStatus.completed
-                            ? TextDecoration.lineThrough
-                            : null,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    // Time
-                    Text(
-                      time,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: borderColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    // Status indicator
-                    if (isLoading)
-                      SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(textColor),
+                    GestureDetector(
+                      onTap: isLoading
+                          ? null
+                          : () {
+                              HapticFeedback.lightImpact();
+                              onDetailsTap?.call();
+                            },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: borderColor.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
                         ),
-                      )
-                    else
-                      _buildStatusChip(theme, textColor, borderColor),
+                        child: Icon(
+                          Icons.help_outline,
+                          size: 18,
+                          color: borderColor,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
+                const SizedBox(height: AppSpacing.xs),
+                // Title
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                    decoration: status == ReminderInstanceStatus.completed
+                        ? TextDecoration.lineThrough
+                        : null,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                // Time + status row
+                if (isLoading)
+                  SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(textColor),
+                    ),
+                  )
+                else
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        time,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: borderColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      _buildStatusChip(theme, textColor, borderColor),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -194,7 +191,7 @@ class ReminderButton extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: borderColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
@@ -204,16 +201,14 @@ class ReminderButton extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: textColor),
           const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: textColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 10,
-              ),
-              overflow: TextOverflow.ellipsis,
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: textColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 10,
             ),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
