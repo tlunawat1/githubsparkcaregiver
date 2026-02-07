@@ -85,15 +85,6 @@ class _TimelineItemWidget extends StatelessWidget {
     };
   }
 
-  IconData _getStatusIcon() {
-    return switch (item.status) {
-      'completed' => Icons.check_rounded,
-      'missed' => Icons.close_rounded,
-      'snoozed' => Icons.snooze_rounded,
-      _ => Icons.circle_outlined,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -112,155 +103,98 @@ class _TimelineItemWidget extends StatelessWidget {
             }
           : null,
       borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: isDark
+              ? statusColor.withValues(alpha: 0.1)
+              : statusColor.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: statusColor.withValues(alpha: 0.3),
+          ),
+        ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Timeline line and dot
-            SizedBox(
+            // Category icon
+            Container(
               width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: categoryColor.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                AppIcons.getCategoryIcon(category),
+                color: categoryColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            // Title and time
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Line above (except for first item)
-                  if (!isFirst)
-                    Container(
-                      width: 2,
-                      height: 8,
-                      color: statusColor.withValues(alpha: 0.3),
+                  Text(
+                    item.title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      decoration: item.status == 'completed'
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
-                  // Dot/icon
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: statusColor,
-                        width: 2,
-                      ),
-                    ),
-                    child: item.status == 'completed' || item.status == 'missed'
-                        ? Icon(
-                            _getStatusIcon(),
-                            size: 14,
-                            color: statusColor,
-                          )
-                        : null,
                   ),
-                  // Line below (except for last item)
-                  if (!isLast)
-                    Expanded(
-                      child: Container(
-                        width: 2,
-                        color: statusColor.withValues(alpha: 0.3),
-                      ),
+                  const SizedBox(height: 2),
+                  Text(
+                    timeFormat.format(item.scheduledTime),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w500,
                     ),
+                  ),
                 ],
               ),
             ),
-            // Content
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.only(
-                  left: AppSpacing.sm,
-                  bottom: AppSpacing.sm,
+            // Status badge
+            if (item.status != 'pending')
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
                 ),
-                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? statusColor.withValues(alpha: 0.1)
-                      : statusColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(
-                    color: statusColor.withValues(alpha: 0.3),
+                  color: statusColor.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  item.status[0].toUpperCase() + item.status.substring(1),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                child: Row(
-                  children: [
-                    // Category icon
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: categoryColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        AppIcons.getCategoryIcon(category),
-                        color: categoryColor,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    // Title and time
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              decoration: item.status == 'completed'
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            timeFormat.format(item.scheduledTime),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: statusColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Status badge
-                    if (item.status != 'pending')
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          item.status[0].toUpperCase() + item.status.substring(1),
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    // Voice note indicator
-                    if (item.hasVoiceNote) ...[
-                      const SizedBox(width: AppSpacing.xs),
-                      Icon(
-                        AppIcons.voiceNote,
-                        size: 16,
-                        color: colorScheme.primary,
-                      ),
-                    ],
-                    // Arrow for tappable items
-                    if (onTap != null) ...[
-                      const SizedBox(width: AppSpacing.xs),
-                      Icon(
-                        AppIcons.forward,
-                        size: 16,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ],
-                ),
               ),
-            ),
+            // Voice note indicator
+            if (item.hasVoiceNote) ...[
+              const SizedBox(width: AppSpacing.xs),
+              Icon(
+                AppIcons.voiceNote,
+                size: 16,
+                color: colorScheme.primary,
+              ),
+            ],
+            // Arrow for tappable items
+            if (onTap != null) ...[
+              const SizedBox(width: AppSpacing.xs),
+              Icon(
+                AppIcons.forward,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ],
           ],
         ),
       ),

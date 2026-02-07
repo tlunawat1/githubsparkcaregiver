@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/constants/custom_icons.dart';
+import '../../core/utils/category_inference.dart';
 
 /// Status of a reminder instance
 enum ReminderInstanceStatus {
@@ -13,7 +15,7 @@ enum ReminderInstanceStatus {
 }
 
 /// A square-ish button widget for displaying reminder instances.
-/// Features one-tap completion, color-coded status, and a details button.
+/// Features one-tap completion, color-coded status, category icons, and a details button.
 class ReminderButton extends StatelessWidget {
   const ReminderButton({
     super.key,
@@ -37,27 +39,30 @@ class ReminderButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final category = CategoryInference.inferCategory(title);
+    final categoryColor = AppIcons.getCategoryColor(category);
+    final categoryIcon = AppIcons.getCategoryIcon(category);
 
     final (backgroundColor, borderColor, textColor) = switch (status) {
       ReminderInstanceStatus.pending => (
           AppColors.warningLight,
           AppColors.warning,
-          AppColors.warning,
+          AppColors.warningDark,
         ),
       ReminderInstanceStatus.completed => (
           AppColors.successLight,
           AppColors.success,
-          AppColors.success,
+          AppColors.successDark,
         ),
       ReminderInstanceStatus.missed => (
           AppColors.errorLight,
           AppColors.error,
-          AppColors.error,
+          AppColors.errorDark,
         ),
       ReminderInstanceStatus.snoozed => (
-          Colors.blue.shade50,
-          Colors.blue,
-          Colors.blue,
+          AppColors.infoLight,
+          AppColors.info,
+          AppColors.infoDark,
         ),
     };
 
@@ -120,39 +125,27 @@ class ReminderButton extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Voice note indicator
-                    if (hasVoiceNote)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                        child: Row(
-                          children: [
-                            Icon(Icons.mic, size: 14, color: textColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Voice note',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: textColor,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+                    // Category icon
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: categoryColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    // Time
-                    Text(
-                      time,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: textColor,
-                        fontWeight: FontWeight.bold,
+                      child: Icon(
+                        categoryIcon,
+                        color: categoryColor,
+                        size: 24,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: AppSpacing.sm),
                     // Title
                     Text(
                       title,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: textColor.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w500,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: textColor,
+                        fontWeight: FontWeight.w600,
                         decoration: status == ReminderInstanceStatus.completed
                             ? TextDecoration.lineThrough
                             : null,
@@ -160,7 +153,16 @@ class ReminderButton extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: 2),
+                    // Time
+                    Text(
+                      time,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: borderColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
                     // Status indicator
                     if (isLoading)
                       SizedBox(
@@ -172,7 +174,7 @@ class ReminderButton extends StatelessWidget {
                         ),
                       )
                     else
-                      _buildStatusChip(theme, textColor),
+                      _buildStatusChip(theme, textColor, borderColor),
                   ],
                 ),
               ],
@@ -183,7 +185,7 @@ class ReminderButton extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusChip(ThemeData theme, Color textColor) {
+  Widget _buildStatusChip(ThemeData theme, Color textColor, Color borderColor) {
     final (icon, label) = switch (status) {
       ReminderInstanceStatus.pending => (Icons.touch_app, 'Tap to complete'),
       ReminderInstanceStatus.completed => (Icons.check_circle, 'Done'),
@@ -191,19 +193,30 @@ class ReminderButton extends StatelessWidget {
       ReminderInstanceStatus.snoozed => (Icons.snooze, 'Snoozed'),
     };
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: textColor),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: textColor,
-            fontWeight: FontWeight.w600,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: borderColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: textColor),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: textColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 10,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -345,21 +345,9 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   Widget _buildHeader() {
     return Container(
       padding: AppSpacing.screenPadding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Time-aware greeting
-          TimeAwareGreeting(
-            userName: _dependent?.name.split(' ').first ?? 'there',
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Progress bar
-          DailyProgressBar(
-            completed: _completedCount,
-            total: _totalCount,
-          ),
-        ],
+      child: DailyProgressBar(
+        completed: _completedCount,
+        total: _totalCount,
       ),
     );
   }
@@ -612,7 +600,7 @@ class _StatChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
+          horizontal: AppSpacing.sm,
           vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
@@ -625,10 +613,11 @@ class _StatChip extends StatelessWidget {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 24,
+              height: 24,
               decoration: BoxDecoration(
                 color: color,
                 shape: BoxShape.circle,
@@ -639,17 +628,20 @@ class _StatChip extends StatelessWidget {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              label,
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? color : null,
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? color : null,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
