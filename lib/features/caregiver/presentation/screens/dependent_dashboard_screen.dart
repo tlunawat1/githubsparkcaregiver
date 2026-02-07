@@ -504,10 +504,17 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
         hasVoiceNote: reminder.voiceNoteUrl != null,
         description: reminder.description,
       );
-    }).toList();
+    }).toList()
+      ..sort((a, b) {
+        if (a.status == 'pending' && b.status == 'pending') {
+          return a.scheduledTime.compareTo(b.scheduledTime);
+        }
+        return b.scheduledTime.compareTo(a.scheduledTime);
+      });
 
     return TimelineView(
       items: timelineItems,
+      disableSorting: true,
       onItemTap: (item) async {
         final reminder = _reminders.firstWhere(
           (r) => r.title == item.title,

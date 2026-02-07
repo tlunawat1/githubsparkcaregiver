@@ -32,11 +32,15 @@ class TimelineView extends StatelessWidget {
     required this.items,
     this.onItemTap,
     this.emptyMessage = 'No reminders scheduled',
+    this.sortByTimeAscending = true,
+    this.disableSorting = false,
   });
 
   final List<TimelineItem> items;
   final void Function(TimelineItem item)? onItemTap;
   final String emptyMessage;
+  final bool sortByTimeAscending;
+  final bool disableSorting;
 
   @override
   Widget build(BuildContext context) {
@@ -44,9 +48,12 @@ class TimelineView extends StatelessWidget {
       return _EmptyTimelineMessage(message: emptyMessage);
     }
 
-    // Sort by scheduled time
-    final sortedItems = List<TimelineItem>.from(items)
-      ..sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
+    final sortedItems = disableSorting
+        ? items
+        : (List<TimelineItem>.from(items)
+          ..sort((a, b) => sortByTimeAscending
+              ? a.scheduledTime.compareTo(b.scheduledTime)
+              : b.scheduledTime.compareTo(a.scheduledTime)));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
