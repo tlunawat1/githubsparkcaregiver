@@ -506,10 +506,15 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
       );
     }).toList()
       ..sort((a, b) {
-        if (a.status == 'pending' && b.status == 'pending') {
-          return a.scheduledTime.compareTo(b.scheduledTime);
+        final aPending = a.status == 'pending';
+        final bPending = b.status == 'pending';
+        if (aPending != bPending) {
+          return aPending ? -1 : 1; // pending always on top
         }
-        return b.scheduledTime.compareTo(a.scheduledTime);
+        if (aPending && bPending) {
+          return a.scheduledTime.compareTo(b.scheduledTime); // soonest first
+        }
+        return b.scheduledTime.compareTo(a.scheduledTime); // rest descending
       });
 
     return TimelineView(
