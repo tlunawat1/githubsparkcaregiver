@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -119,7 +120,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
-              'These contacts will be notified when ${_dependent?.name ?? 'the dependent'} triggers an SOS alert.',
+              'These contacts will be notified when ${_dependent != null ? formatFullName(firstName: _dependent!.firstName, lastName: _dependent!.lastName) : 'the dependent'} triggers an SOS alert.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onPrimaryContainer,
               ),

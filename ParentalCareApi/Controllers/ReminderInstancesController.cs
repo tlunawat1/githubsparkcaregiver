@@ -9,6 +9,7 @@ using ParentalCareApi.DTOs;
 using ParentalCareApi.Hubs;
 using ParentalCareApi.Models;
 using ParentalCareApi.Services;
+using ParentalCareApi.Utils;
 
 namespace ParentalCareApi.Controllers;
 
@@ -582,7 +583,7 @@ public class ReminderInstancesController : ControllerBase
                             await _notificationService.SendToUserAsync(
                                 caregiverId,
                                 $"Missed: {instance.Reminder.Title}",
-                                $"{instance.Reminder.Dependent?.Name ?? "Dependent"} missed their reminder",
+                                $"{(string.IsNullOrWhiteSpace(NameFormatter.GetDisplayName(instance.Reminder.Dependent)) ? "Dependent" : NameFormatter.GetDisplayName(instance.Reminder.Dependent))} missed their reminder",
                                 new Dictionary<string, string>
                                 {
                                     { "type", "missed_reminder" },

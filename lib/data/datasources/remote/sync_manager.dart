@@ -305,8 +305,10 @@ class SyncManager {
   /// Sync user operation
   Future<void> _syncUser(SyncOperation operation) async {
     if (operation.operationType == SyncOperationType.update) {
+      final firstName = operation.data['firstName'] ?? operation.data['name'];
       await _userApi.updateCurrentUser(
-        name: operation.data['name'] as String?,
+        firstName: firstName as String?,
+        lastName: operation.data['lastName'] as String?,
         phoneNumber: operation.data['phoneNumber'] as String?,
         avatarUrl: operation.data['avatarUrl'] as String?,
       );

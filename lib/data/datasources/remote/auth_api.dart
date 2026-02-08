@@ -3,7 +3,8 @@ import 'api_client.dart';
 /// Data class for user data from API
 class UserData {
   final String id;
-  final String name;
+  final String firstName;
+  final String? lastName;
   final String email;
   final String role;
   final String? phoneNumber;
@@ -16,7 +17,8 @@ class UserData {
 
   UserData({
     required this.id,
-    required this.name,
+    required this.firstName,
+    this.lastName,
     required this.email,
     required this.role,
     this.phoneNumber,
@@ -31,7 +33,8 @@ class UserData {
   factory UserData.fromJson(Map<String, dynamic> json) {
     return UserData(
       id: json['id'] as String,
-      name: json['name'] as String,
+      firstName: json['firstName'] as String,
+      lastName: json['lastName'] as String?,
       email: json['email'] as String,
       role: json['role'] as String,
       phoneNumber: json['phoneNumber'] as String?,
@@ -48,7 +51,8 @@ class UserData {
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'name': name,
+        'firstName': firstName,
+        'lastName': lastName,
         'email': email,
         'role': role,
         'phoneNumber': phoneNumber,
@@ -88,7 +92,8 @@ class AuthResponse {
 /// Response from registration
 class RegisterResponse {
   final String id;
-  final String name;
+  final String firstName;
+  final String? lastName;
   final String email;
   final String role;
   final String uniqueCode;
@@ -97,7 +102,8 @@ class RegisterResponse {
 
   RegisterResponse({
     required this.id,
-    required this.name,
+    required this.firstName,
+    this.lastName,
     required this.email,
     required this.role,
     required this.uniqueCode,
@@ -108,7 +114,8 @@ class RegisterResponse {
   factory RegisterResponse.fromJson(Map<String, dynamic> json) {
     return RegisterResponse(
       id: json['id'] as String,
-      name: json['name'] as String,
+      firstName: json['firstName'] as String,
+      lastName: json['lastName'] as String?,
       email: json['email'] as String,
       role: json['role'] as String,
       uniqueCode: json['uniqueCode'] as String,
@@ -164,7 +171,8 @@ class AuthApi {
 
   /// Register a new user
   Future<RegisterResponse> register({
-    required String name,
+    required String firstName,
+    String? lastName,
     required String email,
     required String password,
     required String role,
@@ -174,7 +182,8 @@ class AuthApi {
     final response = await _client.post(
       '/api/auth/register',
       body: {
-        'name': name,
+        'firstName': firstName,
+        if (lastName != null) 'lastName': lastName,
         'email': email,
         'password': password,
         'role': role,

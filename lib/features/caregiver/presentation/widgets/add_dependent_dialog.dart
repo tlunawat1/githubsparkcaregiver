@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../auth/domain/auth_service.dart';
 
@@ -250,9 +251,12 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
               CircleAvatar(
                 backgroundColor: colorScheme.primary,
                 child: Text(
-                  _foundDependent?.name.isNotEmpty == true
-                      ? _foundDependent!.name[0].toUpperCase()
-                      : '?',
+                  _foundDependent == null
+                      ? '?'
+                      : nameInitials(
+                          firstName: _foundDependent!.firstName,
+                          lastName: _foundDependent!.lastName,
+                        ),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -265,7 +269,12 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _foundDependent?.name ?? 'Unknown',
+                      _foundDependent == null
+                          ? 'Unknown'
+                          : formatFullName(
+                              firstName: _foundDependent!.firstName,
+                              lastName: _foundDependent!.lastName,
+                            ),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -310,7 +319,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                '${_foundDependent?.name ?? 'The dependent'} will see a notification with a 5-digit code. Ask them to share it with you.',
+                '${_foundDependent == null ? 'The dependent' : formatFullName(firstName: _foundDependent!.firstName, lastName: _foundDependent!.lastName)} will see a notification with a 5-digit code. Ask them to share it with you.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSecondaryContainer,
                 ),
@@ -434,7 +443,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
         debugPrint('Error creating relationship: $e');
         String errorMsg = 'Failed to create connection request';
         if (e.toString().contains('already exists') || e.toString().contains('409')) {
-          errorMsg = '${dependent.name} is already connected or has a pending request';
+          errorMsg = '${formatFullName(firstName: dependent.firstName, lastName: dependent.lastName)} is already connected or has a pending request';
         }
         setState(() {
           _errorMessage = errorMsg;
@@ -490,7 +499,11 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
         widget.onDependentAdded();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${_foundDependent?.name} has been added'),
+            content: Text(
+              _foundDependent == null
+                  ? 'Dependent has been added'
+                  : '${formatFullName(firstName: _foundDependent!.firstName, lastName: _foundDependent!.lastName)} has been added',
+            ),
             backgroundColor: Colors.green,
           ),
         );

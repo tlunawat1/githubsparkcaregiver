@@ -4,7 +4,8 @@ namespace ParentalCareApi.DTOs;
 
 // Registration
 public record RegisterRequest(
-    [Required][StringLength(200)] string Name,
+    [Required][StringLength(100)] string FirstName,
+    [StringLength(100)] string? LastName,
     [Required][EmailAddress] string Email,
     [Required][MinLength(6)] string Password,
     [Required] string Role, // "caregiver" or "dependent"
@@ -14,7 +15,8 @@ public record RegisterRequest(
 
 public record RegisterResponse(
     string Id,
-    string Name,
+    string FirstName,
+    string? LastName,
     string Email,
     string Role,
     string UniqueCode,

@@ -10,7 +10,8 @@ part 'database.g.dart';
 /// User profile table
 class Users extends Table {
   TextColumn get id => text()();
-  TextColumn get name => text()();
+  TextColumn get firstName => text()();
+  TextColumn get lastName => text().nullable()();
   TextColumn get role => text()(); // 'caregiver' or 'dependent'
   TextColumn get avatarPath => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
@@ -151,7 +152,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -214,6 +215,37 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
             'ALTER TABLE care_relationships ADD COLUMN initiated_by TEXT NOT NULL DEFAULT "caregiver"',
           );
+        }
+
+        // Migration from v2 to v3: Split name into first/last name
+        if (from < 3) {
+          final columns = await customSelect('PRAGMA table_info(users)').get();
+          final columnNames = columns
+              .map((row) => row.data['name'] as String?)
+              .whereType<String>()
+              .toSet();
+
+          if (columnNames.contains('name')) {
+            await customStatement(
+              'ALTER TABLE users RENAME COLUMN name TO first_name',
+            );
+          }
+
+          if (!columnNames.contains('last_name')) {
+            await customStatement('ALTER TABLE users ADD COLUMN last_name TEXT');
+          }
+
+          await customStatement('''
+            UPDATE users
+            SET first_name = CASE
+                  WHEN instr(first_name, ' ') > 0 THEN substr(first_name, 1, instr(first_name, ' ') - 1)
+                  ELSE first_name
+                END,
+                last_name = CASE
+                  WHEN instr(first_name, ' ') > 0 THEN trim(substr(first_name, instr(first_name, ' ') + 1))
+                  ELSE last_name
+                END
+          ''');
         }
       },
     );

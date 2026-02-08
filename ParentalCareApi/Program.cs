@@ -223,6 +223,36 @@ using (var scope = app.Services.CreateScope())
                 ALTER TABLE Users ADD Timezone NVARCHAR(50) NOT NULL DEFAULT 'UTC'
             END");
 
+        // Add FirstName/LastName columns to Users if they don't exist
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'Users') AND name = 'FirstName')
+            BEGIN
+                ALTER TABLE Users ADD FirstName NVARCHAR(100) NOT NULL DEFAULT ''
+            END");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'Users') AND name = 'LastName')
+            BEGIN
+                ALTER TABLE Users ADD LastName NVARCHAR(100) NULL
+            END");
+
+        // Backfill FirstName/LastName from legacy Name column when present
+        db.Database.ExecuteSqlRaw(@"
+            IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'Users') AND name = 'Name')
+            BEGIN
+                UPDATE Users
+                SET FirstName = CASE
+                        WHEN (FirstName IS NULL OR LTRIM(RTRIM(FirstName)) = '')
+                            THEN LEFT(Name, CHARINDEX(' ', Name + ' ') - 1)
+                        ELSE FirstName
+                    END,
+                    LastName = CASE
+                        WHEN (LastName IS NULL OR LTRIM(RTRIM(LastName)) = '') AND CHARINDEX(' ', Name) > 0
+                            THEN LTRIM(SUBSTRING(Name, CHARINDEX(' ', Name) + 1, 200))
+                        ELSE LastName
+                    END
+            END");
+
         // Add NotificationJobIds column to ReminderInstances if it doesn't exist
         db.Database.ExecuteSqlRaw(@"
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'ReminderInstances') AND name = 'NotificationJobIds')

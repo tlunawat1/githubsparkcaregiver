@@ -6,7 +6,8 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
 BEGIN
     CREATE TABLE Users (
         Id NVARCHAR(36) PRIMARY KEY,
-        Name NVARCHAR(200) NOT NULL,
+        FirstName NVARCHAR(100) NOT NULL,
+        LastName NVARCHAR(100) NULL,
         Email NVARCHAR(255) NOT NULL,
         PasswordHash NVARCHAR(255) NOT NULL,
         Role NVARCHAR(20) NOT NULL,

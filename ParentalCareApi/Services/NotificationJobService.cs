@@ -54,7 +54,7 @@ public class NotificationJobService : INotificationJobService
 
         // Build notification
         var title = GetNotificationTitle(reminder.Title, escalationLevel);
-        var body = GetNotificationBody(reminder.Description, escalationLevel);
+        var body = GetNotificationBody(reminder.Title, escalationLevel);
         var data = new Dictionary<string, string>
         {
             { "type", "reminder" },
@@ -428,17 +428,15 @@ public class NotificationJobService : INotificationJobService
         };
     }
 
-    private string GetNotificationBody(string? description, int escalationLevel)
+    private string GetNotificationBody(string reminderTitle, int escalationLevel)
     {
-        var baseMessage = string.IsNullOrEmpty(description)
-            ? "It's time for your reminder"
-            : description;
+        var baseMessage = $"It's time for your {reminderTitle}!";
 
         return escalationLevel switch
         {
             0 => baseMessage,
-            1 => $"{baseMessage} (reminder)",
-            2 => $"{baseMessage} (please respond)",
+            1 => $"Reminder: {baseMessage}",
+            2 => $"Urgent: {baseMessage} Please respond.",
             _ => baseMessage
         };
     }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 
@@ -11,7 +12,8 @@ import '../../../../shared/widgets/accessible_button.dart';
 class LinkedUserData {
   final String relationshipId;
   final String userId;
-  final String userName;
+  final String firstName;
+  final String? lastName;
   final String? userEmail;
   final String? userPhone;
   final String userCode;
@@ -21,7 +23,8 @@ class LinkedUserData {
   const LinkedUserData({
     required this.relationshipId,
     required this.userId,
-    required this.userName,
+    required this.firstName,
+    this.lastName,
     this.userEmail,
     this.userPhone,
     required this.userCode,
@@ -46,7 +49,8 @@ class LinkedUserDetailScreen extends StatefulWidget {
 
 class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _userApi = getIt<UserApi>();
   final _relationshipApi = getIt<RelationshipApi>();
 
@@ -63,19 +67,31 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController.text = widget.userData.userName;
-    _nameController.addListener(_onNameChanged);
+    _firstNameController.text = widget.userData.firstName;
+    _lastNameController.text = widget.userData.lastName ?? '';
+    _firstNameController.addListener(_onNameChanged);
+    _lastNameController.addListener(_onNameChanged);
   }
 
   @override
   void dispose() {
-    _nameController.removeListener(_onNameChanged);
-    _nameController.dispose();
+    _firstNameController.removeListener(_onNameChanged);
+    _lastNameController.removeListener(_onNameChanged);
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     super.dispose();
   }
 
   void _onNameChanged() {
-    final changed = _nameController.text.trim() != widget.userData.userName;
+    final currentName = formatFullName(
+      firstName: _firstNameController.text,
+      lastName: _lastNameController.text,
+    );
+    final originalName = formatFullName(
+      firstName: widget.userData.firstName,
+      lastName: widget.userData.lastName,
+    );
+    final changed = currentName.trim() != originalName.trim();
     if (changed != _hasChanges) {
       setState(() => _hasChanges = changed);
     }
@@ -87,9 +103,12 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
     setState(() => _isSaving = true);
 
     try {
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
       await _userApi.updateLinkedUserName(
-        widget.userData.userId,
-        _nameController.text.trim(),
+        userId: widget.userData.userId,
+        firstName: firstName,
+        lastName: lastName.isEmpty ? null : lastName,
       );
 
       if (mounted) {
@@ -129,7 +148,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Remove Connection'),
         content: Text(
-          'Remove ${widget.userData.userName}? This will end the care connection.',
+          'Remove ${formatFullName(firstName: widget.userData.firstName, lastName: widget.userData.lastName)}? This will end the care connection.',
         ),
         actions: [
           TextButton(
@@ -159,7 +178,9 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${widget.userData.userName} removed'),
+            content: Text(
+              '${formatFullName(firstName: widget.userData.firstName, lastName: widget.userData.lastName)} removed',
+            ),
           ),
         );
         context.pop(true);
@@ -209,9 +230,10 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                 backgroundColor: colorScheme.primaryContainer,
                 radius: 48,
                 child: Text(
-                  _nameController.text.isNotEmpty
-                      ? _nameController.text[0].toUpperCase()
-                      : '?',
+                  nameInitials(
+                    firstName: _firstNameController.text,
+                    lastName: _lastNameController.text,
+                  ),
                   style: theme.textTheme.displaySmall?.copyWith(
                     color: colorScheme.primary,
                     fontWeight: FontWeight.bold,
@@ -221,11 +243,11 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
             ),
             const SizedBox(height: AppSpacing.xl),
 
-            // Name field
+            // First name field
             TextFormField(
-              controller: _nameController,
+              controller: _firstNameController,
               decoration: InputDecoration(
-                labelText: 'Name',
+                labelText: 'First Name',
                 prefixIcon: const Icon(Icons.person_outline),
                 suffixIcon: isEditable
                     ? const Icon(Icons.edit_outlined, size: 20)
@@ -247,14 +269,33 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
               validator: isEditable
                   ? (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Name is required';
+                        return 'First name is required';
                       }
                       if (value.trim().length < 2) {
-                        return 'Name must be at least 2 characters';
+                        return 'First name must be at least 2 characters';
                       }
                       return null;
                     }
                   : null,
+              onChanged: isEditable ? (_) => setState(() {}) : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            // Last name field (optional)
+            TextFormField(
+              controller: _lastNameController,
+              decoration: InputDecoration(
+                labelText: 'Last Name',
+                prefixIcon: const Icon(Icons.person_outline),
+                filled: !isEditable,
+                fillColor: !isEditable
+                    ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                    : null,
+              ),
+              style: !isEditable
+                  ? TextStyle(color: colorScheme.onSurfaceVariant)
+                  : null,
+              readOnly: !isEditable,
+              textCapitalization: TextCapitalization.words,
               onChanged: isEditable ? (_) => setState(() {}) : null,
             ),
             const SizedBox(height: AppSpacing.lg),

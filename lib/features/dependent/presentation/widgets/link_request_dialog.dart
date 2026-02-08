@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/repositories/repositories.dart';
 
@@ -34,6 +35,10 @@ class _LinkRequestDialogState extends State<LinkRequestDialog> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final linkingCode = widget.relationship.linkingCode ?? '12345';
+    final caregiverName = formatFullName(
+      firstName: widget.caregiver.firstName,
+      lastName: widget.caregiver.lastName,
+    );
 
     return AlertDialog(
       title: Row(
@@ -61,9 +66,10 @@ class _LinkRequestDialogState extends State<LinkRequestDialog> {
                     backgroundColor: colorScheme.primary,
                     radius: 24,
                     child: Text(
-                      widget.caregiver.name.isNotEmpty
-                          ? widget.caregiver.name[0].toUpperCase()
-                          : '?',
+                  nameInitials(
+                    firstName: widget.caregiver.firstName,
+                    lastName: widget.caregiver.lastName,
+                  ),
                       style: theme.textTheme.titleLarge?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -76,7 +82,7 @@ class _LinkRequestDialogState extends State<LinkRequestDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.caregiver.name,
+                          caregiverName,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -168,7 +174,7 @@ class _LinkRequestDialogState extends State<LinkRequestDialog> {
                   const SizedBox(height: AppSpacing.md),
 
                   Text(
-                    'Share this code with ${widget.caregiver.name} to complete the connection.',
+                    'Share this code with $caregiverName to complete the connection.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -196,7 +202,7 @@ class _LinkRequestDialogState extends State<LinkRequestDialog> {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      'Once connected, ${widget.caregiver.name} can send you reminders and be notified in emergencies.',
+                      'Once connected, $caregiverName can send you reminders and be notified in emergencies.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSecondaryContainer,
                       ),

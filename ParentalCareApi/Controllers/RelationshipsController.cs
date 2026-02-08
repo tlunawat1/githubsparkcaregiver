@@ -8,6 +8,7 @@ using ParentalCareApi.DTOs;
 using ParentalCareApi.Hubs;
 using ParentalCareApi.Models;
 using ParentalCareApi.Services;
+using ParentalCareApi.Utils;
 
 namespace ParentalCareApi.Controllers;
 
@@ -87,7 +88,7 @@ public class RelationshipsController : ControllerBase
             return Ok(pendingLinks.Select(r => new PendingLinkDto(
                 r.Id,
                 r.CaregiverId,
-                r.Caregiver.Name,
+                NameFormatter.GetDisplayName(r.Caregiver),
                 r.Caregiver.AvatarUrl,
                 r.Status,
                 r.CreatedAt
@@ -104,7 +105,7 @@ public class RelationshipsController : ControllerBase
             return Ok(pendingLinks.Select(r => new PendingLinkDto(
                 r.Id,
                 r.DependentId,
-                r.Dependent.Name,
+                NameFormatter.GetDisplayName(r.Dependent),
                 r.Dependent.AvatarUrl,
                 r.Status,
                 r.CreatedAt
@@ -209,7 +210,7 @@ public class RelationshipsController : ControllerBase
             await _notificationService.SendPushNotificationAsync(
                 notifyUser.DeviceToken,
                 "New Link Request",
-                $"{currentUser?.Name ?? "Someone"} wants to connect with you",
+                $"{(string.IsNullOrWhiteSpace(NameFormatter.GetDisplayName(currentUser)) ? "Someone" : NameFormatter.GetDisplayName(currentUser))} wants to connect with you",
                 new Dictionary<string, string>
                 {
                     { "type", "link_request" },
@@ -282,14 +283,14 @@ public class RelationshipsController : ControllerBase
         {
             relationshipId = relationship.Id,
             dependentId = relationship.DependentId,
-            dependentName = relationship.Dependent.Name
+            dependentName = NameFormatter.GetDisplayName(relationship.Dependent)
         });
 
         await _hubContext.Clients.Group($"user:{relationship.DependentId}").SendAsync("LinkVerified", new
         {
             relationshipId = relationship.Id,
             caregiverId = relationship.CaregiverId,
-            caregiverName = relationship.Caregiver.Name
+            caregiverName = NameFormatter.GetDisplayName(relationship.Caregiver)
         });
 
         // Send push notifications
@@ -302,7 +303,7 @@ public class RelationshipsController : ControllerBase
             await _notificationService.SendPushNotificationAsync(
                 otherUser.DeviceToken,
                 "Link Verified",
-                $"You are now connected with {currentUser?.Name ?? "a user"}",
+                $"You are now connected with {(string.IsNullOrWhiteSpace(NameFormatter.GetDisplayName(currentUser)) ? "a user" : NameFormatter.GetDisplayName(currentUser))}",
                 new Dictionary<string, string>
                 {
                     { "type", "link_verified" },
@@ -423,7 +424,8 @@ public class RelationshipsController : ControllerBase
             r.VerifiedAt,
             r.Caregiver != null ? new UserSearchResult(
                 r.Caregiver.Id,
-                r.Caregiver.Name,
+                r.Caregiver.FirstName,
+                r.Caregiver.LastName,
                 r.Caregiver.Role,
                 r.Caregiver.UniqueCode,
                 r.Caregiver.AvatarUrl,
@@ -432,7 +434,8 @@ public class RelationshipsController : ControllerBase
             ) : null,
             r.Dependent != null ? new UserSearchResult(
                 r.Dependent.Id,
-                r.Dependent.Name,
+                r.Dependent.FirstName,
+                r.Dependent.LastName,
                 r.Dependent.Role,
                 r.Dependent.UniqueCode,
                 r.Dependent.AvatarUrl,

@@ -11,6 +11,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/utils/animation_settings.dart';
 import '../../../../core/utils/category_inference.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/settings_repository.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -196,7 +197,14 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_dependent?.name ?? 'Dashboard'),
+        title: Text(
+          _dependent != null
+              ? formatFullName(
+                  firstName: _dependent!.firstName,
+                  lastName: _dependent!.lastName,
+                )
+              : 'Dashboard',
+        ),
         actions: [
           IconButton(
             icon: Icon(AppIcons.emergencyContact),
@@ -310,7 +318,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
                       child: EmptyState(
                         icon: Icons.notifications_off_outlined,
                         title: 'No Reminders',
-                        message: 'Create a reminder to help ${_dependent?.name ?? 'your dependent'} stay on track.',
+                        message: 'Create a reminder to help ${_dependent != null ? formatFullName(firstName: _dependent!.firstName, lastName: _dependent!.lastName) : 'your dependent'} stay on track.',
                         actionLabel: 'Add Reminder',
                         onAction: () async {
                           final result = await context.goToAddReminder(widget.dependentId);

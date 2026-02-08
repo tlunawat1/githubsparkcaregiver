@@ -8,6 +8,7 @@ using ParentalCareApi.DTOs;
 using ParentalCareApi.Hubs;
 using ParentalCareApi.Models;
 using ParentalCareApi.Services;
+using ParentalCareApi.Utils;
 
 namespace ParentalCareApi.Controllers;
 
@@ -180,6 +181,11 @@ public class SosController : ControllerBase
         var dependent = await _context.Users.FindAsync(userId);
         var notifiedCount = 0;
 
+        var dependentName = NameFormatter.GetDisplayName(dependent);
+        var dependentDisplay = string.IsNullOrWhiteSpace(dependentName)
+            ? "A dependent"
+            : dependentName;
+
         // Notify all caregivers (using user groups for reliable delivery)
         foreach (var relationship in caregiverRelationships)
         {
@@ -188,7 +194,7 @@ public class SosController : ControllerBase
             {
                 sosEventId = sosEvent.Id,
                 dependentId = userId,
-                dependentName = dependent?.Name,
+                dependentName = dependentDisplay,
                 triggeredAt = sosEvent.TriggeredAt
             });
 
@@ -198,7 +204,7 @@ public class SosController : ControllerBase
                 await _notificationService.SendPushNotificationAsync(
                     relationship.Caregiver.DeviceToken,
                     "SOS Alert!",
-                    $"{dependent?.Name ?? "A dependent"} needs help!",
+                    $"{dependentDisplay} needs help!",
                     new Dictionary<string, string>
                     {
                         { "type", "sos_triggered" },
@@ -352,8 +358,8 @@ public class SosController : ControllerBase
             s.ResolvedBy,
             s.Notes,
             s.CreatedAt,
-            s.Dependent?.Name,
-            s.Resolver?.Name
+            NameFormatter.GetDisplayName(s.Dependent),
+            NameFormatter.GetDisplayName(s.Resolver)
         );
     }
 }

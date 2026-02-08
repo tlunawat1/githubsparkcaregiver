@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using ParentalCareApi.Models;
+using ParentalCareApi.Utils;
 
 namespace ParentalCareApi.Services;
 
@@ -30,7 +31,7 @@ public class TokenService : ITokenService
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(ClaimTypes.Name, user.Name),
+            new Claim(ClaimTypes.Name, NameFormatter.GetDisplayName(user)),
             new Claim(ClaimTypes.Role, user.Role),
             new Claim("unique_code", user.UniqueCode),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())

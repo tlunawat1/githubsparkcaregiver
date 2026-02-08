@@ -17,14 +17,27 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  static const VerificationMeta _firstNameMeta = const VerificationMeta(
+    'firstName',
+  );
   @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
+  late final GeneratedColumn<String> firstName = GeneratedColumn<String>(
+    'first_name',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastNameMeta = const VerificationMeta(
+    'lastName',
+  );
+  @override
+  late final GeneratedColumn<String> lastName = GeneratedColumn<String>(
+    'last_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _roleMeta = const VerificationMeta('role');
   @override
@@ -163,7 +176,8 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    name,
+    firstName,
+    lastName,
     role,
     avatarPath,
     createdAt,
@@ -194,13 +208,19 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('name')) {
+    if (data.containsKey('first_name')) {
       context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+        _firstNameMeta,
+        firstName.isAcceptableOrUnknown(data['first_name']!, _firstNameMeta),
       );
     } else if (isInserting) {
-      context.missing(_nameMeta);
+      context.missing(_firstNameMeta);
+    }
+    if (data.containsKey('last_name')) {
+      context.handle(
+        _lastNameMeta,
+        lastName.isAcceptableOrUnknown(data['last_name']!, _lastNameMeta),
+      );
     }
     if (data.containsKey('role')) {
       context.handle(
@@ -313,10 +333,14 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      name: attachedDatabase.typeMapping.read(
+      firstName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}name'],
+        data['${effectivePrefix}first_name'],
       )!,
+      lastName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_name'],
+      ),
       role: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}role'],
@@ -376,7 +400,8 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
 
 class User extends DataClass implements Insertable<User> {
   final String id;
-  final String name;
+  final String firstName;
+  final String? lastName;
   final String role;
   final String? avatarPath;
   final DateTime createdAt;
@@ -391,7 +416,8 @@ class User extends DataClass implements Insertable<User> {
   final DateTime? lastLoginAt;
   const User({
     required this.id,
-    required this.name,
+    required this.firstName,
+    this.lastName,
     required this.role,
     this.avatarPath,
     required this.createdAt,
@@ -409,7 +435,10 @@ class User extends DataClass implements Insertable<User> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['name'] = Variable<String>(name);
+    map['first_name'] = Variable<String>(firstName);
+    if (!nullToAbsent || lastName != null) {
+      map['last_name'] = Variable<String>(lastName);
+    }
     map['role'] = Variable<String>(role);
     if (!nullToAbsent || avatarPath != null) {
       map['avatar_path'] = Variable<String>(avatarPath);
@@ -440,7 +469,10 @@ class User extends DataClass implements Insertable<User> {
   UsersCompanion toCompanion(bool nullToAbsent) {
     return UsersCompanion(
       id: Value(id),
-      name: Value(name),
+      firstName: Value(firstName),
+      lastName: lastName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastName),
       role: Value(role),
       avatarPath: avatarPath == null && nullToAbsent
           ? const Value.absent()
@@ -473,7 +505,8 @@ class User extends DataClass implements Insertable<User> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return User(
       id: serializer.fromJson<String>(json['id']),
-      name: serializer.fromJson<String>(json['name']),
+      firstName: serializer.fromJson<String>(json['firstName']),
+      lastName: serializer.fromJson<String?>(json['lastName']),
       role: serializer.fromJson<String>(json['role']),
       avatarPath: serializer.fromJson<String?>(json['avatarPath']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -495,7 +528,8 @@ class User extends DataClass implements Insertable<User> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'name': serializer.toJson<String>(name),
+      'firstName': serializer.toJson<String>(firstName),
+      'lastName': serializer.toJson<String?>(lastName),
       'role': serializer.toJson<String>(role),
       'avatarPath': serializer.toJson<String?>(avatarPath),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -515,7 +549,8 @@ class User extends DataClass implements Insertable<User> {
 
   User copyWith({
     String? id,
-    String? name,
+    String? firstName,
+    Value<String?> lastName = const Value.absent(),
     String? role,
     Value<String?> avatarPath = const Value.absent(),
     DateTime? createdAt,
@@ -530,7 +565,8 @@ class User extends DataClass implements Insertable<User> {
     Value<DateTime?> lastLoginAt = const Value.absent(),
   }) => User(
     id: id ?? this.id,
-    name: name ?? this.name,
+    firstName: firstName ?? this.firstName,
+    lastName: lastName.present ? lastName.value : this.lastName,
     role: role ?? this.role,
     avatarPath: avatarPath.present ? avatarPath.value : this.avatarPath,
     createdAt: createdAt ?? this.createdAt,
@@ -551,7 +587,8 @@ class User extends DataClass implements Insertable<User> {
   User copyWithCompanion(UsersCompanion data) {
     return User(
       id: data.id.present ? data.id.value : this.id,
-      name: data.name.present ? data.name.value : this.name,
+      firstName: data.firstName.present ? data.firstName.value : this.firstName,
+      lastName: data.lastName.present ? data.lastName.value : this.lastName,
       role: data.role.present ? data.role.value : this.role,
       avatarPath: data.avatarPath.present
           ? data.avatarPath.value
@@ -587,7 +624,8 @@ class User extends DataClass implements Insertable<User> {
   String toString() {
     return (StringBuffer('User(')
           ..write('id: $id, ')
-          ..write('name: $name, ')
+          ..write('firstName: $firstName, ')
+          ..write('lastName: $lastName, ')
           ..write('role: $role, ')
           ..write('avatarPath: $avatarPath, ')
           ..write('createdAt: $createdAt, ')
@@ -607,7 +645,8 @@ class User extends DataClass implements Insertable<User> {
   @override
   int get hashCode => Object.hash(
     id,
-    name,
+    firstName,
+    lastName,
     role,
     avatarPath,
     createdAt,
@@ -626,7 +665,8 @@ class User extends DataClass implements Insertable<User> {
       identical(this, other) ||
       (other is User &&
           other.id == this.id &&
-          other.name == this.name &&
+          other.firstName == this.firstName &&
+          other.lastName == this.lastName &&
           other.role == this.role &&
           other.avatarPath == this.avatarPath &&
           other.createdAt == this.createdAt &&
@@ -643,7 +683,8 @@ class User extends DataClass implements Insertable<User> {
 
 class UsersCompanion extends UpdateCompanion<User> {
   final Value<String> id;
-  final Value<String> name;
+  final Value<String> firstName;
+  final Value<String?> lastName;
   final Value<String> role;
   final Value<String?> avatarPath;
   final Value<DateTime> createdAt;
@@ -659,7 +700,8 @@ class UsersCompanion extends UpdateCompanion<User> {
   final Value<int> rowid;
   const UsersCompanion({
     this.id = const Value.absent(),
-    this.name = const Value.absent(),
+    this.firstName = const Value.absent(),
+    this.lastName = const Value.absent(),
     this.role = const Value.absent(),
     this.avatarPath = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -676,7 +718,8 @@ class UsersCompanion extends UpdateCompanion<User> {
   });
   UsersCompanion.insert({
     required String id,
-    required String name,
+    required String firstName,
+    this.lastName = const Value.absent(),
     required String role,
     this.avatarPath = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -691,14 +734,15 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.lastLoginAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       name = Value(name),
+       firstName = Value(firstName),
        role = Value(role),
        email = Value(email),
        passwordHash = Value(passwordHash),
        uniqueCode = Value(uniqueCode);
   static Insertable<User> custom({
     Expression<String>? id,
-    Expression<String>? name,
+    Expression<String>? firstName,
+    Expression<String>? lastName,
     Expression<String>? role,
     Expression<String>? avatarPath,
     Expression<DateTime>? createdAt,
@@ -715,7 +759,8 @@ class UsersCompanion extends UpdateCompanion<User> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (name != null) 'name': name,
+      if (firstName != null) 'first_name': firstName,
+      if (lastName != null) 'last_name': lastName,
       if (role != null) 'role': role,
       if (avatarPath != null) 'avatar_path': avatarPath,
       if (createdAt != null) 'created_at': createdAt,
@@ -735,7 +780,8 @@ class UsersCompanion extends UpdateCompanion<User> {
 
   UsersCompanion copyWith({
     Value<String>? id,
-    Value<String>? name,
+    Value<String>? firstName,
+    Value<String?>? lastName,
     Value<String>? role,
     Value<String?>? avatarPath,
     Value<DateTime>? createdAt,
@@ -752,7 +798,8 @@ class UsersCompanion extends UpdateCompanion<User> {
   }) {
     return UsersCompanion(
       id: id ?? this.id,
-      name: name ?? this.name,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
       role: role ?? this.role,
       avatarPath: avatarPath ?? this.avatarPath,
       createdAt: createdAt ?? this.createdAt,
@@ -776,8 +823,11 @@ class UsersCompanion extends UpdateCompanion<User> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
+    if (firstName.present) {
+      map['first_name'] = Variable<String>(firstName.value);
+    }
+    if (lastName.present) {
+      map['last_name'] = Variable<String>(lastName.value);
     }
     if (role.present) {
       map['role'] = Variable<String>(role.value);
@@ -827,7 +877,8 @@ class UsersCompanion extends UpdateCompanion<User> {
   String toString() {
     return (StringBuffer('UsersCompanion(')
           ..write('id: $id, ')
-          ..write('name: $name, ')
+          ..write('firstName: $firstName, ')
+          ..write('lastName: $lastName, ')
           ..write('role: $role, ')
           ..write('avatarPath: $avatarPath, ')
           ..write('createdAt: $createdAt, ')
@@ -4291,7 +4342,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $$UsersTableCreateCompanionBuilder =
     UsersCompanion Function({
       required String id,
-      required String name,
+      required String firstName,
+      Value<String?> lastName,
       required String role,
       Value<String?> avatarPath,
       Value<DateTime> createdAt,
@@ -4309,7 +4361,8 @@ typedef $$UsersTableCreateCompanionBuilder =
 typedef $$UsersTableUpdateCompanionBuilder =
     UsersCompanion Function({
       Value<String> id,
-      Value<String> name,
+      Value<String> firstName,
+      Value<String?> lastName,
       Value<String> role,
       Value<String?> avatarPath,
       Value<DateTime> createdAt,
@@ -4385,8 +4438,13 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
+  ColumnFilters<String> get firstName => $composableBuilder(
+    column: $table.firstName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastName => $composableBuilder(
+    column: $table.lastName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4515,8 +4573,13 @@ class $$UsersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
+  ColumnOrderings<String> get firstName => $composableBuilder(
+    column: $table.firstName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastName => $composableBuilder(
+    column: $table.lastName,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4593,8 +4656,11 @@ class $$UsersTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
+  GeneratedColumn<String> get firstName =>
+      $composableBuilder(column: $table.firstName, builder: (column) => column);
+
+  GeneratedColumn<String> get lastName =>
+      $composableBuilder(column: $table.lastName, builder: (column) => column);
 
   GeneratedColumn<String> get role =>
       $composableBuilder(column: $table.role, builder: (column) => column);
@@ -4732,7 +4798,8 @@ class $$UsersTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<String> name = const Value.absent(),
+                Value<String> firstName = const Value.absent(),
+                Value<String?> lastName = const Value.absent(),
                 Value<String> role = const Value.absent(),
                 Value<String?> avatarPath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -4748,7 +4815,8 @@ class $$UsersTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => UsersCompanion(
                 id: id,
-                name: name,
+                firstName: firstName,
+                lastName: lastName,
                 role: role,
                 avatarPath: avatarPath,
                 createdAt: createdAt,
@@ -4766,7 +4834,8 @@ class $$UsersTableTableManager
           createCompanionCallback:
               ({
                 required String id,
-                required String name,
+                required String firstName,
+                Value<String?> lastName = const Value.absent(),
                 required String role,
                 Value<String?> avatarPath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -4782,7 +4851,8 @@ class $$UsersTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => UsersCompanion.insert(
                 id: id,
-                name: name,
+                firstName: firstName,
+                lastName: lastName,
                 role: role,
                 avatarPath: avatarPath,
                 createdAt: createdAt,

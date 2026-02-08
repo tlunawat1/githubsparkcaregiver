@@ -4,7 +4,8 @@ import 'auth_api.dart';
 /// User search result data
 class UserSearchResult {
   final String id;
-  final String name;
+  final String firstName;
+  final String? lastName;
   final String role;
   final String uniqueCode;
   final String? avatarUrl;
@@ -13,7 +14,8 @@ class UserSearchResult {
 
   UserSearchResult({
     required this.id,
-    required this.name,
+    required this.firstName,
+    this.lastName,
     required this.role,
     required this.uniqueCode,
     this.avatarUrl,
@@ -24,7 +26,8 @@ class UserSearchResult {
   factory UserSearchResult.fromJson(Map<String, dynamic> json) {
     return UserSearchResult(
       id: json['id'] as String,
-      name: json['name'] as String,
+      firstName: json['firstName'] as String,
+      lastName: json['lastName'] as String?,
       role: json['role'] as String,
       uniqueCode: json['uniqueCode'] as String,
       avatarUrl: json['avatarUrl'] as String?,
@@ -35,7 +38,8 @@ class UserSearchResult {
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'name': name,
+        'firstName': firstName,
+        'lastName': lastName,
         'role': role,
         'uniqueCode': uniqueCode,
         'avatarUrl': avatarUrl,
@@ -58,14 +62,16 @@ class UserApi {
 
   /// Update current user profile
   Future<UserData> updateCurrentUser({
-    String? name,
+    String? firstName,
+    String? lastName,
     String? phoneNumber,
     String? avatarUrl,
   }) async {
     final response = await _client.put(
       '/api/users/me',
       body: {
-        if (name != null) 'name': name,
+        if (firstName != null) 'firstName': firstName,
+        if (lastName != null) 'lastName': lastName,
         if (phoneNumber != null) 'phoneNumber': phoneNumber,
         if (avatarUrl != null) 'avatarUrl': avatarUrl,
       },
@@ -143,10 +149,17 @@ class UserApi {
   }
 
   /// Update a linked user's name (caregiver updating dependent)
-  Future<UserSearchResult> updateLinkedUserName(String userId, String name) async {
+  Future<UserSearchResult> updateLinkedUserName({
+    required String userId,
+    required String firstName,
+    String? lastName,
+  }) async {
     final response = await _client.put(
       '/api/users/$userId',
-      body: {'name': name},
+      body: {
+        'firstName': firstName,
+        if (lastName != null) 'lastName': lastName,
+      },
     );
     return UserSearchResult.fromJson(response);
   }

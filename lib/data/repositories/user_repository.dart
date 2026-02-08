@@ -39,7 +39,8 @@ class UserRepository {
   /// For full authentication, use createUserWithCredentials instead
   Future<void> createUser({
     required String id,
-    required String name,
+    required String firstName,
+    String? lastName,
     required String role,
     String? avatarPath,
     String? email,
@@ -54,7 +55,8 @@ class UserRepository {
     return _db.into(_db.users).insert(
           UsersCompanion.insert(
             id: id,
-            name: name,
+            firstName: firstName,
+            lastName: Value(lastName),
             role: role,
             email: email ?? '$id@placeholder.local',
             passwordHash: passwordHash,
@@ -128,7 +130,8 @@ class UserRepository {
   /// Create a new user with credentials
   Future<User> createUserWithCredentials({
     required String id,
-    required String name,
+    required String firstName,
+    String? lastName,
     required String email,
     required String password,
     required String role,
@@ -142,7 +145,8 @@ class UserRepository {
     await _db.into(_db.users).insert(
           UsersCompanion.insert(
             id: id,
-            name: name,
+            firstName: firstName,
+            lastName: Value(lastName),
             email: email,
             passwordHash: passwordHash,
             role: role,

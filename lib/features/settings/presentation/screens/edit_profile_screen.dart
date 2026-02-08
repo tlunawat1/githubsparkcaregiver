@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 
@@ -16,7 +17,8 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _userApi = getIt<UserApi>();
 
   String _email = '';
@@ -32,14 +34,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     super.dispose();
   }
 
   Future<void> _loadUserData() async {
     try {
       final userData = await _userApi.getCurrentUser();
-      _nameController.text = userData.name;
+      _firstNameController.text = userData.firstName;
+      _lastNameController.text = userData.lastName ?? '';
       _email = userData.email;
       _phone = userData.phoneNumber;
     } catch (e) {
@@ -65,7 +69,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
-      await _userApi.updateCurrentUser(name: _nameController.text.trim());
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
+      await _userApi.updateCurrentUser(
+        firstName: firstName,
+        lastName: lastName.isEmpty ? null : lastName,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -125,9 +134,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 backgroundColor: colorScheme.primaryContainer,
                 radius: 48,
                 child: Text(
-                  _nameController.text.isNotEmpty
-                      ? _nameController.text[0].toUpperCase()
-                      : '?',
+                  nameInitials(
+                    firstName: _firstNameController.text,
+                    lastName: _lastNameController.text,
+                  ),
                   style: theme.textTheme.displaySmall?.copyWith(
                     color: colorScheme.primary,
                     fontWeight: FontWeight.bold,
@@ -137,25 +147,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: AppSpacing.xl),
 
-            // Name field (editable)
+            // First name field (editable)
             TextFormField(
-              controller: _nameController,
+              controller: _firstNameController,
               decoration: const InputDecoration(
-                labelText: 'Name',
+                labelText: 'First Name',
                 prefixIcon: Icon(Icons.person_outline),
               ),
               textCapitalization: TextCapitalization.words,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Name is required';
+                  return 'First name is required';
                 }
                 if (value.trim().length < 2) {
-                  return 'Name must be at least 2 characters';
+                  return 'First name must be at least 2 characters';
                 }
                 return null;
               },
               onChanged: (_) {
                 // Update avatar when name changes
+                setState(() {});
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            // Last name field (optional)
+            TextFormField(
+              controller: _lastNameController,
+              decoration: const InputDecoration(
+                labelText: 'Last Name',
+                prefixIcon: Icon(Icons.person_outline),
+              ),
+              textCapitalization: TextCapitalization.words,
+              onChanged: (_) {
                 setState(() {});
               },
             ),

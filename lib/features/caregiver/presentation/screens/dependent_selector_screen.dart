@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -114,7 +115,10 @@ class _DependentTile extends StatelessWidget {
             backgroundColor: colorScheme.primaryContainer,
             radius: 28,
             child: Text(
-              dependent.name.isNotEmpty ? dependent.name[0].toUpperCase() : '?',
+              nameInitials(
+                firstName: dependent.firstName,
+                lastName: dependent.lastName,
+              ),
               style: theme.textTheme.headlineSmall?.copyWith(
                 color: colorScheme.primary,
                 fontWeight: FontWeight.bold,
@@ -127,7 +131,10 @@ class _DependentTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  dependent.name,
+                  formatFullName(
+                    firstName: dependent.firstName,
+                    lastName: dependent.lastName,
+                  ),
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),

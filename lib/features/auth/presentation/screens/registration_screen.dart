@@ -21,7 +21,8 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -36,7 +37,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -106,25 +108,38 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   const SizedBox(height: AppSpacing.md),
                 ],
 
-                // Name field
+                // First name field
                 TextFormField(
-                  controller: _nameController,
+                  controller: _firstNameController,
                   decoration: const InputDecoration(
-                    labelText: 'Full Name *',
-                    hintText: 'Enter your full name',
+                    labelText: 'First Name *',
+                    hintText: 'Enter your first name',
                     prefixIcon: Icon(Icons.person_outlined),
                   ),
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.next,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your name';
+                      return 'Please enter your first name';
                     }
                     if (value.trim().length < 2) {
-                      return 'Name must be at least 2 characters';
+                      return 'First name must be at least 2 characters';
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Last name field (optional)
+                TextFormField(
+                  controller: _lastNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Last Name',
+                    hintText: 'Enter your last name (optional)',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: AppSpacing.md),
 
@@ -276,7 +291,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     });
 
     try {
-      final name = _nameController.text.trim();
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
       final email = _emailController.text.trim().toLowerCase();
       final password = _passwordController.text;
       final phone = _phoneController.text.trim();
@@ -291,7 +307,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
       // Register via remote API
       final response = await _authApi.register(
-        name: name,
+        firstName: firstName,
+        lastName: lastName.isEmpty ? null : lastName,
         email: email,
         password: password,
         role: widget.role,

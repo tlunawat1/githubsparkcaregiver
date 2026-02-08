@@ -13,6 +13,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/utils/animation_settings.dart';
 import '../../../../core/utils/category_inference.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
@@ -292,7 +293,12 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                             ),
                                           ),
                                           Text(
-                                            _user?.name ?? 'Friend',
+                                            _user != null
+                                                ? formatFullName(
+                                                    firstName: _user!.firstName,
+                                                    lastName: _user!.lastName,
+                                                  )
+                                                : 'Friend',
                                             style: theme.textTheme.displaySmall?.copyWith(
                                               fontWeight: FontWeight.bold,
                                             ),

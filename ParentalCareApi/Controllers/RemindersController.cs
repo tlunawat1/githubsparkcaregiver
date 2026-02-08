@@ -10,6 +10,7 @@ using ParentalCareApi.DTOs;
 using ParentalCareApi.Hubs;
 using ParentalCareApi.Models;
 using ParentalCareApi.Services;
+using ParentalCareApi.Utils;
 
 namespace ParentalCareApi.Controllers;
 
@@ -244,7 +245,7 @@ public class RemindersController : ControllerBase
                     await notificationService.SendPushNotificationAsync(
                         dependent.DeviceToken,
                         "New Reminder",
-                        $"{creator?.Name ?? "Your caregiver"} created a reminder: {reminderTitle}",
+                        $"{(string.IsNullOrWhiteSpace(NameFormatter.GetDisplayName(creator)) ? "Your caregiver" : NameFormatter.GetDisplayName(creator))} created a reminder: {reminderTitle}",
                         new Dictionary<string, string>
                         {
                             { "type", "reminder_created" },
@@ -489,8 +490,8 @@ public class RemindersController : ControllerBase
             r.EndDate,
             r.CreatedAt,
             r.UpdatedAt,
-            r.Creator?.Name,
-            r.Dependent?.Name
+            NameFormatter.GetDisplayName(r.Creator),
+            NameFormatter.GetDisplayName(r.Dependent)
         );
     }
 

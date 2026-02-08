@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/local/database.dart';
 
 /// Banner widget showing pending link request from a caregiver
@@ -85,7 +86,7 @@ class LinkRequestBanner extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${caregiver.name} wants to connect with you',
+                        '${formatFullName(firstName: caregiver.firstName, lastName: caregiver.lastName)} wants to connect with you',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurface,
                         ),

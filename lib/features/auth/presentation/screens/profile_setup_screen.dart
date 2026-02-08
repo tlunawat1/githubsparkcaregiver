@@ -23,12 +23,14 @@ class ProfileSetupScreen extends StatefulWidget {
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     super.dispose();
   }
 
@@ -42,12 +44,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       final settingsRepository = getIt<SettingsRepository>();
 
       final userId = const Uuid().v4();
-      final name = _nameController.text.trim();
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
 
       // Create user
       await userRepository.createUser(
         id: userId,
-        name: name,
+        firstName: firstName,
+        lastName: lastName.isEmpty ? null : lastName,
         role: widget.role,
       );
 
@@ -161,12 +165,37 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                // Name input
+                // First name input
                 TextFormField(
-                  controller: _nameController,
+                  controller: _firstNameController,
                   decoration: InputDecoration(
-                    labelText: 'Your Name',
-                    hintText: 'Enter your name',
+                    labelText: 'First Name *',
+                    hintText: 'Enter your first name',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  style: theme.textTheme.bodyLarge,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your first name';
+                    }
+                    if (value.trim().length < 2) {
+                      return 'First name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                // Last name input (optional)
+                TextFormField(
+                  controller: _lastNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Last Name',
+                    hintText: 'Enter your last name (optional)',
                     prefixIcon: const Icon(Icons.person_outline),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -175,15 +204,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.done,
                   style: theme.textTheme.bodyLarge,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your name';
-                    }
-                    if (value.trim().length < 2) {
-                      return 'Name must be at least 2 characters';
-                    }
-                    return null;
-                  },
                   onFieldSubmitted: (_) => _completeSetup(),
                 ),
                 const SizedBox(height: AppSpacing.xxl),

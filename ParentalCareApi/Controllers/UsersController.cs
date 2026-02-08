@@ -40,7 +40,8 @@ public class UsersController : ControllerBase
 
         return Ok(new UserDto(
             user.Id,
-            user.Name,
+            user.FirstName,
+            user.LastName,
             user.Email,
             user.Role,
             user.PhoneNumber,
@@ -64,8 +65,13 @@ public class UsersController : ControllerBase
         if (user == null)
             return NotFound(new { message = "User not found" });
 
-        if (!string.IsNullOrWhiteSpace(request.Name))
-            user.Name = request.Name;
+        if (!string.IsNullOrWhiteSpace(request.FirstName))
+            user.FirstName = request.FirstName.Trim();
+
+        if (request.LastName != null)
+            user.LastName = string.IsNullOrWhiteSpace(request.LastName)
+                ? null
+                : request.LastName.Trim();
 
         if (request.PhoneNumber != null)
             user.PhoneNumber = request.PhoneNumber;
@@ -92,7 +98,8 @@ public class UsersController : ControllerBase
 
         return Ok(new UserDto(
             user.Id,
-            user.Name,
+            user.FirstName,
+            user.LastName,
             user.Email,
             user.Role,
             user.PhoneNumber,
@@ -160,7 +167,8 @@ public class UsersController : ControllerBase
 
         return Ok(new UserSearchResult(
             user.Id,
-            user.Name,
+            user.FirstName,
+            user.LastName,
             user.Role,
             user.UniqueCode,
             user.AvatarUrl,
@@ -180,7 +188,8 @@ public class UsersController : ControllerBase
 
         return Ok(new UserSearchResult(
             user.Id,
-            user.Name,
+            user.FirstName,
+            user.LastName,
             user.Role,
             user.UniqueCode,
             user.AvatarUrl,
@@ -220,7 +229,8 @@ public class UsersController : ControllerBase
 
         return Ok(new UserSearchResult(
             user.Id,
-            user.Name,
+            user.FirstName,
+            user.LastName,
             user.Role,
             user.UniqueCode,
             user.AvatarUrl,
@@ -260,8 +270,13 @@ public class UsersController : ControllerBase
             return NotFound(new { message = "User not found" });
 
         // Only allow updating the name
-        if (!string.IsNullOrWhiteSpace(request.Name))
-            user.Name = request.Name;
+        if (!string.IsNullOrWhiteSpace(request.FirstName))
+            user.FirstName = request.FirstName.Trim();
+
+        if (request.LastName != null)
+            user.LastName = string.IsNullOrWhiteSpace(request.LastName)
+                ? null
+                : request.LastName.Trim();
 
         user.UpdatedAt = DateTime.UtcNow;
 
@@ -271,7 +286,8 @@ public class UsersController : ControllerBase
 
         return Ok(new UserSearchResult(
             user.Id,
-            user.Name,
+            user.FirstName,
+            user.LastName,
             user.Role,
             user.UniqueCode,
             user.AvatarUrl,

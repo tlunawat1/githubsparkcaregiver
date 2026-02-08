@@ -7,6 +7,7 @@ import '../../../../core/constants/app_config.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/accessible_card.dart';
@@ -29,7 +30,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _relationshipApi = getIt<RelationshipApi>();
 
   String _userRole = '';
-  String _userName = '';
+  String _userFirstName = '';
+  String? _userLastName;
   String _userEmail = '';
   String? _userPhone;
   String _uniqueCode = '';
@@ -61,7 +63,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Fetch user data from API
       try {
         final userData = await _userApi.getCurrentUser();
-        _userName = userData.name;
+        _userFirstName = userData.firstName;
+        _userLastName = userData.lastName;
         _userEmail = userData.email;
         _userPhone = userData.phoneNumber;
         _uniqueCode = userData.uniqueCode;
@@ -72,7 +75,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final userId = await _settingsRepository.getCurrentUserId();
         if (userId != null) {
           final user = await getIt<UserRepository>().getUserById(userId);
-          _userName = user?.name ?? '';
+          _userFirstName = user?.firstName ?? '';
+          _userLastName = user?.lastName;
           _uniqueCode = user?.uniqueCode ?? '';
         }
       }
@@ -320,6 +324,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildProfileCard() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final displayName = formatFullName(
+      firstName: _userFirstName,
+      lastName: _userLastName,
+    );
 
     return AccessibleCard(
       child: Column(
@@ -334,7 +342,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   backgroundColor: colorScheme.primaryContainer,
                   radius: 32,
                   child: Text(
-                    _userName.isNotEmpty ? _userName[0].toUpperCase() : '?',
+                    nameInitials(
+                      firstName: _userFirstName,
+                      lastName: _userLastName,
+                    ),
                     style: theme.textTheme.headlineMedium?.copyWith(
                       color: colorScheme.primary,
                       fontWeight: FontWeight.bold,
@@ -348,7 +359,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _userName.isEmpty ? 'User' : _userName,
+                        displayName.isEmpty ? 'User' : displayName,
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -655,9 +666,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 leading: CircleAvatar(
                   backgroundColor: colorScheme.primaryContainer,
                   child: Text(
-                    linkedUser.name.isNotEmpty
-                        ? linkedUser.name[0].toUpperCase()
-                        : '?',
+                    nameInitials(
+                      firstName: linkedUser.firstName,
+                      lastName: linkedUser.lastName,
+                    ),
                     style: TextStyle(
                       color: colorScheme.primary,
                       fontWeight: FontWeight.bold,
@@ -665,7 +677,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 title: Text(
-                  linkedUser.name,
+                  formatFullName(
+                    firstName: linkedUser.firstName,
+                    lastName: linkedUser.lastName,
+                  ),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -696,7 +711,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final userData = LinkedUserData(
       relationshipId: relationship.id,
       userId: linkedUser.id,
-      userName: linkedUser.name,
+      firstName: linkedUser.firstName,
+      lastName: linkedUser.lastName,
       userEmail: linkedUser.email,
       userPhone: linkedUser.phoneNumber,
       userCode: linkedUser.uniqueCode,

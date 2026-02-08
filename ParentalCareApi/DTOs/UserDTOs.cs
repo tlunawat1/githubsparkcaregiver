@@ -4,7 +4,8 @@ namespace ParentalCareApi.DTOs;
 
 public record UserDto(
     string Id,
-    string Name,
+    string FirstName,
+    string? LastName,
     string Email,
     string Role,
     string? PhoneNumber,
@@ -17,7 +18,8 @@ public record UserDto(
 );
 
 public record UpdateUserRequest(
-    string? Name,
+    string? FirstName,
+    string? LastName,
     string? PhoneNumber,
     string? AvatarUrl,
     string? Timezone
@@ -28,12 +30,14 @@ public record UpdateDeviceTokenRequest(
 );
 
 public record UpdateLinkedUserRequest(
-    string? Name
+    string? FirstName,
+    string? LastName
 );
 
 public record UserSearchResult(
     string Id,
-    string Name,
+    string FirstName,
+    string? LastName,
     string Role,
     string UniqueCode,
     string? AvatarUrl,

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/name_utils.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/add_dependent_dialog.dart';
@@ -91,7 +92,9 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
       // Load current user from remote API
       debugPrint('Fetching current user from API...');
       _currentUser = await _userApi.getCurrentUser();
-      debugPrint('Current user loaded: ${_currentUser?.name}, role: ${_currentUser?.role}, uniqueCode: ${_currentUser?.uniqueCode}');
+      debugPrint(
+        'Current user loaded: ${_currentUser != null ? formatFullName(firstName: _currentUser!.firstName, lastName: _currentUser!.lastName) : ''}, role: ${_currentUser?.role}, uniqueCode: ${_currentUser?.uniqueCode}',
+      );
 
       // Load relationships from remote API
       debugPrint('Fetching relationships from API...');
@@ -114,7 +117,9 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hello, ${_currentUser?.name ?? 'Caregiver'}'),
+        title: Text(
+          'Hello, ${_currentUser != null ? formatFullName(firstName: _currentUser!.firstName, lastName: _currentUser!.lastName) : 'Caregiver'}',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings, size: 28),
@@ -297,7 +302,10 @@ class _DependentCard extends StatelessWidget {
     const status = CardStatus.good;
 
     return StatusCard(
-      title: dependent.name,
+      title: formatFullName(
+        firstName: dependent.firstName,
+        lastName: dependent.lastName,
+      ),
       subtitle: 'Tap to view reminders',
       status: status,
       onTap: onTap,
@@ -305,7 +313,10 @@ class _DependentCard extends StatelessWidget {
         backgroundColor: colorScheme.primaryContainer,
         radius: 24,
         child: Text(
-          dependent.name.isNotEmpty ? dependent.name[0].toUpperCase() : '?',
+          nameInitials(
+            firstName: dependent.firstName,
+            lastName: dependent.lastName,
+          ),
           style: theme.textTheme.titleLarge?.copyWith(
             color: colorScheme.primary,
             fontWeight: FontWeight.bold,

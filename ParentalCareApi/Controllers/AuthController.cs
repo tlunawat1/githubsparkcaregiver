@@ -59,7 +59,10 @@ public class AuthController : ControllerBase
         var user = new User
         {
             Id = Guid.NewGuid().ToString(),
-            Name = request.Name,
+            FirstName = request.FirstName.Trim(),
+            LastName = string.IsNullOrWhiteSpace(request.LastName)
+                ? null
+                : request.LastName.Trim(),
             Email = request.Email.ToLowerInvariant(),
             PasswordHash = _authService.HashPassword(request.Password),
             Role = request.Role,
@@ -82,7 +85,8 @@ public class AuthController : ControllerBase
 
         return CreatedAtAction(nameof(Register), new RegisterResponse(
             user.Id,
-            user.Name,
+            user.FirstName,
+            user.LastName,
             user.Email,
             user.Role,
             user.UniqueCode,
@@ -239,7 +243,8 @@ public class AuthController : ControllerBase
             DateTime.UtcNow.AddMinutes(expirationMinutes),
             new UserDto(
                 user.Id,
-                user.Name,
+                user.FirstName,
+                user.LastName,
                 user.Email,
                 user.Role,
                 user.PhoneNumber,
