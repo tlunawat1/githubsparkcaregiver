@@ -5,6 +5,8 @@ public interface INotificationService
     Task SendPushNotificationAsync(string deviceToken, string title, string body, Dictionary<string, string>? data = null);
     Task SendPushNotificationsAsync(IEnumerable<string> deviceTokens, string title, string body, Dictionary<string, string>? data = null);
     Task<NotificationResult> SendToUserAsync(string userId, string title, string body, Dictionary<string, string>? data = null);
+    Task SendCriticalAlertAsync(string deviceToken, string title, string body, Dictionary<string, string> data);
+    Task<NotificationResult> SendCriticalAlertToUserAsync(string userId, string title, string body, Dictionary<string, string> data);
 }
 
 public class NotificationResult

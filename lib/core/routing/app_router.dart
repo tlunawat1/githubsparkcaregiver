@@ -12,6 +12,7 @@ import '../../features/caregiver/presentation/screens/dependent_selector_screen.
 import '../../features/caregiver/presentation/screens/dependent_dashboard_screen.dart';
 import '../../features/caregiver/presentation/screens/emergency_contacts_screen.dart';
 import '../../features/dependent/presentation/screens/dependent_home_screen.dart';
+import '../../features/dependent/presentation/screens/critical_alert_screen.dart';
 import '../../features/dependent/presentation/screens/reminder_alert_screen.dart';
 import '../../features/dependent/presentation/screens/sos_screen.dart';
 import '../../features/reminders/presentation/screens/add_reminder_screen.dart';
@@ -20,6 +21,7 @@ import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/settings/presentation/screens/timezone_settings_screen.dart';
 import '../../features/settings/presentation/screens/edit_profile_screen.dart';
 import '../../features/settings/presentation/screens/linked_user_detail_screen.dart';
+import '../models/critical_alert_payload.dart';
 import 'app_transitions.dart';
 
 /// Route names for type-safe navigation
@@ -45,6 +47,7 @@ class AppRoutes {
   static const String dependentHome = '/dependent';
   static const String reminderAlert = '/dependent/reminder/:instanceId';
   static const String sos = '/dependent/sos';
+  static const String criticalAlert = '/critical-alert';
 
   // Shared routes
   static const String settings = '/settings';
@@ -228,6 +231,28 @@ class AppRouter {
             ),
           ),
         ],
+      ),
+
+      // Critical alerts
+      GoRoute(
+        path: AppRoutes.criticalAlert,
+        name: 'criticalAlert',
+        pageBuilder: (context, state) {
+          final payload = state.extra;
+          if (payload is! CriticalAlertPayload) {
+            return AppTransitions.fadeSlide(
+              child: const _ErrorScreen(error: null),
+              state: state,
+            );
+          }
+          return AppTransitions.fadeSlide(
+            child: CriticalAlertScreen(
+              payload: payload,
+              onSeeDetails: () => context.go(payload.resolvedRoute),
+            ),
+            state: state,
+          );
+        },
       ),
 
       // Settings

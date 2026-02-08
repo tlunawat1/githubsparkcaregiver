@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'core/di/injection.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/fcm_service.dart';
+import 'core/models/critical_alert_payload.dart';
+import 'core/services/critical_alert_service.dart';
+import 'core/services/notification_handler.dart';
 import 'core/theme/app_theme.dart';
 import 'data/datasources/remote/remote.dart';
 import 'data/repositories/repositories.dart';
@@ -21,6 +24,7 @@ class _ParentalCareAppState extends State<ParentalCareApp>
   bool _isLoading = true;
   bool _isOnboardingComplete = false;
   String? _userRole;
+  StreamSubscription? _signalRSubscription;
 
   @override
   void initState() {
@@ -32,6 +36,7 @@ class _ParentalCareAppState extends State<ParentalCareApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _signalRSubscription?.cancel();
     super.dispose();
   }
 
@@ -76,12 +81,18 @@ class _ParentalCareAppState extends State<ParentalCareApp>
         }
       }
     }
+
+    final activeAlert = CriticalAlertService().activePayload;
+    if (activeAlert != null) {
+      _appRouter.router.go(AppRoutes.criticalAlert, extra: activeAlert);
+    }
   }
 
   Future<void> _initializeApp() async {
     final settingsRepository = getIt<SettingsRepository>();
     final apiClient = getIt<ApiClient>();
     final signalRService = getIt<SignalRService>();
+    final criticalAlertService = CriticalAlertService();
 
     try {
       _isOnboardingComplete = await settingsRepository.isOnboardingComplete();
@@ -107,6 +118,45 @@ class _ParentalCareAppState extends State<ParentalCareApp>
       isOnboardingComplete: _isOnboardingComplete,
       userRole: _userRole,
     );
+
+    await criticalAlertService.initialize();
+
+    NotificationHandler().onNotificationTapped = (instanceId) {
+      if (instanceId == null || instanceId.isEmpty) return;
+      _appRouter.router.go('/dependent/reminder/$instanceId');
+    };
+
+    NotificationHandler().onCriticalAlertReceived = (payload) {
+      _appRouter.router.go(AppRoutes.criticalAlert, extra: payload);
+    };
+
+    criticalAlertService.onAlertReceived = (payload) {
+      _appRouter.router.go(AppRoutes.criticalAlert, extra: payload);
+    };
+
+    criticalAlertService.onAlertAccepted = (payload) {
+      _appRouter.router.go(payload.resolvedRoute);
+    };
+
+    criticalAlertService.onAlertDismissed = (payload) {
+      if (_appRouter.router.location == AppRoutes.criticalAlert) {
+        _appRouter.router.go(payload.resolvedRoute);
+      }
+    };
+
+    _signalRSubscription = signalRService.events.listen((event) {
+      if (event.type == SignalREventType.sosTriggered) {
+        final payload = CriticalAlertPayload.fromMap({
+          ...event.data,
+          'type': 'critical_alert',
+          'alertType': 'sos',
+          'title': 'SOS Alert!',
+          'body': '${event.data['dependentName'] ?? 'A dependent'} needs help!',
+          'alertId': event.data['sosEventId'] ?? event.data['dependentId'] ?? '',
+        });
+        NotificationHandler().onCriticalAlertReceived?.call(payload);
+      }
+    });
 
     if (mounted) {
       setState(() => _isLoading = false);

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using ParentalCareApi.Data;
 using ParentalCareApi.DTOs;
 using ParentalCareApi.Hubs;
@@ -20,17 +21,20 @@ public class SosController : ControllerBase
     private readonly IHubContext<SyncHub> _hubContext;
     private readonly INotificationService _notificationService;
     private readonly ILogger<SosController> _logger;
+    private readonly IConfiguration _configuration;
 
     public SosController(
         AppDbContext context,
         IHubContext<SyncHub> hubContext,
         INotificationService notificationService,
-        ILogger<SosController> logger)
+        ILogger<SosController> logger,
+        IConfiguration configuration)
     {
         _context = context;
         _hubContext = hubContext;
         _notificationService = notificationService;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [HttpGet]
@@ -192,20 +196,34 @@ public class SosController : ControllerBase
                 triggeredAt = sosEvent.TriggeredAt
             });
 
-            // Push notification
-            if (!string.IsNullOrEmpty(relationship.Caregiver?.DeviceToken))
+            var alertTitle = "SOS Alert!";
+            var alertBody = $"{dependent?.Name ?? "A dependent"} needs help!";
+            var data = new Dictionary<string, string>
             {
-                await _notificationService.SendPushNotificationAsync(
-                    relationship.Caregiver.DeviceToken,
-                    "SOS Alert!",
-                    $"{dependent?.Name ?? "A dependent"} needs help!",
-                    new Dictionary<string, string>
-                    {
-                        { "type", "sos_triggered" },
-                        { "sosEventId", sosEvent.Id },
-                        { "dependentId", userId }
-                    }
-                );
+                { "type", "critical_alert" },
+                { "alertType", "sos" },
+                { "alertId", sosEvent.Id },
+                { "sosEventId", sosEvent.Id },
+                { "dependentId", userId },
+                { "title", alertTitle },
+                { "body", alertBody },
+                { "priority", "high" },
+                { "ttl", _configuration.GetValue<int>("Notifications:CriticalTtlSeconds", 1800).ToString() },
+                { "android_channel_id", "critical_alerts" },
+                { "content_available", "true" },
+                { "route", $"/caregiver/dependent/{userId}" },
+                { "initiatedAt", sosEvent.TriggeredAt.ToString("o") }
+            };
+
+            var result = await _notificationService.SendCriticalAlertToUserAsync(
+                relationship.CaregiverId,
+                alertTitle,
+                alertBody,
+                data
+            );
+
+            if (result.Success)
+            {
                 notifiedCount++;
             }
         }

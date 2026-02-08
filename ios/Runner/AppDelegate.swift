@@ -15,7 +15,12 @@ import FirebaseMessaging
     // Register for remote notifications
     if #available(iOS 10.0, *) {
       UNUserNotificationCenter.current().delegate = self
-      let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
+      let authOptions: UNAuthorizationOptions
+      if #available(iOS 12.0, *) {
+        authOptions = [.alert, .badge, .sound, .criticalAlert]
+      } else {
+        authOptions = [.alert, .badge, .sound]
+      }
       UNUserNotificationCenter.current().requestAuthorization(
         options: authOptions,
         completionHandler: { _, _ in }

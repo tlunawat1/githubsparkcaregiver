@@ -45,40 +45,7 @@ public class NotificationService : INotificationService
 
         try
         {
-            var message = new Message
-            {
-                Token = deviceToken,
-                Notification = new Notification
-                {
-                    Title = title,
-                    Body = body
-                },
-                Data = data,
-                Android = new AndroidConfig
-                {
-                    Priority = Priority.High,
-                    Notification = new AndroidNotification
-                    {
-                        ChannelId = "reminders",
-                        Sound = "default",
-                        DefaultVibrateTimings = true
-                    }
-                },
-                Apns = new ApnsConfig
-                {
-                    Headers = new Dictionary<string, string>
-                    {
-                        { "apns-priority", "10" }
-                    },
-                    Aps = new Aps
-                    {
-                        Sound = "default",
-                        Badge = 1,
-                        ContentAvailable = true
-                    }
-                }
-            };
-
+            var message = BuildStandardMessage(deviceToken, title, body, data);
             var response = await FirebaseMessaging.DefaultInstance.SendAsync(message);
             _logger.LogInformation("FCM message sent successfully: {MessageId}", response);
         }
@@ -153,6 +120,90 @@ public class NotificationService : INotificationService
         return result;
     }
 
+    public async Task SendCriticalAlertAsync(string deviceToken, string title, string body, Dictionary<string, string> data)
+    {
+        if (string.IsNullOrEmpty(deviceToken))
+        {
+            _logger.LogWarning("Cannot send critical alert: device token is empty");
+            return;
+        }
+
+        if (!_firebaseInitialized)
+        {
+            _logger.LogInformation(
+                "Critical alert (Firebase not configured) - Token: {Token}, Title: {Title}, Body: {Body}",
+                deviceToken[..Math.Min(10, deviceToken.Length)] + "...",
+                title,
+                body
+            );
+            return;
+        }
+
+        try
+        {
+            var message = BuildCriticalMessage(deviceToken, title, body, data);
+            var response = await FirebaseMessaging.DefaultInstance.SendAsync(message);
+            _logger.LogInformation("Critical alert sent successfully: {MessageId}", response);
+        }
+        catch (FirebaseMessagingException ex)
+        {
+            _logger.LogError(ex, "Critical alert send failed for token {Token}", deviceToken[..Math.Min(10, deviceToken.Length)] + "...");
+            if (ex.MessagingErrorCode == MessagingErrorCode.Unregistered ||
+                ex.MessagingErrorCode == MessagingErrorCode.InvalidArgument)
+            {
+                await InvalidateTokenAsync(deviceToken);
+            }
+        }
+    }
+
+    public async Task<NotificationResult> SendCriticalAlertToUserAsync(string userId, string title, string body, Dictionary<string, string> data)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var tokens = await context.UserDeviceTokens
+            .Where(t => t.UserId == userId && t.IsValid)
+            .Select(t => t.Token)
+            .ToListAsync();
+
+        if (!tokens.Any())
+        {
+            var user = await context.Users.FindAsync(userId);
+            if (user?.DeviceToken != null)
+            {
+                tokens.Add(user.DeviceToken);
+            }
+        }
+
+        if (!tokens.Any())
+        {
+            _logger.LogWarning("No device tokens found for user {UserId}", userId);
+            return NotificationResult.Failed("No device tokens found");
+        }
+
+        var result = new NotificationResult();
+        var failedTokens = new List<string>();
+
+        foreach (var token in tokens)
+        {
+            try
+            {
+                await SendCriticalAlertAsync(token, title, body, data);
+                result.SuccessCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send critical alert to token");
+                result.FailureCount++;
+                failedTokens.Add(token);
+            }
+        }
+
+        result.Success = result.SuccessCount > 0;
+        result.FailedTokens = failedTokens;
+        return result;
+    }
+
     private async Task InvalidateTokenAsync(string deviceToken)
     {
         try
@@ -175,5 +226,92 @@ public class NotificationService : INotificationService
         {
             _logger.LogError(ex, "Failed to invalidate device token");
         }
+    }
+
+    private Message BuildStandardMessage(
+        string deviceToken,
+        string title,
+        string body,
+        Dictionary<string, string>? data)
+    {
+        return new Message
+        {
+            Token = deviceToken,
+            Notification = new Notification
+            {
+                Title = title,
+                Body = body
+            },
+            Data = data,
+            Android = new AndroidConfig
+            {
+                Priority = Priority.High,
+                Notification = new AndroidNotification
+                {
+                    ChannelId = "reminders",
+                    Sound = "default",
+                    DefaultVibrateTimings = true
+                }
+            },
+            Apns = new ApnsConfig
+            {
+                Headers = new Dictionary<string, string>
+                {
+                    { "apns-priority", "10" }
+                },
+                Aps = new Aps
+                {
+                    Sound = "default",
+                    Badge = 1,
+                    ContentAvailable = true
+                }
+            }
+        };
+    }
+
+    private Message BuildCriticalMessage(
+        string deviceToken,
+        string title,
+        string body,
+        Dictionary<string, string> data)
+    {
+        var ttlSeconds = _configuration.GetValue<int>("Notifications:CriticalTtlSeconds", 1800);
+        var expiry = DateTimeOffset.UtcNow.AddSeconds(ttlSeconds).ToUnixTimeSeconds();
+
+        return new Message
+        {
+            Token = deviceToken,
+            Notification = new Notification
+            {
+                Title = title,
+                Body = body
+            },
+            Data = data,
+            Android = new AndroidConfig
+            {
+                Priority = Priority.High,
+                Notification = new AndroidNotification
+                {
+                    ChannelId = "critical_alerts",
+                    Sound = "default",
+                    DefaultVibrateTimings = true
+                }
+            },
+            Apns = new ApnsConfig
+            {
+                Headers = new Dictionary<string, string>
+                {
+                    { "apns-priority", "10" },
+                    { "apns-expiration", expiry.ToString() },
+                    { "apns-push-type", "alert" }
+                },
+                Aps = new Aps
+                {
+                    Sound = "default",
+                    ContentAvailable = true,
+                    Badge = 1
+                }
+            }
+        };
     }
 }
