@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injection.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/fcm_service.dart';
+import 'core/services/critical_alert_coordinator.dart';
 import 'core/theme/app_theme.dart';
+import 'core/bloc/critical_alert/critical_alert_cubit.dart';
 import 'data/datasources/remote/remote.dart';
 import 'data/repositories/repositories.dart';
 
@@ -21,6 +26,8 @@ class _ParentalCareAppState extends State<ParentalCareApp>
   bool _isLoading = true;
   bool _isOnboardingComplete = false;
   String? _userRole;
+  bool _criticalAlertsReady = false;
+  StreamSubscription<SignalREvent>? _criticalAlertSubscription;
 
   @override
   void initState() {
@@ -32,6 +39,7 @@ class _ParentalCareAppState extends State<ParentalCareApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _criticalAlertSubscription?.cancel();
     super.dispose();
   }
 
@@ -82,6 +90,8 @@ class _ParentalCareAppState extends State<ParentalCareApp>
     final settingsRepository = getIt<SettingsRepository>();
     final apiClient = getIt<ApiClient>();
     final signalRService = getIt<SignalRService>();
+    final criticalAlertApi = getIt<CriticalAlertApi>();
+    final criticalAlertCubit = getIt<CriticalAlertCubit>();
 
     try {
       _isOnboardingComplete = await settingsRepository.isOnboardingComplete();
@@ -108,6 +118,35 @@ class _ParentalCareAppState extends State<ParentalCareApp>
       userRole: _userRole,
     );
 
+    if (!_criticalAlertsReady) {
+      _criticalAlertsReady = true;
+      await CriticalAlertCoordinator.instance.initialize(
+        criticalAlertApi: criticalAlertApi,
+        criticalAlertCubit: criticalAlertCubit,
+        onRouteRequested: (route) {
+          _appRouter.router.go(route);
+        },
+      );
+
+      final pendingRoute =
+          await CriticalAlertCoordinator.instance.consumePendingRoute();
+      if (pendingRoute != null && pendingRoute.isNotEmpty) {
+        _appRouter.router.go(pendingRoute);
+      }
+
+      _criticalAlertSubscription =
+          signalRService.events.listen((SignalREvent event) {
+        if (event.type == SignalREventType.criticalAlertTriggered) {
+          final payload = CriticalAlertCoordinator.instance
+              .fromData(Map<String, dynamic>.from(event.data));
+          CriticalAlertCoordinator.instance.handleIncomingAlert(
+            payload,
+            criticalAlertCubit,
+          );
+        }
+      });
+    }
+
     if (mounted) {
       setState(() => _isLoading = false);
     }
@@ -129,13 +168,16 @@ class _ParentalCareAppState extends State<ParentalCareApp>
       );
     }
 
-    return MaterialApp.router(
-      title: 'Parental Care',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      routerConfig: _appRouter.router,
+    return BlocProvider.value(
+      value: getIt<CriticalAlertCubit>(),
+      child: MaterialApp.router(
+        title: 'Parental Care',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        routerConfig: _appRouter.router,
+      ),
     );
   }
 }

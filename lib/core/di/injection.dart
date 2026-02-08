@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import '../../data/datasources/local/database.dart';
 import '../../data/datasources/remote/remote.dart';
 import '../../data/repositories/repositories.dart';
+import '../bloc/critical_alert/critical_alert_cubit.dart';
 
 /// Global service locator instance
 final getIt = GetIt.instance;
@@ -39,6 +40,10 @@ Future<void> configureDependencies() async {
 
   getIt.registerLazySingleton<SosApi>(
     () => SosApi(getIt<ApiClient>()),
+  );
+
+  getIt.registerLazySingleton<CriticalAlertApi>(
+    () => CriticalAlertApi(getIt<ApiClient>()),
   );
 
   // SignalR Service
@@ -82,6 +87,10 @@ Future<void> configureDependencies() async {
 
   getIt.registerLazySingleton<CareRelationshipRepository>(
     () => CareRelationshipRepository(getIt<AppDatabase>()),
+  );
+
+  getIt.registerLazySingleton<CriticalAlertCubit>(
+    () => CriticalAlertCubit(),
   );
 }
 

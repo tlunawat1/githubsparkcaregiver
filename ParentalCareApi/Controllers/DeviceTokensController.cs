@@ -39,6 +39,7 @@ public class DeviceTokensController : ControllerBase
             // Update existing token
             existingToken.UserId = userId;
             existingToken.Platform = request.Platform;
+            existingToken.TokenType = string.IsNullOrWhiteSpace(request.TokenType) ? "fcm" : request.TokenType;
             existingToken.DeviceName = request.DeviceName;
             existingToken.AppVersion = request.AppVersion;
             existingToken.IsValid = true;
@@ -58,6 +59,7 @@ public class DeviceTokensController : ControllerBase
             UserId = userId,
             Token = request.Token,
             Platform = request.Platform,
+            TokenType = string.IsNullOrWhiteSpace(request.TokenType) ? "fcm" : request.TokenType,
             DeviceName = request.DeviceName,
             AppVersion = request.AppVersion,
             IsValid = true,
@@ -151,6 +153,7 @@ public class DeviceTokensController : ControllerBase
             token.Id,
             token.Token[..Math.Min(20, token.Token.Length)] + "...", // Truncate for security
             token.Platform,
+            token.TokenType,
             token.DeviceName,
             token.AppVersion,
             token.IsValid,

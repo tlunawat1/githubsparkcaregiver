@@ -17,5 +17,6 @@ export 'relationship_api.dart';
 export 'reminder_api.dart';
 export 'reminder_instance_api.dart';
 export 'sos_api.dart';
+export 'critical_alert_api.dart';
 export 'signalr_service.dart';
 export 'sync_manager.dart';

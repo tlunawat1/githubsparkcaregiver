@@ -14,15 +14,18 @@ public class NotificationJobService : INotificationJobService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<NotificationJobService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly ICriticalAlertService _criticalAlertService;
 
     public NotificationJobService(
         IServiceScopeFactory scopeFactory,
         ILogger<NotificationJobService> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ICriticalAlertService criticalAlertService)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _configuration = configuration;
+        _criticalAlertService = criticalAlertService;
     }
 
     public async Task SendReminderNotificationAsync(string instanceId, int escalationLevel = 0)
@@ -101,6 +104,20 @@ public class NotificationJobService : INotificationJobService
 
             // Also send to dependent group as fallback (for subscribed caregivers)
             await hubContext.Clients.Group($"dependent:{dependent.Id}").SendAsync("InstanceStatusChanged", instanceDto);
+        }
+
+        if (escalationLevel >= 2)
+        {
+            var caregiverIds = await context.CareRelationships
+                .Where(cr => cr.DependentId == dependent.Id && cr.Status == "active")
+                .Select(cr => cr.CaregiverId)
+                .ToListAsync();
+
+            await _criticalAlertService.TriggerUrgentReminderAsync(
+                dependent.Id,
+                dependent.Name,
+                instanceId,
+                caregiverIds);
         }
 
         _logger.LogInformation(

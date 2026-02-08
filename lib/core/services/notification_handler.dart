@@ -2,6 +2,11 @@ import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../bloc/critical_alert/critical_alert_cubit.dart';
+import '../di/injection.dart';
+import '../models/critical_alert_payload.dart';
+import '../services/critical_alert_coordinator.dart';
+import '../../data/datasources/remote/critical_alert_api.dart';
 import '../utils/feedback_settings.dart';
 
 /// Handles Firebase Cloud Messaging notifications across all app states
@@ -143,6 +148,12 @@ class NotificationHandler {
     final notification = message.notification;
     final data = message.data;
 
+    if (_isCriticalAlert(data)) {
+      final payload = _criticalAlertPayload(data);
+      _handleCriticalAlert(payload);
+      return;
+    }
+
     if (notification != null) {
       // Show local notification since FCM doesn't auto-show in foreground
       _showLocalNotification(
@@ -169,6 +180,11 @@ class NotificationHandler {
     if (response.payload != null) {
       try {
         final data = json.decode(response.payload!) as Map<String, dynamic>;
+        if (_isCriticalAlert(data)) {
+          final payload = _criticalAlertPayload(data);
+          _handleCriticalAlert(payload);
+          return;
+        }
         final instanceId = data['instanceId'] as String?;
         if (instanceId != null && onNotificationTapped != null) {
           onNotificationTapped!(instanceId);
@@ -224,7 +240,7 @@ class NotificationHandler {
     final type = data['type'] as String?;
     final escalationLevel = int.tryParse(data['escalationLevel'] ?? '0') ?? 0;
 
-    if (type == 'sos') {
+    if (type == 'sos' || type == 'sos_triggered') {
       return 'sos_emergency';
     }
 
@@ -251,12 +267,38 @@ class NotificationHandler {
         return 'Reminders';
     }
   }
+
+  bool _isCriticalAlert(Map<String, dynamic> data) {
+    return CriticalAlertCoordinator.instance.isCriticalAlert(data);
+  }
+
+  CriticalAlertPayload _criticalAlertPayload(Map<String, dynamic> data) {
+    return CriticalAlertCoordinator.instance.fromData(data);
+  }
+
+  void _handleCriticalAlert(CriticalAlertPayload payload) {
+    final criticalAlertApi = getIt<CriticalAlertApi>();
+    final criticalAlertCubit = getIt<CriticalAlertCubit>();
+
+    CriticalAlertCoordinator.instance.handleIncomingAlert(
+      payload,
+      criticalAlertCubit,
+    );
+  }
 }
 
 /// Background message handler - must be a top-level function
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Background message received: ${message.messageId}');
-  // Background messages are handled by the system notification tray
-  // No additional processing needed here for basic notifications
+  final data = message.data;
+  if (CriticalAlertCoordinator.instance.isCriticalAlert(data)) {
+    await configureDependencies();
+    final payload = CriticalAlertCoordinator.instance.fromData(data);
+    final criticalAlertCubit = getIt<CriticalAlertCubit>();
+    await CriticalAlertCoordinator.instance.handleIncomingAlert(
+      payload,
+      criticalAlertCubit,
+    );
+  }
 }
