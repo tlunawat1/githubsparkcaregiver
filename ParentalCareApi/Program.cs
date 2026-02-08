@@ -230,6 +230,13 @@ using (var scope = app.Services.CreateScope())
                 ALTER TABLE ReminderInstances ADD NotificationJobIds NVARCHAR(MAX) NULL
             END");
 
+        // Add EscalationLevel column to ReminderInstances if it doesn't exist
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'ReminderInstances') AND name = 'EscalationLevel')
+            BEGIN
+                ALTER TABLE ReminderInstances ADD EscalationLevel INT NOT NULL DEFAULT 0
+            END");
+
         // Create UserDeviceTokens table if it doesn't exist
         db.Database.ExecuteSqlRaw(@"
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'UserDeviceTokens')
@@ -276,6 +283,19 @@ using (var scope = app.Services.CreateScope())
                 );
                 CREATE INDEX IX_NotificationLogs_UserId ON NotificationLogs(UserId);
                 CREATE INDEX IX_NotificationLogs_Status ON NotificationLogs(Status);
+            END");
+
+        // Add missing NotificationLogs columns if table already exists
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'NotificationLogs') AND name = 'FcmMessageId')
+            BEGIN
+                ALTER TABLE NotificationLogs ADD FcmMessageId NVARCHAR(100) NULL
+            END");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'NotificationLogs') AND name = 'EscalationLevel')
+            BEGIN
+                ALTER TABLE NotificationLogs ADD EscalationLevel INT NOT NULL DEFAULT 0
             END");
 
         Console.WriteLine("Database schema updates applied successfully");
