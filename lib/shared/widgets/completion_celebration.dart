@@ -1,8 +1,8 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/utils/haptics.dart';
 
 /// A widget that shows a celebration animation when a task is completed.
 /// Includes confetti, scale animation, and haptic feedback.
@@ -85,7 +85,7 @@ class CompletionCelebrationState extends State<CompletionCelebration>
     final reduceMotion = MediaQuery.of(context).disableAnimations;
 
     // Haptic feedback
-    HapticFeedback.heavyImpact();
+    Haptics.heavyImpact();
 
     if (!reduceMotion) {
       // Play confetti
@@ -281,7 +281,7 @@ class _CelebrationOverlayWidgetState extends State<_CelebrationOverlayWidget>
     // Start celebration
     _confettiController.play();
     _fadeController.forward();
-    HapticFeedback.heavyImpact();
+    Haptics.heavyImpact();
 
     // Auto dismiss after delay
     Future.delayed(const Duration(seconds: 2), () {

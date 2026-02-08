@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
@@ -11,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_config.dart';
 import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/utils/haptics.dart';
 
 /// Widget for recording and playing back voice notes
 class VoiceRecorderWidget extends StatefulWidget {
@@ -123,7 +123,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
         _recordingDuration = 0;
       });
 
-      HapticFeedback.mediumImpact();
+      Haptics.mediumImpact();
 
       _durationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (_recordingDuration >= AppConfig.maxVoiceNoteDurationSeconds) {
@@ -157,7 +157,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
         _isRecording = false;
       });
 
-      HapticFeedback.mediumImpact();
+      Haptics.mediumImpact();
 
       if (path != null) {
         widget.onRecordingComplete(path);

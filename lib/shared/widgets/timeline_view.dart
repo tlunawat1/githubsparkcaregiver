@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/custom_icons.dart';
 import '../../core/utils/category_inference.dart';
+import '../../core/utils/haptics.dart';
 
 /// Data model for a timeline item
 class TimelineItem {
@@ -105,7 +105,7 @@ class _TimelineItemWidget extends StatelessWidget {
     return InkWell(
       onTap: onTap != null
           ? () {
-              HapticFeedback.selectionClick();
+              Haptics.selectionClick();
               onTap!();
             }
           : null,

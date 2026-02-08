@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/accessible_card.dart';
 
@@ -85,7 +85,7 @@ class _TimezoneSettingsScreenState extends State<TimezoneSettingsScreen> {
 
     try {
       await _userApi.updateTimezone(timezone);
-      HapticFeedback.mediumImpact();
+      Haptics.mediumImpact();
 
       setState(() {
         _currentTimezone = timezone;

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/custom_icons.dart';
 import '../../core/utils/category_inference.dart';
+import '../../core/utils/haptics.dart';
 
 /// A card displaying a reminder with status indicator and actions.
 /// Features gradient backgrounds, category icons, and press animations.
@@ -143,7 +143,7 @@ class _ReminderCardState extends State<ReminderCard>
       onTapUp: _handleTapUp,
       onTapCancel: _handleTapCancel,
       onTap: () {
-        HapticFeedback.selectionClick();
+        Haptics.selectionClick();
         widget.onTap?.call();
       },
       child: AnimatedBuilder(
@@ -363,7 +363,7 @@ class _ActionButton extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
-                    HapticFeedback.mediumImpact();
+                    Haptics.mediumImpact();
                     onPressed();
                   },
                   borderRadius: AppRadius.mediumRadius,
@@ -388,7 +388,7 @@ class _ActionButton extends StatelessWidget {
             )
           : ElevatedButton.icon(
               onPressed: () {
-                HapticFeedback.mediumImpact();
+                Haptics.mediumImpact();
                 onPressed();
               },
               icon: Icon(icon, size: 20),
@@ -481,7 +481,7 @@ class _LargeReminderButtonState extends State<LargeReminderButton>
           }
         },
         onTap: () {
-          HapticFeedback.mediumImpact();
+          Haptics.mediumImpact();
           widget.onTap();
         },
         child: AnimatedBuilder(

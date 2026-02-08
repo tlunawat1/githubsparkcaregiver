@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/services/fcm_service.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 
@@ -278,7 +278,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       debugPrint('Login successful - User role: "${user.role}", navigating to ${user.role == 'caregiver' ? 'caregiverHome' : 'dependentHome'}');
 
-      HapticFeedback.mediumImpact();
+      Haptics.mediumImpact();
 
       if (mounted) {
         if (user.role == 'caregiver') {
@@ -458,7 +458,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Register FCM token for push notifications
                       _registerFcmToken();
 
-                      HapticFeedback.mediumImpact();
+                      Haptics.mediumImpact();
 
                       if (mounted) {
                         Navigator.pop(context);

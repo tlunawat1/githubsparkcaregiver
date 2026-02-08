@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../shared/models/user_role.dart';
 
 /// Screen for selecting user role (Caregiver or Dependent)
@@ -81,7 +81,7 @@ class RoleSelectionScreen extends StatelessWidget {
   }
 
   void _selectRole(BuildContext context, UserRole role) {
-    HapticFeedback.mediumImpact();
+    Haptics.mediumImpact();
     context.go('${AppRoutes.login}?role=${role.name}');
   }
 }

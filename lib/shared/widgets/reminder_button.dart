@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/custom_icons.dart';
 import '../../core/utils/category_inference.dart';
+import '../../core/utils/haptics.dart';
 
 /// Status of a reminder instance
 enum ReminderInstanceStatus {
@@ -81,7 +80,7 @@ class ReminderButton extends StatelessWidget {
               ? null
               : isActionable
                   ? () {
-                      HapticFeedback.mediumImpact();
+                      Haptics.mediumImpact();
                       onTap?.call();
                     }
                   : null,
@@ -119,7 +118,7 @@ class ReminderButton extends StatelessWidget {
                       onTap: isLoading
                           ? null
                           : () {
-                              HapticFeedback.lightImpact();
+                              Haptics.lightImpact();
                               onDetailsTap?.call();
                             },
                       child: Container(

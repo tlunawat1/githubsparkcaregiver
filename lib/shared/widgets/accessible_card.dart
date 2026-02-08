@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/utils/haptics.dart';
 
 /// An accessible card widget with large touch targets and clear visual feedback.
 class AccessibleCard extends StatelessWidget {
@@ -58,14 +58,14 @@ class AccessibleCard extends StatelessWidget {
           ? InkWell(
               onTap: () {
                 if (enableHapticFeedback) {
-                  HapticFeedback.selectionClick();
+                  Haptics.selectionClick();
                 }
                 onTap?.call();
               },
               onLongPress: onLongPress != null
                   ? () {
                       if (enableHapticFeedback) {
-                        HapticFeedback.mediumImpact();
+                        Haptics.mediumImpact();
                       }
                       onLongPress?.call();
                     }

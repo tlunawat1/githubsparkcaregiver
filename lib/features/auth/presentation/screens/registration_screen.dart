@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../domain/auth_service.dart';
 
@@ -299,7 +299,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         timezone: deviceTimezone,
       );
 
-      HapticFeedback.mediumImpact();
+      Haptics.mediumImpact();
 
       if (mounted) {
         // Navigate to email verification with email for login after verification

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 
@@ -266,7 +267,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       _signalRService.setAccessToken(_apiClient.accessToken);
       _signalRService.connect();
 
-      HapticFeedback.mediumImpact();
+      Haptics.mediumImpact();
 
       if (mounted) {
         // Show success toast

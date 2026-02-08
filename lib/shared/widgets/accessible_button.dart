@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/utils/haptics.dart';
 
 /// A large, accessible button designed for elderly users.
 /// Features 64dp minimum touch target, haptic feedback, and clear visual states.
@@ -100,7 +100,7 @@ class AccessibleButton extends StatelessWidget {
             ? null
             : () {
                 if (enableHapticFeedback) {
-                  HapticFeedback.mediumImpact();
+                  Haptics.mediumImpact();
                 }
                 onPressed?.call();
               },
@@ -217,7 +217,7 @@ class AccessibleOutlinedButton extends StatelessWidget {
             ? null
             : () {
                 if (enableHapticFeedback) {
-                  HapticFeedback.mediumImpact();
+                  Haptics.mediumImpact();
                 }
                 onPressed?.call();
               },

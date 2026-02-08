@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/add_dependent_dialog.dart';
@@ -250,7 +251,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
             icon: const Icon(Icons.copy),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: uniqueCode));
-              HapticFeedback.lightImpact();
+              Haptics.lightImpact();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Code copied to clipboard'),

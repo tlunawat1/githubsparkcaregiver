@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/repositories/repositories.dart';
 
@@ -152,7 +152,7 @@ class _LinkRequestDialogState extends State<LinkRequestDialog> {
                           icon: const Icon(Icons.copy),
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: linkingCode));
-                            HapticFeedback.lightImpact();
+                            Haptics.lightImpact();
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Code copied to clipboard'),

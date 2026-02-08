@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
+import '../../../core/utils/feedback_settings.dart';
 
 /// Service for managing local notifications for reminders
 class NotificationService {
@@ -95,21 +96,25 @@ class NotificationService {
       await initialize();
     }
 
+    await FeedbackSettings.refresh();
+    final playSound = FeedbackSettings.notificationSoundEnabled;
+    final enableVibration = FeedbackSettings.hapticFeedbackEnabled;
+
     final androidDetails = AndroidNotificationDetails(
       'reminders',
       'Reminders',
       channelDescription: 'Notifications for scheduled reminders',
       importance: isHighPriority ? Importance.high : Importance.defaultImportance,
       priority: isHighPriority ? Priority.high : Priority.defaultPriority,
-      playSound: true,
-      enableVibration: true,
+      playSound: playSound,
+      enableVibration: enableVibration,
       fullScreenIntent: isHighPriority,
     );
 
-    const iosDetails = DarwinNotificationDetails(
+    final iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
-      presentSound: true,
+      presentSound: playSound,
     );
 
     final notificationDetails = NotificationDetails(
@@ -145,20 +150,24 @@ class NotificationService {
       await initialize();
     }
 
+    await FeedbackSettings.refresh();
+    final playSound = FeedbackSettings.notificationSoundEnabled;
+    final enableVibration = FeedbackSettings.hapticFeedbackEnabled;
+
     final androidDetails = AndroidNotificationDetails(
       'reminders',
       'Reminders',
       channelDescription: 'Notifications for scheduled reminders',
       importance: isHighPriority ? Importance.high : Importance.defaultImportance,
       priority: isHighPriority ? Priority.high : Priority.defaultPriority,
-      playSound: true,
-      enableVibration: true,
+      playSound: playSound,
+      enableVibration: enableVibration,
     );
 
-    const iosDetails = DarwinNotificationDetails(
+    final iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
-      presentSound: true,
+      presentSound: playSound,
     );
 
     final notificationDetails = NotificationDetails(

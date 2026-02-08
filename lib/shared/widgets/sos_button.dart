@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_config.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/custom_icons.dart';
+import '../../core/utils/haptics.dart';
 
 /// A large, prominent SOS button with long-press activation.
 /// Features visual countdown, haptic feedback, pulse animation, and accessibility support.
@@ -52,7 +52,7 @@ class _SOSButtonState extends State<SOSButton>
 
     _holdController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        HapticFeedback.heavyImpact();
+        Haptics.heavyImpact();
         widget.onActivated();
         _reset();
       }
@@ -93,7 +93,7 @@ class _SOSButtonState extends State<SOSButton>
     setState(() {
       _isHolding = true;
     });
-    HapticFeedback.mediumImpact();
+    Haptics.mediumImpact();
     _holdController.forward();
 
     // Stop pulse animation during hold
@@ -102,7 +102,7 @@ class _SOSButtonState extends State<SOSButton>
     // Periodic haptic feedback during hold
     _hapticTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (_isHolding) {
-        HapticFeedback.selectionClick();
+        Haptics.selectionClick();
       }
     });
   }
@@ -312,7 +312,7 @@ class _SOSConfirmationDialogState extends State<SOSConfirmationDialog>
       });
 
       if (_remainingSeconds <= 3) {
-        HapticFeedback.heavyImpact();
+        Haptics.heavyImpact();
       }
 
       if (_remainingSeconds <= 0) {
@@ -425,7 +425,7 @@ class _SOSConfirmationDialogState extends State<SOSConfirmationDialog>
               color: Colors.transparent,
               child: InkWell(
                 onTap: () {
-                  HapticFeedback.mediumImpact();
+                  Haptics.mediumImpact();
                   _countdownTimer?.cancel();
                   widget.onCancel();
                 },

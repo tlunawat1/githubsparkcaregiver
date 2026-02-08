@@ -1,10 +1,10 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/utils/haptics.dart';
 import 'reminder_button.dart';
 
 /// A bottom sheet modal showing reminder details with voice note player
@@ -242,7 +242,7 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
                           onPressed: _isLoading
                               ? null
                               : () {
-                                  HapticFeedback.mediumImpact();
+                                  Haptics.mediumImpact();
                                   Navigator.pop(context);
                                   widget.onMarkDone?.call();
                                 },
@@ -275,7 +275,7 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
                           onPressed: _isLoading
                               ? null
                               : () {
-                                  HapticFeedback.lightImpact();
+                                  Haptics.lightImpact();
                                   Navigator.pop(context);
                                   widget.onSnooze?.call();
                                 },
@@ -334,7 +334,7 @@ class _VoiceNotePlayer extends StatelessWidget {
             ),
             child: IconButton(
               onPressed: () {
-                HapticFeedback.lightImpact();
+                Haptics.lightImpact();
                 onPlayPause();
               },
               icon: Icon(

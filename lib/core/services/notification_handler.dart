@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../utils/feedback_settings.dart';
 
 /// Handles Firebase Cloud Messaging notifications across all app states
 class NotificationHandler {
@@ -13,6 +14,12 @@ class NotificationHandler {
       FlutterLocalNotificationsPlugin();
 
   Function(String? instanceId)? onNotificationTapped;
+  static const List<String> _channelIds = [
+    'reminders',
+    'reminders_high',
+    'reminders_urgent',
+    'sos_emergency',
+  ];
 
   Future<void> initialize() async {
     // Initialize local notifications for foreground display
@@ -35,7 +42,7 @@ class NotificationHandler {
     );
 
     // Create notification channels for Android
-    await _createNotificationChannels();
+    await _createNotificationChannels(forceRecreate: true);
 
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
@@ -50,12 +57,36 @@ class NotificationHandler {
     }
   }
 
-  Future<void> _createNotificationChannels() async {
+  Future<void> refreshNotificationChannels() async {
     final androidPlugin =
         _localNotifications.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidPlugin == null) return;
+
+    for (final channelId in _channelIds) {
+      await androidPlugin.deleteNotificationChannel(channelId);
+    }
+
+    await _createNotificationChannels(forceRecreate: false);
+  }
+
+  Future<void> _createNotificationChannels({required bool forceRecreate}) async {
+    final androidPlugin =
+        _localNotifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    if (androidPlugin == null) return;
+
+    if (forceRecreate) {
+      for (final channelId in _channelIds) {
+        await androidPlugin.deleteNotificationChannel(channelId);
+      }
+    }
+
+    await FeedbackSettings.refresh();
+    final playSound = FeedbackSettings.notificationSoundEnabled;
+    final enableVibration = FeedbackSettings.hapticFeedbackEnabled;
 
     // Reminders channel
     await androidPlugin.createNotificationChannel(
@@ -64,8 +95,8 @@ class NotificationHandler {
         'Reminders',
         description: 'Reminder notifications',
         importance: Importance.high,
-        playSound: true,
-        enableVibration: true,
+        playSound: playSound,
+        enableVibration: enableVibration,
       ),
     );
 
@@ -76,8 +107,8 @@ class NotificationHandler {
         'Important Reminders',
         description: 'High priority reminder notifications',
         importance: Importance.max,
-        playSound: true,
-        enableVibration: true,
+        playSound: playSound,
+        enableVibration: enableVibration,
       ),
     );
 
@@ -88,8 +119,8 @@ class NotificationHandler {
         'Urgent Reminders',
         description: 'Urgent reminder notifications (escalations)',
         importance: Importance.max,
-        playSound: true,
-        enableVibration: true,
+        playSound: playSound,
+        enableVibration: enableVibration,
       ),
     );
 
@@ -100,8 +131,8 @@ class NotificationHandler {
         'SOS Alerts',
         description: 'Emergency SOS alerts',
         importance: Importance.max,
-        playSound: true,
-        enableVibration: true,
+        playSound: playSound,
+        enableVibration: enableVibration,
       ),
     );
   }
@@ -154,6 +185,10 @@ class NotificationHandler {
     String? payload,
     String channelId = 'reminders',
   }) async {
+    await FeedbackSettings.refresh();
+    final playSound = FeedbackSettings.notificationSoundEnabled;
+    final enableVibration = FeedbackSettings.hapticFeedbackEnabled;
+
     final androidDetails = AndroidNotificationDetails(
       channelId,
       _getChannelName(channelId),
@@ -161,14 +196,14 @@ class NotificationHandler {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
-      enableVibration: true,
-      playSound: true,
+      enableVibration: enableVibration,
+      playSound: playSound,
     );
 
-    const iosDetails = DarwinNotificationDetails(
+    final iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
-      presentSound: true,
+      presentSound: playSound,
     );
 
     final details = NotificationDetails(

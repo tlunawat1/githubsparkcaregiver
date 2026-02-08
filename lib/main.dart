@@ -7,6 +7,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'app.dart';
 import 'core/di/injection.dart';
 import 'core/services/notification_handler.dart';
+import 'core/utils/feedback_settings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,9 +20,6 @@ void main() async {
 
   // Set up background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-  // Initialize notification handler
-  await NotificationHandler().initialize();
 
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
@@ -41,6 +39,12 @@ void main() async {
 
   // Initialize dependency injection
   await configureDependencies();
+
+  // Prime feedback settings cache
+  await FeedbackSettings.refresh();
+
+  // Initialize notification handler
+  await NotificationHandler().initialize();
 
   runApp(const ParentalCareApp());
 }

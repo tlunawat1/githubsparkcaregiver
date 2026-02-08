@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 
@@ -428,7 +428,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                 child: GestureDetector(
                   onHorizontalDragStart: (_) {
                     setState(() => _isDragging = true);
-                    HapticFeedback.lightImpact();
+                    Haptics.lightImpact();
                   },
                   onHorizontalDragUpdate: (details) {
                     setState(() {
@@ -440,7 +440,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                     final threshold = maxDrag * _triggerThreshold;
 
                     if (_dragPosition >= threshold) {
-                      HapticFeedback.heavyImpact();
+                      Haptics.heavyImpact();
                       _confirmRemove();
                     }
 

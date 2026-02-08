@@ -13,6 +13,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/utils/animation_settings.dart';
 import '../../../../core/utils/category_inference.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
@@ -536,7 +537,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     if (_completingInstances.contains(instanceId)) return;
 
     setState(() => _completingInstances.add(instanceId));
-    HapticFeedback.mediumImpact();
+    Haptics.mediumImpact();
 
     try {
       await _reminderInstanceApi.markCompleted(instanceId);
@@ -569,7 +570,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   }
 
   Future<void> _snoozeInstance(String instanceId) async {
-    HapticFeedback.lightImpact();
+    Haptics.lightImpact();
 
     try {
       final snoozeUntil = DateTime.now().add(const Duration(minutes: 10));
@@ -723,7 +724,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
             icon: const Icon(Icons.copy, size: 20),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: uniqueCode));
-              HapticFeedback.lightImpact();
+              Haptics.lightImpact();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Code copied to clipboard'),
@@ -855,7 +856,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                       onTap: isLoading
                           ? null
                           : () {
-                              HapticFeedback.lightImpact();
+                              Haptics.lightImpact();
                               _showDetailsModal(nextReminder, reminder);
                             },
                       child: Container(

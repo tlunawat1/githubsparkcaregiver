@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
@@ -10,6 +9,7 @@ import '../../../../core/constants/app_config.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/accessible_button.dart';
@@ -60,7 +60,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   }
 
   void _startCountdown() {
-    HapticFeedback.heavyImpact();
+    Haptics.heavyImpact();
 
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted || _isCancelled) {
@@ -74,7 +74,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
 
       // Haptic feedback for last 3 seconds
       if (_remainingSeconds <= 3 && _remainingSeconds > 0) {
-        HapticFeedback.heavyImpact();
+        Haptics.heavyImpact();
       }
 
       if (_remainingSeconds <= 0) {
@@ -85,7 +85,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _triggerSOS() async {
-    HapticFeedback.heavyImpact();
+    Haptics.heavyImpact();
 
     try {
       final userId = await _settingsRepository.getCurrentUserId();
@@ -115,7 +115,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _cancelSOS() async {
-    HapticFeedback.mediumImpact();
+    Haptics.mediumImpact();
     _countdownTimer?.cancel();
 
     setState(() => _isCancelled = true);

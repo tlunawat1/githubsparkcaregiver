@@ -1,6 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
@@ -8,6 +7,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 
@@ -96,7 +96,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
   }
 
   Future<void> _markDone() async {
-    HapticFeedback.heavyImpact();
+    Haptics.heavyImpact();
 
     try {
       await _reminderInstanceApi.markCompleted(widget.instanceId);
@@ -132,7 +132,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
   }
 
   Future<void> _snooze() async {
-    HapticFeedback.mediumImpact();
+    Haptics.mediumImpact();
 
     try {
       final snoozeUntil = DateTime.now().add(const Duration(minutes: 10));

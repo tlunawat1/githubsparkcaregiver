@@ -7,6 +7,9 @@ import '../../../../core/constants/app_config.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/services/notification_handler.dart';
+import '../../../../core/utils/feedback_settings.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/accessible_card.dart';
@@ -233,6 +236,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _notificationSound,
                   onChanged: (value) async {
                     await _settingsRepository.setNotificationSoundEnabled(value);
+                    FeedbackSettings.setNotificationSoundEnabled(value);
+                    await NotificationHandler().refreshNotificationChannels();
                     setState(() => _notificationSound = value);
                   },
                 ),
@@ -244,6 +249,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _hapticFeedback,
                   onChanged: (value) async {
                     await _settingsRepository.setHapticFeedbackEnabled(value);
+                    FeedbackSettings.setHapticFeedbackEnabled(value);
+                    await NotificationHandler().refreshNotificationChannels();
                     setState(() => _hapticFeedback = value);
                   },
                 ),
@@ -512,7 +519,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Clipboard.setData(
                               ClipboardData(text: _uniqueCode),
                             );
-                            HapticFeedback.lightImpact();
+                            Haptics.lightImpact();
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Code copied to clipboard'),

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -11,6 +10,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/utils/animation_settings.dart';
 import '../../../../core/utils/category_inference.dart';
+import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/settings_repository.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -67,7 +67,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   }
 
   void _toggleStatusFilter(String status) {
-    HapticFeedback.selectionClick();
+    Haptics.selectionClick();
     setState(() {
       if (_activeStatusFilter == status) {
         _activeStatusFilter = null;
@@ -427,7 +427,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
               size: 20,
             ),
             onPressed: () {
-              HapticFeedback.lightImpact();
+              Haptics.lightImpact();
               setState(() {
                 _lastDismissedMissedCount = urgentCount;
               });

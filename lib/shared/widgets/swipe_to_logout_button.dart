@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../core/utils/haptics.dart';
 
 /// A swipe-to-confirm button for logout action.
 /// User must drag the thumb from left to right past a threshold to trigger the action.
@@ -104,7 +104,7 @@ class _SwipeToLogoutButtonState extends State<SwipeToLogoutButton> {
                 child: GestureDetector(
                   onHorizontalDragStart: (_) {
                     setState(() => _isDragging = true);
-                    HapticFeedback.lightImpact();
+                    Haptics.lightImpact();
                   },
                   onHorizontalDragUpdate: (details) {
                     setState(() {
@@ -116,7 +116,7 @@ class _SwipeToLogoutButtonState extends State<SwipeToLogoutButton> {
                     final threshold = maxDrag * _triggerThreshold;
 
                     if (_dragPosition >= threshold) {
-                      HapticFeedback.heavyImpact();
+                      Haptics.heavyImpact();
                       widget.onSwipeComplete();
                     }
 
