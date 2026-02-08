@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/di/injection.dart';
@@ -139,9 +140,7 @@ class _ParentalCareAppState extends State<ParentalCareApp>
     };
 
     criticalAlertService.onAlertDismissed = (payload) {
-      if (_appRouter.router.location == AppRoutes.criticalAlert) {
-        _appRouter.router.go(payload.resolvedRoute);
-      }
+      _appRouter.router.go(payload.resolvedRoute);
     };
 
     _signalRSubscription = signalRService.events.listen((event) {

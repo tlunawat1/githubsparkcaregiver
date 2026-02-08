@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/critical_alert_payload.dart';
@@ -39,18 +40,13 @@ class CriticalAlertService {
         return;
       }
 
-      switch (event.event) {
-        case Event.actionCallAccept:
-          onAlertAccepted?.call(payload);
-          stopAlert(payload.alertId);
-          break;
-        case Event.actionCallDecline:
-        case Event.actionCallEnded:
-          onAlertDismissed?.call(payload);
-          stopAlert(payload.alertId);
-          break;
-        default:
-          break;
+      if (event.event == Event.actionCallAccept) {
+        onAlertAccepted?.call(payload);
+        stopAlert(payload.alertId);
+      } else if (event.event == Event.actionCallDecline ||
+          event.event == Event.actionCallEnded) {
+        onAlertDismissed?.call(payload);
+        stopAlert(payload.alertId);
       }
     });
 
@@ -107,7 +103,7 @@ class CriticalAlertService {
       extra: payload.toMap(),
       android: const AndroidParams(
         isCustomNotification: false,
-        isShowMissedCallNotification: false,
+        isShowFullLockedScreen: true,
         ringtonePath: 'system_ringtone_default',
       ),
       ios: const IOSParams(
