@@ -10,6 +10,7 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/accessible_card.dart';
+import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/swipe_to_logout_button.dart';
 import 'linked_user_detail_screen.dart';
 
@@ -150,7 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Settings')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: _buildSkeletonLoading(),
       );
     }
 
@@ -547,6 +548,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildSkeletonLoading() {
+    return ListView(
+      padding: AppSpacing.screenPadding,
+      children: const [
+        ShimmerCard(height: 18, width: 140),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 140),
+        SizedBox(height: AppSpacing.lg),
+        ShimmerCard(height: 18, width: 180),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 120),
+        SizedBox(height: AppSpacing.lg),
+        ShimmerCard(height: 18, width: 150),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 160),
+        SizedBox(height: AppSpacing.lg),
+        ShimmerCard(height: 18, width: 200),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 140),
+        SizedBox(height: AppSpacing.lg),
+        ShimmerCard(height: 18, width: 160),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 90),
+        SizedBox(height: AppSpacing.lg),
+        ShimmerCard(height: 18, width: 120),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 140),
+        SizedBox(height: AppSpacing.xl),
+        ShimmerCard(height: 18, width: 120),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 70),
+      ],
     );
   }
 

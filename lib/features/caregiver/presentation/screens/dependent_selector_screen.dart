@@ -55,7 +55,7 @@ class _DependentSelectorScreenState extends State<DependentSelectorScreen> {
         title: const Text('Select Dependent'),
       ),
       body: _isLoading
-          ? const LoadingIndicator()
+          ? _buildSkeletonLoading()
           : _dependents.isEmpty
               ? EmptyState(
                   icon: Icons.people_outline,
@@ -75,6 +75,19 @@ class _DependentSelectorScreenState extends State<DependentSelectorScreen> {
                     );
                   },
                 ),
+    );
+  }
+
+  Widget _buildSkeletonLoading() {
+    return ListView(
+      padding: AppSpacing.screenPadding,
+      children: const [
+        ShimmerCard(height: 84),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 84),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 84),
+      ],
     );
   }
 }

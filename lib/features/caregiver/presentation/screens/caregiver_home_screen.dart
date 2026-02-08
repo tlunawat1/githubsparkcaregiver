@@ -124,7 +124,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
         ],
       ),
       body: _isLoading
-          ? const LoadingIndicator(message: 'Loading...')
+          ? _buildSkeletonLoading()
           : RefreshIndicator(
               onRefresh: _loadData,
               child: _relationships.isEmpty
@@ -184,6 +184,23 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
           onTap: () => context.goToDependentDashboard(dependent.id),
         );
       },
+    );
+  }
+
+  Widget _buildSkeletonLoading() {
+    return ListView(
+      padding: AppSpacing.screenPadding,
+      children: const [
+        ShimmerCard(height: 96),
+        SizedBox(height: AppSpacing.md),
+        ShimmerCard(height: 18, width: 160),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 84),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 84),
+        SizedBox(height: AppSpacing.sm),
+        ShimmerCard(height: 84),
+      ],
     );
   }
 
