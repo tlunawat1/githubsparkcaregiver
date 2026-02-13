@@ -57,7 +57,9 @@ public class AzureCommunicationEmailService : IEmailService
 
         try
         {
-            await _emailClient.SendAsync(WaitUntil.Completed, message, cancellationToken);
+            // WaitUntil.Started returns once ACS accepts the send request.
+            // This avoids blocking API calls while delivery completes asynchronously.
+            await _emailClient.SendAsync(WaitUntil.Started, message, cancellationToken);
         }
         catch (RequestFailedException ex)
         {

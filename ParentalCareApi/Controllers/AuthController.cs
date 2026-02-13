@@ -86,17 +86,16 @@ public class AuthController : ControllerBase
 
         _logger.LogInformation("User registered: {Email}, Code: {UniqueCode}", user.Email, user.UniqueCode);
 
+        var registrationMessage = "Registration successful. Please verify your email.";
         try
         {
             await _emailService.SendVerificationCodeAsync(user.Email, user.VerificationCode!);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "User created but failed to send verification code for {Email}", user.Email);
-            return StatusCode(500, new
-            {
-                message = "Account created, but we could not send a verification code. Please use resend code."
-            });
+            // Keep registration fast and successful even if email provider is slow/unavailable.
+            _logger.LogWarning(ex, "User created but failed to send verification code for {Email}", user.Email);
+            registrationMessage = "Registration successful. We could not send a verification code now. Please tap resend code.";
         }
 
         return CreatedAtAction(nameof(Register), new RegisterResponse(
@@ -106,7 +105,7 @@ public class AuthController : ControllerBase
             user.Role,
             user.UniqueCode,
             user.EmailVerified,
-            "Registration successful. Please verify your email."
+            registrationMessage
         ));
     }
 
