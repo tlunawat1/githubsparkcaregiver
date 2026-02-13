@@ -240,7 +240,9 @@ class _LoginScreenState extends State<LoginScreen> {
       // Check if email verification is required
       if (response.requiresVerification) {
         if (mounted) {
-          context.go('${AppRoutes.emailVerification}?userId=${response.userId}&role=${widget.role}');
+          context.go(
+            '${AppRoutes.emailVerification}?userId=${response.userId}&role=${widget.role}&email=${Uri.encodeComponent(email)}',
+          );
         }
         return;
       }
@@ -348,28 +350,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Enter the 6-digit code sent to ${emailController.text}',
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                    ),
-                    child: Text(
-                      'For testing, use code: 123456',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: codeController,
                     decoration: const InputDecoration(
                       labelText: 'Code',
-                      hintText: '123456',
+                      hintText: '6-digit code',
                       prefixIcon: Icon(Icons.pin),
                     ),
                     keyboardType: TextInputType.number,
@@ -395,11 +381,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       return;
                     }
 
-                    // Move to code entry step (server will send code)
                     setDialogState(() {
-                      isEmailStep = false;
+                      isLoading = true;
                       dialogError = null;
                     });
+
+                    try {
+                      await _authApi.sendVerificationCode(email: email);
+                      setDialogState(() {
+                        isEmailStep = false;
+                        isLoading = false;
+                        dialogError = null;
+                      });
+                    } catch (e) {
+                      setDialogState(() {
+                        dialogError = e.toString().replaceAll('Exception: ', '');
+                        isLoading = false;
+                      });
+                    }
                   } else {
                     final email = emailController.text.trim().toLowerCase();
                     final code = codeController.text.trim();
@@ -460,13 +459,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       Haptics.mediumImpact();
 
-                      if (mounted) {
-                        Navigator.pop(context);
-                        if (user.role == 'caregiver') {
-                          this.context.go(AppRoutes.caregiverHome);
-                        } else {
-                          this.context.go(AppRoutes.dependentHome);
-                        }
+                      if (!mounted) return;
+
+                      Navigator.of(this.context).pop();
+                      if (user.role == 'caregiver') {
+                        this.context.go(AppRoutes.caregiverHome);
+                      } else {
+                        this.context.go(AppRoutes.dependentHome);
                       }
                     } catch (e) {
                       setDialogState(() {

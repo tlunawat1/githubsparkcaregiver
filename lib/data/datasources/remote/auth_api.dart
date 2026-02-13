@@ -156,6 +156,31 @@ class VerifyEmailResponse {
   }
 }
 
+class SendVerificationCodeResponse {
+  final bool success;
+  final String message;
+  final int? retryAfterSeconds;
+  final DateTime? codeExpiresAt;
+
+  SendVerificationCodeResponse({
+    required this.success,
+    required this.message,
+    this.retryAfterSeconds,
+    this.codeExpiresAt,
+  });
+
+  factory SendVerificationCodeResponse.fromJson(Map<String, dynamic> json) {
+    return SendVerificationCodeResponse(
+      success: json['success'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+      retryAfterSeconds: json['retryAfterSeconds'] as int?,
+      codeExpiresAt: json['codeExpiresAt'] != null
+          ? DateTime.tryParse(json['codeExpiresAt'] as String)
+          : null,
+    );
+  }
+}
+
 /// Authentication API service
 class AuthApi {
   final ApiClient _client;
@@ -276,21 +301,29 @@ class AuthApi {
   }
 
   /// Resend verification code to user
-  Future<void> resendVerificationCode({required String userId}) async {
-    await _client.post(
+  Future<SendVerificationCodeResponse> resendVerificationCode({
+    required String userId,
+  }) async {
+    final response = await _client.post(
       '/api/auth/resend-verification',
       body: {'userId': userId},
       requiresAuth: false,
     );
+
+    return SendVerificationCodeResponse.fromJson(response);
   }
 
   /// Send verification code to email
-  Future<void> sendVerificationCode({required String email}) async {
-    await _client.post(
+  Future<SendVerificationCodeResponse> sendVerificationCode({
+    required String email,
+  }) async {
+    final response = await _client.post(
       '/api/auth/send-verification-code',
       body: {'email': email},
       requiresAuth: false,
     );
+
+    return SendVerificationCodeResponse.fromJson(response);
   }
 
   /// Refresh access token

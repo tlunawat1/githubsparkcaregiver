@@ -44,11 +44,21 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Database
+var defaultConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(defaultConnectionString))
+{
+    throw new InvalidOperationException("Default connection string not configured. Set ConnectionStrings__DefaultConnection.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(defaultConnectionString));
 
 // JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException("JWT Key not configured. Set Jwt__Key.");
+}
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "ParentalCareApi";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "ParentalCareApp";
 
@@ -94,6 +104,9 @@ builder.Services.AddSignalR();
 // Custom Services
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.Configure<EmailVerificationOptions>(
+    builder.Configuration.GetSection(EmailVerificationOptions.SectionName));
+builder.Services.AddScoped<IEmailService, AzureCommunicationEmailService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ICriticalAlertService, CriticalAlertService>();
 builder.Services.AddSingleton<IBlobStorageService, BlobStorageService>();
@@ -106,7 +119,7 @@ builder.Services.AddHttpClient<IVoipPushService, VoipPushService>();
 builder.Services.AddHostedService<ReminderInstanceBackgroundService>();
 
 // Hangfire for persistent job scheduling
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = defaultConnectionString;
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
@@ -226,6 +239,12 @@ using (var scope = app.Services.CreateScope())
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'Users') AND name = 'Timezone')
             BEGIN
                 ALTER TABLE Users ADD Timezone NVARCHAR(50) NOT NULL DEFAULT 'UTC'
+            END");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'Users') AND name = 'VerificationCodeSentAt')
+            BEGIN
+                ALTER TABLE Users ADD VerificationCodeSentAt DATETIME2 NULL
             END");
 
         // Add NotificationJobIds column to ReminderInstances if it doesn't exist
