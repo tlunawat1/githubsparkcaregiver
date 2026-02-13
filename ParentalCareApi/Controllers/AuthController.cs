@@ -51,10 +51,52 @@ public class AuthController : ControllerBase
         if (request.Role != "caregiver" && request.Role != "dependent")
             return BadRequest(new { message = "Role must be 'caregiver' or 'dependent'" });
 
+        var normalizedEmail = request.Email.ToLowerInvariant();
+
         // Check if email already exists
-        var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
         if (existingUser != null)
-            return Conflict(new { message = "Email already registered" });
+        {
+            if (existingUser.EmailVerified)
+                return Conflict(new { message = "Email already registered" });
+
+            if (TryGetRetryAfterSeconds(existingUser, out var retryAfterSeconds))
+            {
+                return Ok(new RegisterResponse(
+                    existingUser.Id,
+                    existingUser.Name,
+                    existingUser.Email,
+                    existingUser.Role,
+                    existingUser.UniqueCode,
+                    existingUser.EmailVerified,
+                    $"Account already exists but is not verified. Please use your previous code or retry in {retryAfterSeconds}s."
+                ));
+            }
+
+            SetNewVerificationCode(existingUser);
+            await _context.SaveChangesAsync();
+
+            var existingUserMessage = "Account already exists but is not verified. A new verification code was sent.";
+            try
+            {
+                await _emailService.SendVerificationCodeAsync(existingUser.Email, existingUser.VerificationCode!);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Existing unverified user found, but failed to send verification code for {Email}", existingUser.Email);
+                existingUserMessage = "Account already exists but is not verified. We could not send a verification code now. Please tap resend code.";
+            }
+
+            return Ok(new RegisterResponse(
+                existingUser.Id,
+                existingUser.Name,
+                existingUser.Email,
+                existingUser.Role,
+                existingUser.UniqueCode,
+                existingUser.EmailVerified,
+                existingUserMessage
+            ));
+        }
 
         // Generate unique code
         string uniqueCode;
@@ -67,7 +109,7 @@ public class AuthController : ControllerBase
         {
             Id = Guid.NewGuid().ToString(),
             Name = request.Name,
-            Email = request.Email.ToLowerInvariant(),
+            Email = normalizedEmail,
             PasswordHash = _authService.HashPassword(request.Password),
             Role = request.Role,
             PhoneNumber = request.PhoneNumber,
