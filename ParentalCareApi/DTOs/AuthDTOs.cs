@@ -62,7 +62,13 @@ public record SendVerificationCodeRequest(
     [Required][EmailAddress] string Email
 );
 
+public record ResendVerificationRequest(
+    [Required] string UserId
+);
+
 public record SendVerificationCodeResponse(
     bool Success,
-    string Message
+    string Message,
+    int? RetryAfterSeconds = null,
+    DateTime? CodeExpiresAt = null
 );

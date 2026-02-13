@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -36,6 +38,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
   bool _isLoading = false;
   bool _isResending = false;
+  int _resendCooldownSeconds = 0;
+  Timer? _resendCooldownTimer;
   String? _errorMessage;
   String? _userEmail;
 
@@ -56,6 +60,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
   @override
   void dispose() {
+    _resendCooldownTimer?.cancel();
     _codeController.dispose();
     super.dispose();
   }
@@ -126,28 +131,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               ],
               const SizedBox(height: AppSpacing.lg),
 
-              // Test code hint
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+              Text(
+                'Enter the 6-digit code. It expires in 10 minutes.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: colorScheme.primary),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        'For testing, use code: 123456',
-                        style: TextStyle(
-                          color: colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.lg),
 
@@ -180,7 +169,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 controller: _codeController,
                 decoration: const InputDecoration(
                   labelText: 'Verification Code',
-                  hintText: '123456',
+                  hintText: '6-digit code',
                   prefixIcon: Icon(Icons.pin),
                 ),
                 keyboardType: TextInputType.number,
@@ -217,14 +206,20 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     style: theme.textTheme.bodyMedium,
                   ),
                   TextButton(
-                    onPressed: _isResending ? null : _handleResend,
+                    onPressed: (_isResending || _resendCooldownSeconds > 0)
+                        ? null
+                        : _handleResend,
                     child: _isResending
                         ? const SizedBox(
                             height: 16,
                             width: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Resend'),
+                        : Text(
+                            _resendCooldownSeconds > 0
+                                ? 'Resend in ${_resendCooldownSeconds}s'
+                                : 'Resend',
+                          ),
                   ),
                 ],
               ),
@@ -251,7 +246,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
     try {
       // First verify the email
-      final verifyResponse = await _authApi.verifyEmail(userId: widget.userId, code: code);
+      await _authApi.verifyEmail(userId: widget.userId, code: code);
 
       // Then login with code to get auth tokens
       if (widget.email.isNotEmpty) {
@@ -288,7 +283,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = _extractErrorMessage(e);
         _isLoading = false;
       });
     }
@@ -301,13 +296,31 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     });
 
     try {
-      await _authApi.resendVerificationCode(userId: widget.userId);
+      final response = await _authApi.resendVerificationCode(userId: widget.userId);
+      _startResendCooldown(
+          response.retryAfterSeconds != null && response.retryAfterSeconds! > 0
+              ? response.retryAfterSeconds!
+              : 60);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification code sent'),
+          SnackBar(
+            content: Text(response.message.isEmpty ? 'Verification code sent' : response.message),
             backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      final retryAfter = (e.data?['retryAfterSeconds'] as num?)?.toInt();
+      if (retryAfter != null && retryAfter > 0) {
+        _startResendCooldown(retryAfter);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_extractErrorMessage(e)),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -315,7 +328,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Failed to resend code'),
+            content: Text(_extractErrorMessage(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -325,5 +338,40 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     setState(() {
       _isResending = false;
     });
+  }
+
+  void _startResendCooldown(int seconds) {
+    _resendCooldownTimer?.cancel();
+    setState(() {
+      _resendCooldownSeconds = seconds;
+    });
+
+    _resendCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      if (_resendCooldownSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _resendCooldownSeconds = 0;
+        });
+        return;
+      }
+
+      setState(() {
+        _resendCooldownSeconds--;
+      });
+    });
+  }
+
+  String _extractErrorMessage(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final raw = error.toString().replaceAll('Exception: ', '');
+    return raw.isEmpty ? 'Something went wrong. Please try again.' : raw;
   }
 }

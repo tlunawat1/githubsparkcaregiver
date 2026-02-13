@@ -41,6 +41,7 @@ public class User
     public string? VerificationCode { get; set; }
 
     public DateTime? VerificationCodeExpiry { get; set; }
+    public DateTime? VerificationCodeSentAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
