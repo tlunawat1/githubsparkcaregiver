@@ -4,9 +4,11 @@ This guide explains how to deploy the Remote Caregiver API to Azure.
 
 ## Current Deployment
 
-The API is currently deployed at:
+The currently running API is:
 - **API URL**: `https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net`
 - **Health Check**: `https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net/health`
+
+For safer rollout and rollback, create a **new** Web App and cut traffic over after verification.
 
 ## Prerequisites
 
@@ -50,6 +52,8 @@ az sql server firewall-rule create \
 
 ### Create App Service
 ```bash
+APP_NAME="remotecaregiver-api-v2-$(date +%Y%m%d)"
+
 # Create App Service Plan
 az appservice plan create \
   --name RemoteCaregiverPlan \
@@ -59,10 +63,13 @@ az appservice plan create \
 
 # Create Web App
 az webapp create \
-  --name remotecaregiver-api \
+  --name "$APP_NAME" \
   --resource-group RemoteCaregiverRG \
   --plan RemoteCaregiverPlan \
   --runtime "DOTNETCORE:8.0"
+
+# Print the new URL
+echo "https://$APP_NAME.azurewebsites.net"
 ```
 
 ### Create Storage Account (for voice notes)
@@ -83,6 +90,8 @@ az storage container create \
 ## 2. Configure Application Settings
 
 ```bash
+APP_NAME="<your-new-webapp-name>"
+
 # Get SQL connection string
 SQL_CONNECTION=$(az sql db show-connection-string \
   --server remotecaregiver-sql-server \
@@ -98,16 +107,20 @@ STORAGE_CONNECTION=$(az storage account show-connection-string \
 
 # Configure app settings
 az webapp config appsettings set \
-  --name remotecaregiver-api \
+  --name "$APP_NAME" \
   --resource-group RemoteCaregiverRG \
   --settings \
     ConnectionStrings__DefaultConnection="$SQL_CONNECTION" \
-    Azure__BlobStorage__ConnectionString="$STORAGE_CONNECTION" \
-    Azure__BlobStorage__ContainerName="uploads" \
-    Jwt__Key="YourProductionJwtKeyHereMustBeAtLeast32Characters!" \
+    AzureStorage__ConnectionString="$STORAGE_CONNECTION" \
+    AzureStorage__ContainerName="uploads" \
+    Jwt__Key="<32+ char random secret>" \
     Jwt__Issuer="RemoteCaregiverApi" \
-    Jwt__Audience="RemoteCaregiverApp"
+    Jwt__Audience="RemoteCaregiverApp" \
+    Firebase__ProjectId="parentalcareapp" \
+    GOOGLE_APPLICATION_CREDENTIALS_JSON='<firebase-service-account-json>'
 ```
+
+> Security note: keep `appsettings.json` secret-free. All sensitive values must be injected from App Settings / environment variables.
 
 ## 3. Initialize Database
 
@@ -134,6 +147,7 @@ Or use Azure Portal:
 
 ```bash
 cd ParentalCareApi
+APP_NAME="<your-new-webapp-name>"
 
 # Build and publish
 dotnet publish -c Release -o ./publish
@@ -144,7 +158,7 @@ cd publish && zip -r ../deploy.zip . && cd ..
 # Deploy using Azure CLI
 az webapp deploy \
   --resource-group RemoteCaregiverRG \
-  --name remotecaregiver-api \
+  --name "$APP_NAME" \
   --src-path ./deploy.zip \
   --type zip
 ```
@@ -153,8 +167,9 @@ az webapp deploy \
 
 1. Get the publish profile:
 ```bash
+APP_NAME="<your-new-webapp-name>"
 az webapp deployment list-publishing-profiles \
-  --name remotecaregiver-api \
+  --name "$APP_NAME" \
   --resource-group RemoteCaregiverRG \
   --xml > publish-profile.xml
 ```
@@ -184,14 +199,16 @@ docker push remotecaregiverregistry.azurecr.io/remotecaregiver-api:latest
 ## 5. Verify Deployment
 
 ```bash
+APP_NAME="<your-new-webapp-name>"
+
 # Check health endpoint
-curl https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net/health
+curl "https://$APP_NAME.azurewebsites.net/health"
 
 # Expected response:
 # {"status":"healthy","timestamp":"2024-..."}
 
 # Test registration endpoint
-curl -X POST https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net/api/auth/register \
+curl -X POST "https://$APP_NAME.azurewebsites.net/api/auth/register" \
   -H "Content-Type: application/json" \
   -d '{"name":"Test","email":"test@test.com","password":"test123","role":"caregiver"}'
 ```
@@ -204,6 +221,8 @@ The API base URL is already configured in the Flutter app:
 // lib/data/datasources/remote/api_client.dart
 static const String _defaultBaseUrl = 'https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net';
 ```
+
+After creating the new app, update this value (or move to environment-driven mobile config) to point to the new hostname.
 
 ## Cost Estimate
 
@@ -219,14 +238,14 @@ static const String _defaultBaseUrl = 'https://remotecaregiver-api-gremgwfab5c9f
 ### Check Logs
 ```bash
 az webapp log tail \
-  --name remotecaregiver-api \
+  --name "<your-new-webapp-name>" \
   --resource-group RemoteCaregiverRG
 ```
 
 ### Restart App
 ```bash
 az webapp restart \
-  --name remotecaregiver-api \
+  --name "<your-new-webapp-name>" \
   --resource-group RemoteCaregiverRG
 ```
 

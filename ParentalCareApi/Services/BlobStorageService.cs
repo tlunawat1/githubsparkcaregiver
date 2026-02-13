@@ -17,10 +17,14 @@ public class BlobStorageService : IBlobStorageService
     {
         _logger = logger;
 
+        // Support both key styles during migration; prefer AzureStorage.
         var connectionString = configuration["AzureStorage:ConnectionString"]
+            ?? configuration["Azure:BlobStorage:ConnectionString"]
             ?? throw new InvalidOperationException("Azure Storage connection string not configured");
 
-        var containerName = configuration["AzureStorage:ContainerName"] ?? "uploads";
+        var containerName = configuration["AzureStorage:ContainerName"]
+            ?? configuration["Azure:BlobStorage:ContainerName"]
+            ?? "uploads";
 
         var blobServiceClient = new BlobServiceClient(connectionString);
         _containerClient = blobServiceClient.GetBlobContainerClient(containerName);
