@@ -44,11 +44,21 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Database
+var defaultConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(defaultConnectionString))
+{
+    throw new InvalidOperationException("Default connection string not configured. Set ConnectionStrings__DefaultConnection.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(defaultConnectionString));
 
 // JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException("JWT Key not configured. Set Jwt__Key.");
+}
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "ParentalCareApi";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "ParentalCareApp";
 
@@ -101,7 +111,7 @@ builder.Services.AddSingleton<IBlobStorageService, BlobStorageService>();
 builder.Services.AddHostedService<ReminderInstanceBackgroundService>();
 
 // Hangfire for persistent job scheduling
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = defaultConnectionString;
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
