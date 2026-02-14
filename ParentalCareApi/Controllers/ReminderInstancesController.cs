@@ -489,12 +489,12 @@ public class ReminderInstancesController : ControllerBase
         _logger.LogInformation("=== MarkOverdueInstancesAsMissedAsync START ===");
         _logger.LogInformation("Total instances received: {Count}", instances.Count);
 
-        var gracePeriod = _configuration.GetValue<int>("Notifications:MissedGracePeriodMinutes", 5);
+        var autoMissDelay = _configuration.GetValue<int>("Notifications:AutoMissDelayMinutes", 30);
         var now = DateTime.UtcNow;
-        var cutoffTime = now.AddMinutes(-gracePeriod);
+        var cutoffTime = now.AddMinutes(-autoMissDelay);
 
-        _logger.LogInformation("Grace period: {GracePeriod} minutes, Now (UTC): {Now}, Cutoff time: {Cutoff}",
-            gracePeriod, now, cutoffTime);
+        _logger.LogInformation("Auto-miss delay: {AutoMissDelay} minutes, Now (UTC): {Now}, Cutoff time: {Cutoff}",
+            autoMissDelay, now, cutoffTime);
 
         // Log all instances for debugging
         foreach (var inst in instances)
@@ -519,33 +519,11 @@ public class ReminderInstancesController : ControllerBase
 
         _logger.LogInformation("Overdue instance IDs: {Ids}", string.Join(", ", overdueIds));
 
-        // Load and update database records
-        var dbInstances = await _context.ReminderInstances
-            .Include(i => i.Reminder)
-                .ThenInclude(r => r.Dependent)
-            .Where(i => overdueIds.Contains(i.Id) && i.Status == "pending")
-            .ToListAsync();
-
-        _logger.LogInformation("Loaded {Count} instances from DB that are still pending", dbInstances.Count);
-
-        if (!dbInstances.Any())
+        foreach (var instanceId in overdueIds)
         {
-            _logger.LogInformation("No DB instances found (may have been updated already), returning original list");
-            return instances;
+            _logger.LogInformation("Marking instance {Id} as missed via notification service", instanceId);
+            await _notificationJobService.MarkAsMissedAsync(instanceId);
         }
-
-        // Group by dependent for notifications
-        var instancesByDependent = dbInstances
-            .GroupBy(i => i.Reminder.DependentId)
-            .ToDictionary(g => g.Key, g => g.ToList());
-
-        foreach (var instance in dbInstances)
-        {
-            _logger.LogInformation("Marking instance {Id} as missed (was: {OldStatus})", instance.Id, instance.Status);
-            instance.Status = "missed";
-        }
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Database updated successfully");
 
         // Rebuild result list with corrected statuses
         var updatedInstances = instances.Select(i =>
@@ -554,53 +532,7 @@ public class ReminderInstancesController : ControllerBase
                 : i
         ).ToList();
 
-        _logger.LogInformation("=== Marked {Count} overdue instances as missed on fetch ===", dbInstances.Count);
-
-        // Fire-and-forget: notifications and job cancellation
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                foreach (var (dependentId, depInstances) in instancesByDependent)
-                {
-                    // Get caregivers for this dependent
-                    var caregiverIds = await _context.CareRelationships
-                        .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
-                        .Select(cr => cr.CaregiverId)
-                        .ToListAsync();
-
-                    foreach (var instance in depInstances)
-                    {
-                        var dto = MapToDto(instance);
-
-                        // SignalR notifications
-                        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
-
-                        // Push notification to caregivers
-                        foreach (var caregiverId in caregiverIds)
-                        {
-                            await _notificationService.SendToUserAsync(
-                                caregiverId,
-                                $"Missed: {instance.Reminder.Title}",
-                                $"{instance.Reminder.Dependent?.Name ?? "Dependent"} missed their reminder",
-                                new Dictionary<string, string>
-                                {
-                                    { "type", "missed_reminder" },
-                                    { "instanceId", instance.Id },
-                                    { "dependentId", dependentId }
-                                });
-                        }
-
-                        // Cancel Hangfire jobs
-                        await _notificationJobService.CancelNotificationJobsAsync(instance.Id);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send notifications for missed instances");
-            }
-        });
+        _logger.LogInformation("=== Marked {Count} overdue instances as missed on fetch ===", overdueIds.Count);
 
         return updatedInstances;
     }

@@ -58,8 +58,9 @@ public class NotificationJobService : INotificationJobService
         // Build notification
         var title = GetNotificationTitle(reminder.Title, escalationLevel);
         var body = GetNotificationBody(reminder.Description, escalationLevel);
-        var callStyleEscalationLevel =
-            _configuration.GetValue<int>("Notifications:CallStyleEscalationLevel", 2);
+        // Reminder call-style escalation is fixed at level 1.
+        // Level 2 reminder notifications are intentionally not used.
+        const int callStyleEscalationLevel = 1;
         var callStyleTimeoutSeconds =
             _configuration.GetValue<int>("Notifications:CallStyleTimeoutSeconds", 120);
         var isCallStyle = escalationLevel >= callStyleEscalationLevel;
@@ -151,9 +152,11 @@ public class NotificationJobService : INotificationJobService
     {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
         var instance = await context.ReminderInstances
             .Include(i => i.Reminder)
+            .ThenInclude(r => r.Dependent)
             .FirstOrDefaultAsync(i => i.Id == instanceId);
 
         if (instance == null)
@@ -205,7 +208,29 @@ public class NotificationJobService : INotificationJobService
         // Also send to dependent group as fallback
         await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceStatusChanged", instanceDto);
 
-        _logger.LogInformation("Auto-marked instance {InstanceId} as missed, notified dependent and {CaregiverCount} caregivers",
+        var reminderTitle = instance.Reminder.Title;
+        var dependentName = instance.Reminder.Dependent?.Name ?? "Dependent";
+        var title = $"Missed: {reminderTitle}";
+        var body = $"{dependentName} missed their reminder";
+
+        foreach (var caregiverId in caregiverIds)
+        {
+            await notificationService.SendToUserAsync(
+                caregiverId,
+                title,
+                body,
+                new Dictionary<string, string>
+                {
+                    { "type", "missed_reminder" },
+                    { "instanceId", instance.Id },
+                    { "dependentId", dependentId }
+                });
+        }
+
+        await CancelNotificationJobsAsync(instance.Id);
+
+        _logger.LogInformation(
+            "Auto-marked instance {InstanceId} as missed, notified dependent and {CaregiverCount} caregivers",
             instanceId, caregiverIds.Count);
     }
 
@@ -233,19 +258,12 @@ public class NotificationJobService : INotificationJobService
             );
             jobIds.Add(job2);
 
-            // Escalation 2: +10 minutes
-            var job3 = BackgroundJob.Schedule<INotificationJobService>(
-                x => x.SendEscalatedNotificationAsync(instanceId, 2),
-                scheduledTimeUtc.AddMinutes(escalationDelay * 2)
-            );
-            jobIds.Add(job3);
-
             // Auto-miss: +30 minutes
-            var job4 = BackgroundJob.Schedule<INotificationJobService>(
+            var job3 = BackgroundJob.Schedule<INotificationJobService>(
                 x => x.MarkAsMissedAsync(instanceId),
                 scheduledTimeUtc.AddMinutes(autoMissDelay)
             );
-            jobIds.Add(job4);
+            jobIds.Add(job3);
 
             _logger.LogInformation(
                 "Scheduled {Count} notification jobs for instance {InstanceId} at {Time}",
@@ -340,19 +358,12 @@ public class NotificationJobService : INotificationJobService
             );
             jobIds.Add(job2);
 
-            // Escalation 2: +10 minutes
-            var job3 = BackgroundJob.Schedule<INotificationJobService>(
-                x => x.SendEscalatedNotificationAsync(instance.Id, 2),
-                scheduledTimeUtc.AddMinutes(escalationDelay * 2)
-            );
-            jobIds.Add(job3);
-
             // Auto-miss: +30 minutes
-            var job4 = BackgroundJob.Schedule<INotificationJobService>(
+            var job3 = BackgroundJob.Schedule<INotificationJobService>(
                 x => x.MarkAsMissedAsync(instance.Id),
                 scheduledTimeUtc.AddMinutes(autoMissDelay)
             );
-            jobIds.Add(job4);
+            jobIds.Add(job3);
 
             instance.NotificationJobIds = JsonSerializer.Serialize(jobIds);
         }
@@ -426,19 +437,12 @@ public class NotificationJobService : INotificationJobService
             );
             jobIds.Add(job2);
 
-            // Escalation 2: +10 minutes
-            var job3 = BackgroundJob.Schedule<INotificationJobService>(
-                x => x.SendEscalatedNotificationAsync(instance.Id, 2),
-                scheduledTimeUtc.AddMinutes(escalationDelay * 2)
-            );
-            jobIds.Add(job3);
-
             // Auto-miss: +30 minutes
-            var job4 = BackgroundJob.Schedule<INotificationJobService>(
+            var job3 = BackgroundJob.Schedule<INotificationJobService>(
                 x => x.MarkAsMissedAsync(instance.Id),
                 scheduledTimeUtc.AddMinutes(autoMissDelay)
             );
-            jobIds.Add(job4);
+            jobIds.Add(job3);
 
             instance.NotificationJobIds = JsonSerializer.Serialize(jobIds);
         }
@@ -457,7 +461,6 @@ public class NotificationJobService : INotificationJobService
         {
             0 => $"Reminder: {reminderTitle}",
             1 => $"⚠️ Reminder: {reminderTitle}",
-            2 => $"🔴 Urgent: {reminderTitle}",
             _ => $"Reminder: {reminderTitle}"
         };
     }
@@ -472,7 +475,6 @@ public class NotificationJobService : INotificationJobService
         {
             0 => baseMessage,
             1 => $"{baseMessage} (reminder)",
-            2 => $"{baseMessage} (please respond)",
             _ => baseMessage
         };
     }

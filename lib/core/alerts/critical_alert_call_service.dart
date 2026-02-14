@@ -15,6 +15,7 @@ class CriticalAlertCallService {
 
   StreamSubscription<CallEvent?>? _subscription;
   final Map<String, Timer> _timeoutTimers = {};
+  final Set<String> _activeCallIds = <String>{};
 
   CriticalCallCallback? onCallAccepted;
   CriticalCallCallback? onCallDeclined;
@@ -29,16 +30,23 @@ class CriticalAlertCallService {
       if (event.event == Event.actionCallAccept) {
         onCallAccepted?.call(payload);
         _clearTimeout(payload.eventId);
+        _activeCallIds.remove(payload.eventId);
       } else if (event.event == Event.actionCallDecline ||
           event.event == Event.actionCallEnded ||
           event.event == Event.actionCallTimeout) {
         onCallDeclined?.call(payload);
         _clearTimeout(payload.eventId);
+        _activeCallIds.remove(payload.eventId);
       }
     });
   }
 
   Future<void> showIncoming(CriticalAlertPayload payload) async {
+    if (_activeCallIds.contains(payload.eventId)) {
+      return;
+    }
+    _activeCallIds.add(payload.eventId);
+
     _clearTimeout(payload.eventId);
     if ((payload.callTimeoutSeconds ?? 0) > 0) {
       _timeoutTimers[payload.eventId] =
@@ -47,13 +55,16 @@ class CriticalAlertCallService {
       });
     }
 
+    final timeoutSeconds = payload.callTimeoutSeconds ?? 0;
+
     final params = CallKitParams(
       id: payload.eventId,
       nameCaller: payload.title,
       appName: 'Parental Care',
       handle: payload.dependentName ?? payload.dependentId ?? 'critical',
       type: 0,
-      duration: payload.callTimeoutSeconds ?? 0,
+      // flutter_callkit_incoming expects duration in milliseconds.
+      duration: timeoutSeconds > 0 ? timeoutSeconds * 1000 : 0,
       textAccept: 'See Details',
       textDecline: 'Dismiss',
       extra: payload.toMap(),
@@ -77,6 +88,7 @@ class CriticalAlertCallService {
 
   Future<void> endCall(String callId) async {
     _clearTimeout(callId);
+    _activeCallIds.remove(callId);
     await FlutterCallkitIncoming.endCall(callId);
   }
 
