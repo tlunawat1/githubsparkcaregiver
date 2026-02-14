@@ -5,6 +5,7 @@ This guide explains how to deploy the Remote Caregiver API to Azure.
 ## Current Deployment
 
 The currently running API is:
+
 - **API URL**: `https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net`
 - **Health Check**: `https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net/health`
 
@@ -20,11 +21,13 @@ For safer rollout and rollback, create a **new** Web App and cut traffic over af
 ## 1. Azure Resources Setup
 
 ### Create Resource Group
+
 ```bash
 az group create --name RemoteCaregiverRG --location canadacentral
 ```
 
 ### Create Azure SQL Database
+
 ```bash
 # Create SQL Server
 az sql server create \
@@ -51,6 +54,7 @@ az sql server firewall-rule create \
 ```
 
 ### Create App Service
+
 ```bash
 APP_NAME="remotecaregiver-api-v2-$(date +%Y%m%d)"
 
@@ -73,6 +77,7 @@ echo "https://$APP_NAME.azurewebsites.net"
 ```
 
 ### Create Storage Account (for voice notes)
+
 ```bash
 az storage account create \
   --name remotecaregiverstore \
@@ -125,6 +130,7 @@ az webapp config appsettings set \
 ### Required App Settings / Environment Variables
 
 **Connection / Auth**
+
 - `ConnectionStrings__DefaultConnection` (required)
   - SQL Server ADO.NET connection string.
 - `Jwt__Key` (required)
@@ -133,6 +139,7 @@ az webapp config appsettings set \
 - `Jwt__Audience` (optional, default: `ParentalCareApp`)
 
 **Firebase (Push Notifications)**
+
 - `Firebase__ProjectId` (required for push)
 - `GOOGLE_APPLICATION_CREDENTIALS_JSON` (preferred, required for push)
   - Raw JSON for the Firebase service account.
@@ -142,14 +149,17 @@ az webapp config appsettings set \
   - File path to a JSON file deployed alongside the app.
 
 **Blob Storage (Voice Notes)**
+
 - `AzureStorage__ConnectionString` (required for voice notes)
 - `AzureStorage__ContainerName` (required, default: `uploads`)
 
 **Hangfire**
+
 - `Hangfire__WorkerCount` (optional, default: `5`)
 - `Hangfire__DashboardPath` (optional, default: `/hangfire`)
 
 **Notifications**
+
 - `Notifications__EscalationDelayMinutes` (default: `5`)
 - `Notifications__AutoMissDelayMinutes` (default: `30`)
 - `Notifications__MissedGracePeriodMinutes` (default: `5`)
@@ -161,11 +171,13 @@ az webapp config appsettings set \
   - Ring timeout for call-style alerts. `0` = no timeout.
 
 **Email Verification (Azure Communication Services)**
+
 - `EmailVerification__SenderAddress` (required for verification emails)
 - `EmailVerification__VerificationCodeExpiryMinutes` (default: `10`)
 - `EmailVerification__ResendCooldownSeconds` (default: `60`)
 
 ### Example app settings block (Azure)
+
 ```bash
 az webapp config appsettings set \
   --name "$APP_NAME" \
@@ -201,6 +213,7 @@ sqlcmd -S remotecaregiver-sql-server.database.windows.net \
 ```
 
 Or use Azure Portal:
+
 1. Go to your SQL Database
 2. Click "Query editor (preview)"
 3. Login and paste contents of `Scripts/InitDatabase.sql`
@@ -231,6 +244,7 @@ az webapp deploy \
 ### Option B: Using GitHub Actions
 
 1. Get the publish profile:
+
 ```bash
 APP_NAME="<your-new-webapp-name>"
 az webapp deployment list-publishing-profiles \
@@ -291,16 +305,17 @@ After creating the new app, update this value (or move to environment-driven mob
 
 ## Cost Estimate
 
-| Service | SKU | Monthly Cost |
-|---------|-----|-------------|
-| App Service | B1 | ~$13 |
-| Azure SQL | Basic | ~$5 |
-| Blob Storage | Hot | ~$1 |
-| **Total** | | **~$19** |
+| Service      | SKU   | Monthly Cost |
+| ------------ | ----- | ------------ |
+| App Service  | B1    | ~$13         |
+| Azure SQL    | Basic | ~$5          |
+| Blob Storage | Hot   | ~$1          |
+| **Total**    |       | **~$19**     |
 
 ## Troubleshooting
 
 ### Check Logs
+
 ```bash
 az webapp log tail \
   --name "<your-new-webapp-name>" \
@@ -308,6 +323,7 @@ az webapp log tail \
 ```
 
 ### Restart App
+
 ```bash
 az webapp restart \
   --name "<your-new-webapp-name>" \
@@ -315,6 +331,7 @@ az webapp restart \
 ```
 
 ### Scale Up (if needed)
+
 ```bash
 az appservice plan update \
   --name RemoteCaregiverPlan \
@@ -341,6 +358,7 @@ az appservice plan update \
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login with email/password
 - `POST /api/auth/login-code` - Login with verification code
@@ -350,6 +368,7 @@ az appservice plan update \
 - `POST /api/auth/logout` - Logout (requires auth)
 
 ### Users
+
 - `GET /api/users/me` - Get current user (requires auth)
 - `PUT /api/users/me` - Update current user (requires auth)
 - `GET /api/users/code/{code}` - Find user by unique code
@@ -359,6 +378,7 @@ az appservice plan update \
 ## Database Tables (Initial + Runtime Schema Updates)
 
 ### Tables created by `Scripts/InitDatabase.sql`
+
 - `Users`
 - `CareRelationships`
 - `Reminders`
@@ -366,6 +386,7 @@ az appservice plan update \
 - `SosEvents`
 
 ### Tables created/updated at runtime (Program startup)
+
 The API applies schema updates in `Program.cs`:
 
 - **Users**
@@ -381,6 +402,7 @@ The API applies schema updates in `Program.cs`:
   - Adds `FcmMessageId`, `EscalationLevel` if missing
 
 ### Table purpose summary
+
 - `Users`: accounts, roles, auth metadata, verification.
 - `CareRelationships`: caregiver ↔ dependent links.
 - `Reminders`: template reminders (repeat rules, time, priority).

@@ -161,18 +161,21 @@ class NotificationHandler {
       if (notification?.body != null) 'body': notification!.body!,
     };
 
-    if (_isCriticalAlert(data)) {
+    final isCritical = _isCriticalAlert(data);
+    if (isCritical) {
       onCriticalAlertReceived?.call(data);
     }
 
-    if (notification != null) {
+    // For critical alerts, call-style UI is handled separately.
+    // Avoid showing an additional local notification in foreground.
+    if (notification != null && !isCritical) {
       // Show local notification since FCM doesn't auto-show in foreground
       _showLocalNotification(
         title: notification.title ?? 'Reminder',
         body: notification.body ?? '',
         payload: json.encode(data),
         channelId: _getChannelId(data),
-        isCritical: _isCriticalAlert(data),
+        isCritical: isCritical,
       );
     }
   }
