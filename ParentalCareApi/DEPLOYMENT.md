@@ -122,6 +122,71 @@ az webapp config appsettings set \
 
 > Security note: keep `appsettings.json` secret-free. All sensitive values must be injected from App Settings / environment variables.
 
+### Required App Settings / Environment Variables
+
+**Connection / Auth**
+- `ConnectionStrings__DefaultConnection` (required)
+  - SQL Server ADO.NET connection string.
+- `Jwt__Key` (required)
+  - 32+ character secret key.
+- `Jwt__Issuer` (optional, default: `ParentalCareApi`)
+- `Jwt__Audience` (optional, default: `ParentalCareApp`)
+
+**Firebase (Push Notifications)**
+- `Firebase__ProjectId` (required for push)
+- `GOOGLE_APPLICATION_CREDENTIALS_JSON` (preferred, required for push)
+  - Raw JSON for the Firebase service account.
+- `Firebase__CredentialsJson` (optional)
+  - Alternate JSON source (config-based).
+- `Firebase__CredentialsPath` (optional)
+  - File path to a JSON file deployed alongside the app.
+
+**Blob Storage (Voice Notes)**
+- `AzureStorage__ConnectionString` (required for voice notes)
+- `AzureStorage__ContainerName` (required, default: `uploads`)
+
+**Hangfire**
+- `Hangfire__WorkerCount` (optional, default: `5`)
+- `Hangfire__DashboardPath` (optional, default: `/hangfire`)
+
+**Notifications**
+- `Notifications__EscalationDelayMinutes` (default: `5`)
+- `Notifications__AutoMissDelayMinutes` (default: `30`)
+- `Notifications__MissedGracePeriodMinutes` (default: `5`)
+- `Notifications__MaxRetryCount` (default: `3`)
+- `Notifications__DefaultTtlHours` (default: `4`)
+- `Notifications__CallStyleEscalationLevel` (default: `2`)
+  - Escalation level at which call-style full-screen alert is triggered.
+- `Notifications__CallStyleTimeoutSeconds` (default: `120`)
+  - Ring timeout for call-style alerts. `0` = no timeout.
+
+**Email Verification (Azure Communication Services)**
+- `EmailVerification__SenderAddress` (required for verification emails)
+- `EmailVerification__VerificationCodeExpiryMinutes` (default: `10`)
+- `EmailVerification__ResendCooldownSeconds` (default: `60`)
+
+### Example app settings block (Azure)
+```bash
+az webapp config appsettings set \
+  --name "$APP_NAME" \
+  --resource-group RemoteCaregiverRG \
+  --settings \
+    ConnectionStrings__DefaultConnection="$SQL_CONNECTION" \
+    AzureStorage__ConnectionString="$STORAGE_CONNECTION" \
+    AzureStorage__ContainerName="uploads" \
+    Jwt__Key="<32+ char random secret>" \
+    Jwt__Issuer="RemoteCaregiverApi" \
+    Jwt__Audience="RemoteCaregiverApp" \
+    Firebase__ProjectId="parentalcareapp" \
+    GOOGLE_APPLICATION_CREDENTIALS_JSON='<firebase-service-account-json>' \
+    Notifications__EscalationDelayMinutes="5" \
+    Notifications__AutoMissDelayMinutes="30" \
+    Notifications__MissedGracePeriodMinutes="5" \
+    Notifications__CallStyleEscalationLevel="2" \
+    Notifications__CallStyleTimeoutSeconds="120" \
+    EmailVerification__SenderAddress="DoNotReply@your-acs-domain.azurecomm.net"
+```
+
 ## 3. Initialize Database
 
 Run the SQL script to create tables:
@@ -290,3 +355,36 @@ az appservice plan update \
 - `GET /api/users/code/{code}` - Find user by unique code
 - `GET /api/users/email/{email}` - Find user by email
 - `PUT /api/users/device-token` - Update push notification token
+
+## Database Tables (Initial + Runtime Schema Updates)
+
+### Tables created by `Scripts/InitDatabase.sql`
+- `Users`
+- `CareRelationships`
+- `Reminders`
+- `ReminderInstances`
+- `SosEvents`
+
+### Tables created/updated at runtime (Program startup)
+The API applies schema updates in `Program.cs`:
+
+- **Users**
+  - Adds `Timezone` (default `UTC`)
+  - Adds `VerificationCodeSentAt`
+- **ReminderInstances**
+  - Adds `NotificationJobIds`
+  - Adds `EscalationLevel`
+- **UserDeviceTokens**
+  - Stores multi-device FCM tokens
+- **NotificationLogs**
+  - Stores push notification delivery status
+  - Adds `FcmMessageId`, `EscalationLevel` if missing
+
+### Table purpose summary
+- `Users`: accounts, roles, auth metadata, verification.
+- `CareRelationships`: caregiver ↔ dependent links.
+- `Reminders`: template reminders (repeat rules, time, priority).
+- `ReminderInstances`: concrete scheduled reminders with status/escalation.
+- `SosEvents`: SOS lifecycle state.
+- `UserDeviceTokens`: per-device push tokens.
+- `NotificationLogs`: audit trail of push deliveries.

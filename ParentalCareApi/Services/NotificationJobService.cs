@@ -134,9 +134,11 @@ public class NotificationJobService : INotificationJobService
     {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
         var instance = await context.ReminderInstances
             .Include(i => i.Reminder)
+            .ThenInclude(r => r.Dependent)
             .FirstOrDefaultAsync(i => i.Id == instanceId);
 
         if (instance == null)
@@ -188,7 +190,29 @@ public class NotificationJobService : INotificationJobService
         // Also send to dependent group as fallback
         await hubContext.Clients.Group($"dependent:{dependentId}").SendAsync("InstanceStatusChanged", instanceDto);
 
-        _logger.LogInformation("Auto-marked instance {InstanceId} as missed, notified dependent and {CaregiverCount} caregivers",
+        var reminderTitle = instance.Reminder.Title;
+        var dependentName = instance.Reminder.Dependent?.Name ?? "Dependent";
+        var title = $"Missed: {reminderTitle}";
+        var body = $"{dependentName} missed their reminder";
+
+        foreach (var caregiverId in caregiverIds)
+        {
+            await notificationService.SendToUserAsync(
+                caregiverId,
+                title,
+                body,
+                new Dictionary<string, string>
+                {
+                    { "type", "missed_reminder" },
+                    { "instanceId", instance.Id },
+                    { "dependentId", dependentId }
+                });
+        }
+
+        await CancelNotificationJobsAsync(instance.Id);
+
+        _logger.LogInformation(
+            "Auto-marked instance {InstanceId} as missed, notified dependent and {CaregiverCount} caregivers",
             instanceId, caregiverIds.Count);
     }
 
