@@ -103,6 +103,7 @@ class UserApi {
   Future<void> registerDeviceToken({
     required String token,
     required String platform,
+    String? tokenType,
     String? deviceName,
     String? appVersion,
   }) async {
@@ -111,6 +112,7 @@ class UserApi {
       body: {
         'token': token,
         'platform': platform,
+        if (tokenType != null) 'tokenType': tokenType,
         if (deviceName != null) 'deviceName': deviceName,
         if (appVersion != null) 'appVersion': appVersion,
       },

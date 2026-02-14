@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<SosEvent> SosEvents { get; set; }
     public DbSet<UserDeviceToken> UserDeviceTokens { get; set; }
     public DbSet<NotificationLog> NotificationLogs { get; set; }
+    public DbSet<CriticalAlert> CriticalAlerts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -124,6 +125,15 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => new { e.UserId, e.CreatedAt });
             entity.HasIndex(e => new { e.ReferenceId, e.Type });
+        });
+
+        // CriticalAlert configuration
+        modelBuilder.Entity<CriticalAlert>(entity =>
+        {
+            entity.HasIndex(e => e.TargetUserId);
+            entity.HasIndex(e => e.DependentId);
+            entity.HasIndex(e => new { e.Type, e.ReferenceId });
+            entity.HasIndex(e => new { e.TargetUserId, e.Status });
         });
     }
 }

@@ -21,6 +21,10 @@ public class UserDeviceToken
     [StringLength(20)]
     public string Platform { get; set; } = string.Empty; // "iOS", "Android"
 
+    [Required]
+    [StringLength(20)]
+    public string TokenType { get; set; } = "fcm"; // "fcm" or "voip"
+
     [StringLength(100)]
     public string? DeviceName { get; set; }
 

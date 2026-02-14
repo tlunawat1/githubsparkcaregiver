@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:parental_care_app/data/datasources/remote/user_api.dart';
+import 'critical_alert_coordinator.dart';
 
 class FcmService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
@@ -51,11 +52,16 @@ class FcmService {
         await _userApi.registerDeviceToken(
           token: _currentToken!,
           platform: platform,
+          tokenType: 'fcm',
         );
         debugPrint('Device token registered successfully');
       } catch (e) {
         debugPrint('Failed to register device token: $e');
       }
+    }
+
+    if (Platform.isIOS) {
+      await registerVoipToken();
     }
   }
 
@@ -89,6 +95,25 @@ class FcmService {
       return await _messaging.getAPNSToken();
     }
     return null;
+  }
+
+  Future<void> registerVoipToken() async {
+    if (!Platform.isIOS) return;
+
+    try {
+      final voipToken = await CriticalAlertCoordinator.instance.getVoipToken();
+      if (voipToken == null || voipToken.isEmpty) {
+        return;
+      }
+      await _userApi.registerDeviceToken(
+        token: voipToken,
+        platform: 'iOS',
+        tokenType: 'voip',
+      );
+      debugPrint('VoIP token registered successfully');
+    } catch (e) {
+      debugPrint('Failed to register VoIP token: $e');
+    }
   }
 
   Future<void> subscribeToTopic(String topic) async {

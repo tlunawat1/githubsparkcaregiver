@@ -18,6 +18,8 @@ enum SignalREventType {
   sosTriggered,
   sosResolved,
   sosCancelled,
+  criticalAlertTriggered,
+  criticalAlertAcknowledged,
   reminderCreated,
   reminderUpdated,
   reminderDeleted,
@@ -352,6 +354,15 @@ class SignalRService {
 
     _connection!.on('SosCancelled', (arguments) {
       _emitEvent(SignalREventType.sosCancelled, arguments);
+    });
+
+    // Critical alert events
+    _connection!.on('CriticalAlertTriggered', (arguments) {
+      _emitEvent(SignalREventType.criticalAlertTriggered, arguments);
+    });
+
+    _connection!.on('CriticalAlertAcknowledged', (arguments) {
+      _emitEvent(SignalREventType.criticalAlertAcknowledged, arguments);
     });
 
     // Reminder events

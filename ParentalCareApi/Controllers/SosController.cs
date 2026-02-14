@@ -19,17 +19,20 @@ public class SosController : ControllerBase
     private readonly AppDbContext _context;
     private readonly IHubContext<SyncHub> _hubContext;
     private readonly INotificationService _notificationService;
+    private readonly ICriticalAlertService _criticalAlertService;
     private readonly ILogger<SosController> _logger;
 
     public SosController(
         AppDbContext context,
         IHubContext<SyncHub> hubContext,
         INotificationService notificationService,
+        ICriticalAlertService criticalAlertService,
         ILogger<SosController> logger)
     {
         _context = context;
         _hubContext = hubContext;
         _notificationService = notificationService;
+        _criticalAlertService = criticalAlertService;
         _logger = logger;
     }
 
@@ -181,44 +184,28 @@ public class SosController : ControllerBase
         var notifiedCount = 0;
 
         // Notify all caregivers (using user groups for reliable delivery)
-        foreach (var relationship in caregiverRelationships)
+        var caregiverIds = caregiverRelationships
+            .Select(r => r.CaregiverId)
+            .ToList();
+
+        foreach (var caregiverId in caregiverIds)
         {
-            // SignalR notification via user group
-            await _hubContext.Clients.Group($"user:{relationship.CaregiverId}").SendAsync("SosTriggered", new
+            await _hubContext.Clients.Group($"user:{caregiverId}").SendAsync("SosTriggered", new
             {
                 sosEventId = sosEvent.Id,
                 dependentId = userId,
                 dependentName = dependent?.Name,
                 triggeredAt = sosEvent.TriggeredAt
             });
-
-            // Push notification (all active tokens for caregiver)
-            var pushResult = await _notificationService.SendToUserAsync(
-                relationship.CaregiverId,
-                "SOS Alert!",
-                $"{dependent?.Name ?? "A dependent"} needs help!",
-                new Dictionary<string, string>
-                {
-                    { "type", "sos_triggered" },
-                    { "eventType", "sos_triggered" },
-                    { "eventId", sosEvent.Id },
-                    { "severity", "critical" },
-                    { "critical", "true" },
-                    { "sosEventId", sosEvent.Id },
-                    { "dependentId", userId },
-                    { "dependentName", dependent?.Name ?? string.Empty },
-                    { "route", "/caregiver" },
-                    { "androidChannelId", "critical_alerts" },
-                    { "title", "SOS Alert!" },
-                    { "body", $"{dependent?.Name ?? "A dependent"} needs help!" }
-                }
-            );
-
-            if (pushResult.Success)
-            {
-                notifiedCount++;
-            }
         }
+
+        await _criticalAlertService.TriggerSosAlertAsync(
+            userId,
+            dependent?.Name,
+            sosEvent.Id,
+            caregiverIds);
+
+        notifiedCount = caregiverIds.Count;
 
         return Ok(new TriggerSosResponse(
             sosEvent.Id,

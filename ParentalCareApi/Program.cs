@@ -108,7 +108,12 @@ builder.Services.Configure<EmailVerificationOptions>(
     builder.Configuration.GetSection(EmailVerificationOptions.SectionName));
 builder.Services.AddScoped<IEmailService, AzureCommunicationEmailService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICriticalAlertService, CriticalAlertService>();
 builder.Services.AddSingleton<IBlobStorageService, BlobStorageService>();
+
+// APNs VoIP
+builder.Services.Configure<ApnsVoipOptions>(builder.Configuration.GetSection("Apns:Voip"));
+builder.Services.AddHttpClient<IVoipPushService, VoipPushService>();
 
 // Background Services
 builder.Services.AddHostedService<ReminderInstanceBackgroundService>();
@@ -265,6 +270,7 @@ using (var scope = app.Services.CreateScope())
                     UserId NVARCHAR(36) NOT NULL,
                     Token NVARCHAR(500) NOT NULL,
                     Platform NVARCHAR(20) NOT NULL,
+                    TokenType NVARCHAR(20) NOT NULL DEFAULT 'fcm',
                     DeviceName NVARCHAR(100) NULL,
                     AppVersion NVARCHAR(20) NULL,
                     IsValid BIT NOT NULL DEFAULT 1,
@@ -275,6 +281,13 @@ using (var scope = app.Services.CreateScope())
                 );
                 CREATE INDEX IX_UserDeviceTokens_UserId ON UserDeviceTokens(UserId);
                 CREATE INDEX IX_UserDeviceTokens_Token ON UserDeviceTokens(Token);
+            END");
+
+        // Add TokenType column to UserDeviceTokens if it doesn't exist
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'UserDeviceTokens') AND name = 'TokenType')
+            BEGIN
+                ALTER TABLE UserDeviceTokens ADD TokenType NVARCHAR(20) NOT NULL DEFAULT 'fcm'
             END");
 
         // Create NotificationLogs table if it doesn't exist
@@ -302,6 +315,27 @@ using (var scope = app.Services.CreateScope())
                 );
                 CREATE INDEX IX_NotificationLogs_UserId ON NotificationLogs(UserId);
                 CREATE INDEX IX_NotificationLogs_Status ON NotificationLogs(Status);
+            END");
+
+        // Create CriticalAlerts table if it doesn't exist
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'CriticalAlerts')
+            BEGIN
+                CREATE TABLE CriticalAlerts (
+                    Id NVARCHAR(36) NOT NULL PRIMARY KEY,
+                    Type NVARCHAR(50) NOT NULL,
+                    ReferenceId NVARCHAR(36) NULL,
+                    DependentId NVARCHAR(36) NULL,
+                    TargetUserId NVARCHAR(36) NULL,
+                    Status NVARCHAR(20) NOT NULL,
+                    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                    AcknowledgedAt DATETIME2 NULL,
+                    AcknowledgedBy NVARCHAR(36) NULL,
+                    Payload NVARCHAR(MAX) NULL
+                );
+                CREATE INDEX IX_CriticalAlerts_TargetUserId ON CriticalAlerts(TargetUserId);
+                CREATE INDEX IX_CriticalAlerts_DependentId ON CriticalAlerts(DependentId);
+                CREATE INDEX IX_CriticalAlerts_Type_ReferenceId ON CriticalAlerts(Type, ReferenceId);
             END");
 
         // Add missing NotificationLogs columns if table already exists

@@ -122,7 +122,7 @@ public class NotificationService : INotificationService
 
         // Get all valid device tokens for the user
         var tokens = await context.UserDeviceTokens
-            .Where(t => t.UserId == userId && t.IsValid)
+            .Where(t => t.UserId == userId && t.IsValid && t.TokenType == "fcm")
             .Select(t => t.Token)
             .ToListAsync();
 
