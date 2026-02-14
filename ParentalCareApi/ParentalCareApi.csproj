@@ -7,6 +7,20 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="deploy-output\**" />
+    <Content Remove="publish\**" />
+    <Content Remove="publish-final\**" />
+    <Content Remove="publish-linux\**" />
+    <Content Remove="publish-output\**" />
+    <Content Remove="deploy*.zip" />
+
+    <None Remove="deploy-output\**" />
+    <None Remove="publish\**" />
+    <None Remove="publish-final\**" />
+    <None Remove="publish-linux\**" />
+    <None Remove="publish-output\**" />
+    <None Remove="deploy*.zip" />
+
     <PackageReference Include="Azure.Communication.Email" Version="1.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.1.0" />

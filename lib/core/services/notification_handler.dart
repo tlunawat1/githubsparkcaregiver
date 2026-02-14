@@ -152,7 +152,7 @@ class NotificationHandler {
   }
 
   void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint('Foreground message received: ${message.messageId}');
+    _logRemoteMessage('Foreground message received', message);
 
     final notification = message.notification;
     final data = <String, dynamic>{
@@ -181,7 +181,7 @@ class NotificationHandler {
   }
 
   void _handleNotificationTap(RemoteMessage message) {
-    debugPrint('Notification tapped: ${message.messageId}');
+    _logRemoteMessage('Notification tapped', message);
 
     final data = <String, dynamic>{
       ...message.data,
@@ -319,12 +319,43 @@ class NotificationHandler {
         data['callStyleEscalationLevel'] ?? data['callStyleThreshold'];
     return int.tryParse((configured ?? '1').toString()) ?? 1;
   }
+
+  void _logRemoteMessage(String prefix, RemoteMessage message) {
+    final data = message.data;
+    final title = message.notification?.title ?? data['title'] ?? data['reminderTitle'] ?? '';
+    final body = message.notification?.body ?? data['body'] ?? '';
+    final reminderId = data['reminderId'] ?? '';
+    final instanceId = data['instanceId'] ?? data['id'] ?? '';
+    final eventType = data['eventType'] ?? data['type'] ?? '';
+    final escalation = data['escalationLevel'] ?? '';
+
+    debugPrint(
+      '$prefix: id=${message.messageId}, sentTime=${message.sentTime}, '
+      'title=$title, reminderId=$reminderId, instanceId=$instanceId, '
+      'eventType=$eventType, escalationLevel=$escalation',
+    );
+
+    if (body.toString().isNotEmpty) {
+      debugPrint('Message body: $body');
+    }
+  }
 }
 
 /// Background message handler - must be a top-level function
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('Background message received: ${message.messageId}');
+  final data = message.data;
+  final title = message.notification?.title ?? data['title'] ?? data['reminderTitle'] ?? '';
+  final reminderId = data['reminderId'] ?? '';
+  final instanceId = data['instanceId'] ?? data['id'] ?? '';
+  final eventType = data['eventType'] ?? data['type'] ?? '';
+  final escalation = data['escalationLevel'] ?? '';
+
+  debugPrint(
+    'Background message received: id=${message.messageId}, sentTime=${message.sentTime}, '
+    'title=$title, reminderId=$reminderId, instanceId=$instanceId, '
+    'eventType=$eventType, escalationLevel=$escalation',
+  );
   // Background messages are handled by the system notification tray
   // No additional processing needed here for basic notifications
 }

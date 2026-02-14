@@ -65,8 +65,8 @@ class CriticalAlertCallService {
       type: 0,
       // flutter_callkit_incoming expects duration in milliseconds.
       duration: timeoutSeconds > 0 ? timeoutSeconds * 1000 : 0,
-      textAccept: 'See Details',
-      textDecline: 'Dismiss',
+      textAccept: 'View Details',
+      textDecline: 'Remind Me Later',
       extra: payload.toMap(),
       android: const AndroidParams(
         isCustomNotification: false,

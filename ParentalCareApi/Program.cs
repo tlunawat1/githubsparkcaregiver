@@ -123,9 +123,9 @@ builder.Services.AddHangfire(config => config
     {
         CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
         SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-        QueuePollInterval = TimeSpan.Zero,
+        QueuePollInterval = TimeSpan.FromSeconds(15),
         UseRecommendedIsolationLevel = true,
-        DisableGlobalLocks = true,
+        DisableGlobalLocks = false,
         PrepareSchemaIfNecessary = true,
         SchemaName = "HangFire"
     }));
@@ -134,6 +134,7 @@ var workerCount = builder.Configuration.GetValue<int>("Hangfire:WorkerCount", 5)
 builder.Services.AddHangfireServer(options =>
 {
     options.WorkerCount = workerCount;
+    options.SchedulePollingInterval = TimeSpan.FromSeconds(15);
 });
 
 // Firebase Admin SDK - supports both file and environment variable
