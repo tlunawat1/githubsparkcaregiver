@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.parentalcare.parental_care_app"
+    namespace = "com.parentalcare.parentalCareApp"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
