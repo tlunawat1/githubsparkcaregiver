@@ -24,6 +24,7 @@ class NotificationHandler {
     'reminders_high',
     'reminders_urgent',
     'sos_emergency',
+    'critical_alerts',
   ];
 
   Future<void> initialize() async {
@@ -135,6 +136,18 @@ class NotificationHandler {
         'sos_emergency',
         'SOS Alerts',
         description: 'Emergency SOS alerts',
+        importance: Importance.max,
+        playSound: playSound,
+        enableVibration: enableVibration,
+      ),
+    );
+
+    // Critical alerts (call-style notifications)
+    await androidPlugin.createNotificationChannel(
+      AndroidNotificationChannel(
+        'critical_alerts',
+        'Critical Alerts',
+        description: 'Critical alerts requiring immediate attention',
         importance: Importance.max,
         playSound: playSound,
         enableVibration: enableVibration,
