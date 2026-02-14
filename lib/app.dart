@@ -176,7 +176,10 @@ class _ParentalCareAppState extends State<ParentalCareApp>
 
       if (event.type == SignalREventType.instanceStatusChanged) {
         final escalationLevel = (event.data['escalationLevel'] as int?) ?? 0;
-        if (escalationLevel >= 2) {
+        final callStyleEscalationLevel = int.tryParse(
+                (event.data['callStyleEscalationLevel'] ?? '1').toString()) ??
+            1;
+        if (escalationLevel >= callStyleEscalationLevel) {
           final data = {
             ...event.data,
             'critical': 'true',
