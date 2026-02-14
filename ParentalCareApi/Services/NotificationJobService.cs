@@ -55,14 +55,29 @@ public class NotificationJobService : INotificationJobService
         // Build notification
         var title = GetNotificationTitle(reminder.Title, escalationLevel);
         var body = GetNotificationBody(reminder.Description, escalationLevel);
+        var callStyleEscalationLevel =
+            _configuration.GetValue<int>("Notifications:CallStyleEscalationLevel", 2);
+        var callStyleTimeoutSeconds =
+            _configuration.GetValue<int>("Notifications:CallStyleTimeoutSeconds", 120);
+        var isCallStyle = escalationLevel >= callStyleEscalationLevel;
         var data = new Dictionary<string, string>
         {
             { "type", "reminder" },
+            { "eventType", isCallStyle ? "urgent_reminder" : "reminder" },
+            { "eventId", instanceId },
             { "instanceId", instanceId },
             { "reminderId", reminder.Id },
             { "priority", reminder.Priority },
             { "escalationLevel", escalationLevel.ToString() },
-            { "click_action", "OPEN_REMINDER" }
+            { "click_action", "OPEN_REMINDER" },
+            { "route", $"/dependent/reminder/{instanceId}" },
+            { "critical", isCallStyle ? "true" : "false" },
+            { "severity", isCallStyle ? "critical" : "normal" },
+            { "androidChannelId", isCallStyle ? "critical_alerts" : "reminders" },
+            { "callStyleEscalationLevel", callStyleEscalationLevel.ToString() },
+            { "callStyleTimeoutSeconds", callStyleTimeoutSeconds.ToString() },
+            { "title", title },
+            { "body", body }
         };
 
         // Send notification
@@ -87,7 +102,9 @@ public class NotificationJobService : INotificationJobService
             {
                 instanceId = instance.Id,
                 status = instance.Status,
-                escalationLevel = instance.EscalationLevel
+                escalationLevel = instance.EscalationLevel,
+                callStyleEscalationLevel,
+                callStyleTimeoutSeconds
             };
 
             // Notify via SignalR - send directly to dependent and each caregiver via Clients.User()

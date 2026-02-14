@@ -1,11 +1,19 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'core/alerts/critical_alert.dart';
+import 'core/alerts/critical_alert_call_service.dart';
+import 'core/alerts/critical_alert_cubit.dart';
 import 'core/di/injection.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/fcm_service.dart';
+import 'core/services/notification_handler.dart';
 import 'core/theme/app_theme.dart';
 import 'data/datasources/remote/remote.dart';
 import 'data/repositories/repositories.dart';
+import 'features/alerts/presentation/screens/critical_alert_screen.dart';
 
 /// Main application widget 
 class ParentalCareApp extends StatefulWidget {
@@ -18,9 +26,13 @@ class ParentalCareApp extends StatefulWidget {
 class _ParentalCareAppState extends State<ParentalCareApp>
     with WidgetsBindingObserver {
   late AppRouter _appRouter;
+  final CriticalAlertCubit _criticalAlertCubit = CriticalAlertCubit();
+  final CriticalAlertCallService _criticalAlertCallService =
+      CriticalAlertCallService();
   bool _isLoading = true;
   bool _isOnboardingComplete = false;
   String? _userRole;
+  StreamSubscription<SignalREvent>? _criticalSignalRSubscription;
 
   @override
   void initState() {
@@ -32,6 +44,8 @@ class _ParentalCareAppState extends State<ParentalCareApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _criticalSignalRSubscription?.cancel();
+    _criticalAlertCubit.close();
     super.dispose();
   }
 
@@ -107,10 +121,103 @@ class _ParentalCareAppState extends State<ParentalCareApp>
       isOnboardingComplete: _isOnboardingComplete,
       userRole: _userRole,
     );
+    _configureCriticalAlertPipeline();
 
     if (mounted) {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _configureCriticalAlertPipeline() {
+    _criticalAlertCallService.initialize();
+    _criticalAlertCallService.onCallAccepted = (payload) async {
+      await _criticalAlertCubit.stopRinging();
+      final route = payload.resolveRoute(userRole: _userRole ?? 'dependent');
+      _appRouter.router.go(route);
+      await _criticalAlertCallService.endCall(payload.eventId);
+      await _criticalAlertCubit.clearActiveAlert();
+    };
+    _criticalAlertCallService.onCallDeclined = (payload) async {
+      await _criticalAlertCubit.stopRinging();
+      await _criticalAlertCallService.endCall(payload.eventId);
+      await _criticalAlertCubit.clearActiveAlert();
+    };
+
+    NotificationHandler().onCriticalAlertReceived = (data) {
+      final normalized = _normalizeCriticalData(data);
+      final payload = CriticalAlertPayload.fromData(normalized);
+      _criticalAlertCallService.showIncoming(payload);
+      _criticalAlertCubit.ingest(normalized, suppressLocalRing: true);
+    };
+
+    NotificationHandler().onNotificationTapped = (instanceId) {
+      if (instanceId == null || instanceId.isEmpty) return;
+      _criticalAlertCubit.stopRinging();
+      _appRouter.router.go('/dependent/reminder/$instanceId');
+    };
+
+    _criticalSignalRSubscription?.cancel();
+    final signalRService = getIt<SignalRService>();
+    _criticalSignalRSubscription = signalRService.events.listen((event) {
+      if (event.type == SignalREventType.sosTriggered) {
+        final data = {
+          ...event.data,
+          'critical': 'true',
+          'severity': 'critical',
+          'eventType': 'sos_triggered',
+          'eventId': event.data['sosEventId'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          'title': 'SOS Alert',
+          'body': '${event.data['dependentName'] ?? 'A dependent'} needs help now.',
+        };
+        final payload = CriticalAlertPayload.fromData(data);
+        _criticalAlertCallService.showIncoming(payload);
+        _criticalAlertCubit.ingest(data, suppressLocalRing: true);
+      }
+
+      if (event.type == SignalREventType.instanceStatusChanged) {
+        final escalationLevel = (event.data['escalationLevel'] as int?) ?? 0;
+        if (escalationLevel >= 2) {
+          final data = {
+            ...event.data,
+            'critical': 'true',
+            'severity': 'critical',
+            'eventType': 'urgent_reminder',
+            'eventId':
+                event.data['eventId'] ?? event.data['instanceId'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            'title': 'Urgent Reminder',
+            'body': 'Immediate attention required.',
+          };
+          final payload = CriticalAlertPayload.fromData(data);
+          _criticalAlertCallService.showIncoming(payload);
+          _criticalAlertCubit.ingest(data, suppressLocalRing: true);
+        }
+      }
+    });
+  }
+
+  Map<String, dynamic> _normalizeCriticalData(Map<String, dynamic> data) {
+    final normalized = Map<String, dynamic>.from(data);
+    final escalationLevel = int.tryParse(
+            (normalized['escalationLevel'] ?? '0').toString()) ??
+        0;
+    final callStyleLevel = int.tryParse(
+            (normalized['callStyleEscalationLevel'] ??
+                    normalized['callStyleThreshold'] ??
+                    '2')
+                .toString()) ??
+        2;
+    if (escalationLevel >= callStyleLevel &&
+        (normalized['eventType'] == null || normalized['eventType'].toString().isEmpty)) {
+      normalized['critical'] = 'true';
+      normalized['severity'] = 'critical';
+      normalized['eventType'] = 'urgent_reminder';
+      normalized['title'] = normalized['title'] ?? 'Urgent Reminder';
+      normalized['body'] =
+          normalized['body'] ?? 'Immediate attention required.';
+      normalized['eventId'] =
+          normalized['eventId'] ?? normalized['instanceId'];
+    }
+    return normalized;
   }
 
   @override
@@ -129,13 +236,48 @@ class _ParentalCareAppState extends State<ParentalCareApp>
       );
     }
 
-    return MaterialApp.router(
-      title: 'Parental Care',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      routerConfig: _appRouter.router,
+    return BlocProvider.value(
+      value: _criticalAlertCubit,
+      child: MaterialApp.router(
+        title: 'Parental Care',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        routerConfig: _appRouter.router,
+        builder: (context, child) {
+          return Stack(
+            children: [
+              child ?? const SizedBox.shrink(),
+              BlocBuilder<CriticalAlertCubit, CriticalAlertState>(
+                builder: (context, state) {
+                  if (state.status != CriticalAlertStatus.ringing ||
+                      state.activeAlert == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return Positioned.fill(
+                    child: CriticalAlertScreen(
+                      payload: state.activeAlert!,
+                      onSeeDetails: () async {
+                        await _criticalAlertCubit.markNavigating();
+                        await _criticalAlertCubit.stopRinging();
+                        await _criticalAlertCallService.endCall(
+                          state.activeAlert!.eventId,
+                        );
+                        final route = state.activeAlert!.resolveRoute(
+                          userRole: _userRole ?? 'dependent',
+                        );
+                        _appRouter.router.go(route);
+                        await _criticalAlertCubit.clearActiveAlert();
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

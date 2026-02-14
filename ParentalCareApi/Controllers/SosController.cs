@@ -192,20 +192,30 @@ public class SosController : ControllerBase
                 triggeredAt = sosEvent.TriggeredAt
             });
 
-            // Push notification
-            if (!string.IsNullOrEmpty(relationship.Caregiver?.DeviceToken))
+            // Push notification (all active tokens for caregiver)
+            var pushResult = await _notificationService.SendToUserAsync(
+                relationship.CaregiverId,
+                "SOS Alert!",
+                $"{dependent?.Name ?? "A dependent"} needs help!",
+                new Dictionary<string, string>
+                {
+                    { "type", "sos_triggered" },
+                    { "eventType", "sos_triggered" },
+                    { "eventId", sosEvent.Id },
+                    { "severity", "critical" },
+                    { "critical", "true" },
+                    { "sosEventId", sosEvent.Id },
+                    { "dependentId", userId },
+                    { "dependentName", dependent?.Name ?? string.Empty },
+                    { "route", "/caregiver" },
+                    { "androidChannelId", "critical_alerts" },
+                    { "title", "SOS Alert!" },
+                    { "body", $"{dependent?.Name ?? "A dependent"} needs help!" }
+                }
+            );
+
+            if (pushResult.Success)
             {
-                await _notificationService.SendPushNotificationAsync(
-                    relationship.Caregiver.DeviceToken,
-                    "SOS Alert!",
-                    $"{dependent?.Name ?? "A dependent"} needs help!",
-                    new Dictionary<string, string>
-                    {
-                        { "type", "sos_triggered" },
-                        { "sosEventId", sosEvent.Id },
-                        { "dependentId", userId }
-                    }
-                );
                 notifiedCount++;
             }
         }

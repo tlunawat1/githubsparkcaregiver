@@ -45,6 +45,14 @@ public class NotificationService : INotificationService
 
         try
         {
+            var channelId = data != null && data.TryGetValue("androidChannelId", out var androidChannelId)
+                ? androidChannelId
+                : "reminders";
+
+            var isCritical = data != null &&
+                             data.TryGetValue("critical", out var criticalValue) &&
+                             string.Equals(criticalValue, "true", StringComparison.OrdinalIgnoreCase);
+
             var message = new Message
             {
                 Token = deviceToken,
@@ -57,24 +65,28 @@ public class NotificationService : INotificationService
                 Android = new AndroidConfig
                 {
                     Priority = Priority.High,
+                    TimeToLive = TimeSpan.FromHours(_configuration.GetValue<int>("Notifications:DefaultTtlHours", 4)),
                     Notification = new AndroidNotification
                     {
-                        ChannelId = "reminders",
+                        ChannelId = channelId,
                         Sound = "default",
-                        DefaultVibrateTimings = true
+                        DefaultVibrateTimings = true,
+                        Tag = data != null && data.TryGetValue("eventId", out var eventId) ? eventId : null
                     }
                 },
                 Apns = new ApnsConfig
                 {
                     Headers = new Dictionary<string, string>
                     {
-                        { "apns-priority", "10" }
+                        { "apns-priority", "10" },
+                        { "apns-push-type", "alert" }
                     },
                     Aps = new Aps
                     {
                         Sound = "default",
                         Badge = 1,
-                        ContentAvailable = true
+                        ContentAvailable = true,
+                        MutableContent = isCritical
                     }
                 }
             };
