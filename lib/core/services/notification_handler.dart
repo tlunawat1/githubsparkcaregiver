@@ -265,7 +265,8 @@ class NotificationHandler {
   String _getChannelId(Map<String, dynamic> data) {
     final type = data['type'] as String?;
     final eventType = data['eventType'] as String?;
-    final escalationLevel = int.tryParse(data['escalationLevel'] ?? '0') ?? 0;
+    final escalationLevel =
+        int.tryParse((data['escalationLevel'] ?? '0').toString()) ?? 0;
 
     if (_isCriticalAlert(data)) {
       return 'critical_alerts';
@@ -316,7 +317,7 @@ class NotificationHandler {
   int _callStyleEscalationLevel(Map<String, dynamic> data) {
     final configured =
         data['callStyleEscalationLevel'] ?? data['callStyleThreshold'];
-    return int.tryParse((configured ?? '2').toString()) ?? 2;
+    return int.tryParse((configured ?? '1').toString()) ?? 1;
   }
 }
 
