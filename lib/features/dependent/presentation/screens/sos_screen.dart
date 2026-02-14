@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_config.dart';
@@ -11,6 +10,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/local/database.dart';
+import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 
@@ -23,7 +23,7 @@ class SosScreen extends StatefulWidget {
 }
 
 class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
-  final _sosRepository = getIt<SosRepository>();
+  final _sosApi = getIt<SosApi>();
   final _settingsRepository = getIt<SettingsRepository>();
   final _contactRepository = getIt<EmergencyContactRepository>();
 
@@ -88,19 +88,10 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     Haptics.heavyImpact();
 
     try {
-      final userId = await _settingsRepository.getCurrentUserId();
-      if (userId == null) throw Exception('No user found');
-
-      _sosEventId = const Uuid().v4();
-      await _sosRepository.createSosEvent(
-        id: _sosEventId!,
-        dependentId: userId,
-      );
+      final response = await _sosApi.triggerSos();
+      _sosEventId = response.id;
 
       setState(() => _isCompleted = true);
-
-      // In a real app, this would trigger push notifications to contacts
-      // For MVP, we just show a confirmation
     } catch (e) {
       debugPrint('Error triggering SOS: $e');
       if (mounted) {
@@ -123,7 +114,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     // If SOS was already triggered, cancel it in the database
     if (_sosEventId != null) {
       try {
-        await _sosRepository.cancelSosEvent(_sosEventId!);
+        await _sosApi.cancelSos(_sosEventId!);
       } catch (e) {
         debugPrint('Error cancelling SOS: $e');
       }
