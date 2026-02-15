@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -10,11 +11,16 @@ class NotificationHandler {
   factory NotificationHandler() => _instance;
   NotificationHandler._internal();
 
+  static const String actionDone = 'action_done';
+  static const String actionDecline = 'action_decline';
+
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
   Function(String? instanceId)? onNotificationTapped;
   Function(Map<String, dynamic> data)? onCriticalAlertReceived;
+  Function(String instanceId)? onDoneActionRequested;
+  Function(String instanceId)? onDeclineActionRequested;
   static const List<String> _channelIds = [
     'reminders',
     'reminders_high',
@@ -43,6 +49,8 @@ class NotificationHandler {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
+    await _requestRuntimeNotificationPermissions();
+
     // Create notification channels for Android
     await _createNotificationChannels(forceRecreate: true);
 
@@ -57,6 +65,27 @@ class NotificationHandler {
     if (initialMessage != null) {
       _handleNotificationTap(initialMessage);
     }
+  }
+
+  Future<void> _requestRuntimeNotificationPermissions() async {
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      announcement: false,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+    );
+
+    debugPrint(
+      'Notification permission status: ${settings.authorizationStatus}',
+    );
+
+    final androidPlugin =
+        _localNotifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.requestNotificationsPermission();
   }
 
   Future<void> refreshNotificationChannels() async {
@@ -166,13 +195,23 @@ class NotificationHandler {
       onCriticalAlertReceived?.call(data);
     }
 
-    // For critical alerts, call-style UI is handled separately.
-    // Avoid showing an additional local notification in foreground.
-    if (notification != null && !isCritical) {
-      // Show local notification since FCM doesn't auto-show in foreground
+    final title =
+        notification?.title ??
+        data['title']?.toString() ??
+        data['reminderTitle']?.toString() ??
+        'Reminder';
+    final body =
+        notification?.body ??
+        data['body']?.toString() ??
+        data['description']?.toString() ??
+        '';
+
+    if (title.isNotEmpty || body.isNotEmpty) {
+      // Show local notification since FCM doesn't auto-show in foreground.
+      // This also covers data-only FCM payloads.
       _showLocalNotification(
-        title: notification.title ?? 'Reminder',
-        body: notification.body ?? '',
+        title: title,
+        body: body,
         payload: json.encode(data),
         channelId: _getChannelId(data),
         isCritical: isCritical,
@@ -203,10 +242,27 @@ class NotificationHandler {
     if (response.payload != null) {
       try {
         final data = json.decode(response.payload!) as Map<String, dynamic>;
-        final instanceId = data['instanceId'] as String?;
+        final instanceId = data['instanceId']?.toString();
+
+        if (response.notificationResponseType ==
+                NotificationResponseType.selectedNotificationAction &&
+            instanceId != null) {
+          if (response.actionId == actionDone && onDoneActionRequested != null) {
+            onDoneActionRequested!(instanceId);
+            return;
+          }
+
+          if (response.actionId == actionDecline &&
+              onDeclineActionRequested != null) {
+            onDeclineActionRequested!(instanceId);
+            return;
+          }
+        }
+
         if (instanceId != null && onNotificationTapped != null) {
           onNotificationTapped!(instanceId);
         }
+
         if (_isCriticalAlert(data)) {
           onCriticalAlertReceived?.call(data);
         }
@@ -231,15 +287,29 @@ class NotificationHandler {
       channelId,
       _getChannelName(channelId),
       channelDescription: 'Reminder notifications',
-      importance: isCritical ? Importance.max : Importance.high,
-      priority: isCritical ? Priority.max : Priority.high,
+      importance: Importance.max,
+      priority: Priority.high,
       showWhen: true,
       enableVibration: enableVibration,
       playSound: playSound,
-      category: isCritical ? AndroidNotificationCategory.alarm : null,
-      fullScreenIntent: isCritical,
-      ongoing: isCritical,
-      autoCancel: !isCritical,
+      category: AndroidNotificationCategory.reminder,
+      fullScreenIntent: false,
+      ongoing: false,
+      autoCancel: true,
+      actions: <AndroidNotificationAction>[
+        const AndroidNotificationAction(
+          actionDone,
+          'Done',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+        const AndroidNotificationAction(
+          actionDecline,
+          'Decline',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ],
     );
 
     final iosDetails = DarwinNotificationDetails(
@@ -259,6 +329,23 @@ class NotificationHandler {
       body,
       details,
       payload: payload,
+    );
+  }
+
+  Future<void> showExternalNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    final payloadData = data ?? <String, dynamic>{};
+    final isCritical = _isCriticalAlert(payloadData);
+
+    await _showLocalNotification(
+      title: title,
+      body: body,
+      payload: json.encode(payloadData),
+      channelId: _getChannelId(payloadData),
+      isCritical: isCritical,
     );
   }
 
@@ -344,8 +431,25 @@ class NotificationHandler {
 /// Background message handler - must be a top-level function
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Ensure Firebase is initialized in the background isolate.
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {
+    // Ignore (already initialized or unavailable in this isolate).
+  }
+
   final data = message.data;
-  final title = message.notification?.title ?? data['title'] ?? data['reminderTitle'] ?? '';
+  final title =
+      message.notification?.title ??
+      data['title'] ??
+      data['reminderTitle'] ??
+      'Reminder';
+  final body =
+      message.notification?.body ??
+      data['body'] ??
+      data['description'] ??
+      '';
+
   final reminderId = data['reminderId'] ?? '';
   final instanceId = data['instanceId'] ?? data['id'] ?? '';
   final eventType = data['eventType'] ?? data['type'] ?? '';
@@ -356,6 +460,107 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     'title=$title, reminderId=$reminderId, instanceId=$instanceId, '
     'eventType=$eventType, escalationLevel=$escalation',
   );
-  // Background messages are handled by the system notification tray
-  // No additional processing needed here for basic notifications
+
+  // Render as a local notification so we can attach action buttons (Done/Decline).
+  // If we rely on Android system-rendered FCM notifications, actions will not appear.
+  await FeedbackSettings.refresh();
+  final playSound = FeedbackSettings.notificationSoundEnabled;
+  final enableVibration = FeedbackSettings.hapticFeedbackEnabled;
+
+  final plugin = FlutterLocalNotificationsPlugin();
+  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const iosSettings = DarwinInitializationSettings(
+    requestAlertPermission: false,
+    requestBadgePermission: false,
+    requestSoundPermission: false,
+  );
+
+  const initSettings = InitializationSettings(
+    android: androidSettings,
+    iOS: iosSettings,
+  );
+
+  await plugin.initialize(initSettings);
+
+  final androidPlugin = plugin.resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin>();
+
+  // Ensure at least the default channels exist (no-op if they already do).
+  await androidPlugin?.createNotificationChannel(
+    AndroidNotificationChannel(
+      'reminders',
+      'Reminders',
+      description: 'Reminder notifications',
+      importance: Importance.high,
+      playSound: playSound,
+      enableVibration: enableVibration,
+    ),
+  );
+  await androidPlugin?.createNotificationChannel(
+    AndroidNotificationChannel(
+      'critical_alerts',
+      'Critical Alerts',
+      description: 'Full-screen alerts for SOS and urgent tasks',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+    ),
+  );
+
+  final payload = json.encode(<String, dynamic>{
+    ...data,
+    'title': title,
+    'body': body,
+  });
+
+  // Prefer backend-provided channel when present.
+  final channelId = (data['androidChannelId'] ?? '').toString().trim();
+  final resolvedChannelId = channelId.isNotEmpty ? channelId : 'reminders';
+
+  final androidDetails = AndroidNotificationDetails(
+    resolvedChannelId,
+    resolvedChannelId == 'critical_alerts' ? 'Critical Alerts' : 'Reminders',
+    channelDescription: 'Reminder notifications',
+    importance: Importance.max,
+    priority: Priority.high,
+    showWhen: true,
+    enableVibration: enableVibration,
+    playSound: playSound,
+    category: AndroidNotificationCategory.reminder,
+    fullScreenIntent: false,
+    ongoing: false,
+    autoCancel: true,
+    actions: <AndroidNotificationAction>[
+      const AndroidNotificationAction(
+        NotificationHandler.actionDone,
+        'Done',
+        showsUserInterface: true,
+        cancelNotification: true,
+      ),
+      const AndroidNotificationAction(
+        NotificationHandler.actionDecline,
+        'Decline',
+        showsUserInterface: true,
+        cancelNotification: true,
+      ),
+    ],
+  );
+
+  final iosDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: playSound,
+  );
+
+  await plugin.show(
+    DateTime.now().millisecondsSinceEpoch.remainder(100000),
+    title.toString(),
+    body.toString(),
+    NotificationDetails(android: androidDetails, iOS: iosDetails),
+    payload: payload,
+  );
+
+  debugPrint(
+    'Background local notification shown (interactive actions): instanceId=${data['instanceId'] ?? data['id'] ?? ''}',
+  );
 }

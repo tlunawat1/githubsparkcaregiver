@@ -45,6 +45,17 @@ public class NotificationService : INotificationService
 
         try
         {
+            // For interactive reminder notifications, we intentionally send data-only FCM messages.
+            // Android-rendered (notification payload) messages cannot include our app-defined action
+            // buttons (Done/Decline). Data-only ensures Flutter can always render a local
+            // notification with actions in all app states.
+            var isReminderInteractive = data != null &&
+                (
+                    (data.TryGetValue("type", out var type) && string.Equals(type, "reminder", StringComparison.OrdinalIgnoreCase)) ||
+                    (data.TryGetValue("eventType", out var eventType) && eventType.Contains("reminder", StringComparison.OrdinalIgnoreCase)) ||
+                    data.ContainsKey("instanceId")
+                );
+
             var channelId = data != null && data.TryGetValue("androidChannelId", out var androidChannelId)
                 ? androidChannelId
                 : "reminders";
@@ -53,32 +64,48 @@ public class NotificationService : INotificationService
                              data.TryGetValue("critical", out var criticalValue) &&
                              string.Equals(criticalValue, "true", StringComparison.OrdinalIgnoreCase);
 
+            // Ensure title/body are always available to the client even when we send data-only.
+            // (Client-side local notifications use these keys.)
+            var effectiveData = data == null
+                ? new Dictionary<string, string>()
+                : new Dictionary<string, string>(data);
+
+            effectiveData.TryAdd("title", title);
+            effectiveData.TryAdd("body", body);
+            effectiveData.TryAdd("androidChannelId", channelId);
+
             var message = new Message
             {
                 Token = deviceToken,
-                Notification = new Notification
-                {
-                    Title = title,
-                    Body = body
-                },
-                Data = data,
+                Notification = isReminderInteractive
+                    ? null
+                    : new Notification
+                    {
+                        Title = title,
+                        Body = body
+                    },
+                Data = effectiveData,
                 Android = new AndroidConfig
                 {
                     Priority = Priority.High,
                     TimeToLive = TimeSpan.FromHours(_configuration.GetValue<int>("Notifications:DefaultTtlHours", 4)),
-                    Notification = new AndroidNotification
-                    {
-                        ChannelId = channelId,
-                        Sound = "default",
-                        DefaultVibrateTimings = true,
-                        Tag = data != null && data.TryGetValue("eventId", out var eventId) ? eventId : null
-                    }
+                    Notification = isReminderInteractive
+                        ? null
+                        : new AndroidNotification
+                        {
+                            ChannelId = channelId,
+                            Sound = "default",
+                            DefaultVibrateTimings = true,
+                            Tag = effectiveData.TryGetValue("eventId", out var eventId) ? eventId : null
+                        }
                 },
                 Apns = new ApnsConfig
                 {
                     Headers = new Dictionary<string, string>
                     {
                         { "apns-priority", "10" },
+                        // When sending data-only, iOS still needs a push type.
+                        // We keep alert to preserve existing behavior on iOS, while Android remains interactive.
                         { "apns-push-type", "alert" }
                     },
                     Aps = new Aps

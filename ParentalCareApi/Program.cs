@@ -50,6 +50,12 @@ if (string.IsNullOrWhiteSpace(defaultConnectionString))
     throw new InvalidOperationException("Default connection string not configured. Set ConnectionStrings__DefaultConnection.");
 }
 
+if (defaultConnectionString.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) ||
+    defaultConnectionString.Contains("mssqllocaldb", StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException("LocalDB connection strings are not allowed. Configure Azure SQL in ConnectionStrings__DefaultConnection.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(defaultConnectionString));
 
@@ -209,14 +215,29 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<SyncHub>("/hubs/sync");
 
-// Hangfire Dashboard (admin access only in production)
-var hangfirePath = builder.Configuration["Hangfire:DashboardPath"] ?? "/hangfire";
-app.MapHangfireDashboard(hangfirePath, new DashboardOptions
+// Hangfire Dashboard
+// Some App Service environments can fail startup if Hangfire isn't fully configured.
+// Keep the API healthy by only enabling the dashboard when explicitly requested.
+var enableHangfireDashboard = app.Configuration.GetValue<bool?>("Hangfire:EnableDashboard")
+    ?? app.Environment.IsDevelopment();
+
+if (enableHangfireDashboard)
 {
-    DashboardTitle = "Parental Care - Job Dashboard",
-    // In production, add authorization filter
-    // Authorization = new[] { new HangfireAuthorizationFilter() }
-});
+    var hangfirePath = app.Configuration["Hangfire:DashboardPath"] ?? "/hangfire";
+    try
+    {
+        app.MapHangfireDashboard(hangfirePath, new DashboardOptions
+        {
+            DashboardTitle = "Parental Care - Job Dashboard",
+            // In production, add authorization filter
+            // Authorization = new[] { new HangfireAuthorizationFilter() }
+        });
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to map Hangfire dashboard; continuing without it");
+    }
+}
 
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
