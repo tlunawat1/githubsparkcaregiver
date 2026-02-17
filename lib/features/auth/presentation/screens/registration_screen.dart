@@ -284,7 +284,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       // Detect device timezone
       String? deviceTimezone;
       try {
-        deviceTimezone = await FlutterTimezone.getLocalTimezone();
+        final tz = await FlutterTimezone.getLocalTimezone();
+        deviceTimezone = tz.identifier;
       } catch (e) {
         debugPrint('Could not detect timezone: $e');
       }

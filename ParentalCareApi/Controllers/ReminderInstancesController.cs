@@ -355,8 +355,16 @@ public class ReminderInstancesController : ControllerBase
             return Forbid();
         }
 
+        var snoozedUntilUtc = request.SnoozedUntil.Kind switch
+        {
+            DateTimeKind.Utc => request.SnoozedUntil,
+            DateTimeKind.Local => request.SnoozedUntil.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(request.SnoozedUntil, DateTimeKind.Utc)
+        };
+
         instance.Status = "snoozed";
-        instance.SnoozedUntil = request.SnoozedUntil;
+        instance.SnoozedUntil = snoozedUntilUtc;
+        instance.EscalationLevel = 0;
         await _context.SaveChangesAsync();
 
         var dto = MapToDto(instance);
@@ -371,7 +379,22 @@ public class ReminderInstancesController : ControllerBase
         // SignalR notifications - send to both dependent and caregivers by user ID
         await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
 
-        _logger.LogInformation("Instance {InstanceId} snoozed until {SnoozedUntil}", id, request.SnoozedUntil);
+        // Fire-and-forget: Cancel existing notification jobs and reschedule from snooze time.
+        // This prevents the original +5/+10 escalations (and auto-miss) from firing during the snooze window.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _notificationJobService.CancelNotificationJobsAsync(id);
+                await _notificationJobService.ScheduleNotificationJobsAsync(id, snoozedUntilUtc);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to reschedule notification jobs for snoozed instance {InstanceId}", id);
+            }
+        });
+
+        _logger.LogInformation("Instance {InstanceId} snoozed until {SnoozedUntilUtc} (UTC)", id, snoozedUntilUtc);
 
         return Ok(dto);
     }
@@ -489,12 +512,24 @@ public class ReminderInstancesController : ControllerBase
         _logger.LogInformation("=== MarkOverdueInstancesAsMissedAsync START ===");
         _logger.LogInformation("Total instances received: {Count}", instances.Count);
 
-        var gracePeriod = _configuration.GetValue<int>("Notifications:MissedGracePeriodMinutes", 5);
+        var configuredGracePeriod = _configuration.GetValue<int>("Notifications:MissedGracePeriodMinutes", 5);
+        var escalationDelay = _configuration.GetValue<int>("Notifications:EscalationDelayMinutes", 5);
+
+        // IMPORTANT:
+        // Reminder notifications are scheduled at: t (level 0), t+EscalationDelay (level 1), t+2*EscalationDelay (level 2).
+        // If we mark instances as missed too early (e.g. after 5 minutes), the level-2 notification gets skipped because
+        // NotificationJobService will not send notifications for instances with status "missed".
+        //
+        // To ensure the final escalation has a chance to run, enforce a minimum grace window that extends past the
+        // final escalation time. Add a small buffer to avoid race conditions with slightly delayed job execution.
+        var minGraceToAllowFinalEscalation = (escalationDelay * 2) + 1;
+        var gracePeriod = Math.Max(configuredGracePeriod, minGraceToAllowFinalEscalation);
         var now = DateTime.UtcNow;
         var cutoffTime = now.AddMinutes(-gracePeriod);
 
-        _logger.LogInformation("Grace period: {GracePeriod} minutes, Now (UTC): {Now}, Cutoff time: {Cutoff}",
-            gracePeriod, now, cutoffTime);
+        _logger.LogInformation(
+            "Missed cutoff: configuredGrace={ConfiguredGrace}m, escalationDelay={EscalationDelay}m, effectiveGrace={EffectiveGrace}m, Now (UTC): {Now}, Cutoff time: {Cutoff}",
+            configuredGracePeriod, escalationDelay, gracePeriod, now, cutoffTime);
 
         // Log all instances for debugging
         foreach (var inst in instances)

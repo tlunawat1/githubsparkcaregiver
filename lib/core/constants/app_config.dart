@@ -4,13 +4,13 @@ class AppConfig {
   AppConfig._();
 
   /// Whether to use remote backend (Azure) or local-only storage
-  static const bool useRemoteBackend = false;
+  static const bool useRemoteBackend = true;
 
   /// Base URL for the Azure API (when useRemoteBackend is true)
   static const String apiBaseUrl = 'https://your-azure-app.azurewebsites.net';
 
   /// Whether to enable push notifications (requires FCM/APNs setup)
-  static const bool enablePushNotifications = false;
+  static const bool enablePushNotifications = true;
 
   /// Whether to enable voice note cloud backup
   static const bool enableVoiceNoteCloudBackup = false;

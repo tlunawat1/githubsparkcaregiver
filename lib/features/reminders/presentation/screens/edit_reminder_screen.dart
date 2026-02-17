@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_config.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../data/datasources/remote/remote.dart';
+import '../../domain/notification_service.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 import '../widgets/voice_recorder_widget.dart';
 
@@ -51,6 +53,37 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
   };
 
   final List<String> _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  int _notificationIdForReminder(String reminderId) {
+    return (reminderId.hashCode & 0x7fffffff) % 100000;
+  }
+
+  DateTime _nextScheduledTime({
+    required int hour,
+    required int minute,
+    required String repeatPattern,
+    required Set<int> selectedDays,
+  }) {
+    final now = DateTime.now();
+    var candidate = DateTime(now.year, now.month, now.day, hour, minute);
+
+    if (!candidate.isAfter(now)) {
+      candidate = candidate.add(const Duration(days: 1));
+    }
+
+    if (repeatPattern == 'specific_days') {
+      if (selectedDays.isEmpty) return candidate;
+      for (var i = 0; i < 14; i++) {
+        final day = candidate.add(Duration(days: i));
+        final idx = day.weekday - 1;
+        if (selectedDays.contains(idx)) {
+          return DateTime(day.year, day.month, day.day, hour, minute);
+        }
+      }
+    }
+
+    return candidate;
+  }
 
   @override
   void initState() {
@@ -139,7 +172,7 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
         repeatDays = days.join(',');
       }
 
-      await _reminderApi.updateReminder(
+      final updated = await _reminderApi.updateReminder(
         id: widget.reminderId,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim().isEmpty
@@ -152,6 +185,30 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
         minute: _selectedTime.minute,
         priority: _priority,
       );
+
+      // If push notifications are disabled, manage local scheduling.
+      if (!AppConfig.enablePushNotifications) {
+        final notificationId = _notificationIdForReminder(updated.id);
+        await NotificationService().cancelNotification(notificationId);
+
+        final scheduledTime = _nextScheduledTime(
+          hour: updated.hour,
+          minute: updated.minute,
+          repeatPattern: updated.repeatPattern,
+          selectedDays: _selectedDays,
+        );
+
+        await NotificationService().scheduleReminderNotification(
+          id: notificationId,
+          title: updated.title,
+          body: (updated.description ?? '').isEmpty
+              ? 'Reminder due now'
+              : updated.description!,
+          scheduledTime: scheduledTime,
+          payload: '{"type":"reminder","reminderId":"${updated.id}"}',
+          isHighPriority: updated.priority.toLowerCase() != 'normal',
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -208,6 +265,13 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
 
     if (confirmed == true) {
       try {
+        // Cancel any scheduled local notification for this reminder.
+        if (!AppConfig.enablePushNotifications) {
+          await NotificationService().cancelNotification(
+            _notificationIdForReminder(widget.reminderId),
+          );
+        }
+
         await _reminderApi.deleteReminder(widget.reminderId);
 
         if (mounted) {

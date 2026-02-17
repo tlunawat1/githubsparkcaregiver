@@ -145,6 +145,8 @@ Or use Azure Portal:
 
 ### Option A: Manual Deployment (Current Method)
 
+#### macOS/Linux (bash)
+
 ```bash
 cd ParentalCareApi
 APP_NAME="<your-new-webapp-name>"
@@ -161,6 +163,23 @@ az webapp deploy \
   --name "$APP_NAME" \
   --src-path ./deploy.zip \
   --type zip
+```
+
+#### Windows (PowerShell)
+
+On Windows, avoid `Compress-Archive` for this deploy zip. It can create zip entries with Windows path separators (e.g. `runtimes\unix\...`) that may fail on Azure Linux App Service deployments.
+
+Use the provided PowerShell script which:
+- publishes without a Windows apphost (`UseAppHost=false`)
+- creates a POSIX-style zip (forward-slash paths)
+- deploys using `az webapp deploy` with a fallback to classic `config-zip`
+
+```powershell
+cd ParentalCareApi
+
+# One-time: az login
+
+./deploy.ps1 -AppName "<your-new-webapp-name>" -ResourceGroup "RemoteCaregiverRG"
 ```
 
 ### Option B: Using GitHub Actions

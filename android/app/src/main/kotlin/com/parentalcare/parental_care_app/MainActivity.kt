@@ -1,4 +1,4 @@
-package com.parentalcare.parental_care_app
+package com.parentalcare.parentalCareApp
 
 import io.flutter.embedding.android.FlutterActivity
 

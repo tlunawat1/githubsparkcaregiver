@@ -45,24 +45,43 @@ public class NotificationService : INotificationService
 
         try
         {
+            data ??= new Dictionary<string, string>();
+
+            var type = data.TryGetValue("type", out var t) ? t : null;
+            var escalationLevel = 0;
+            if (data.TryGetValue("escalationLevel", out var levelString))
+            {
+                _ = int.TryParse(levelString, out escalationLevel);
+            }
+
+            var isReminder = string.Equals(type, "reminder", StringComparison.OrdinalIgnoreCase);
+            var isSos = string.Equals(type, "sos", StringComparison.OrdinalIgnoreCase);
+
+            var channelId = GetAndroidChannelId(isReminder, isSos, escalationLevel);
+            var isUrgentEscalation = isReminder && escalationLevel >= 2;
+
+            // For urgent (3rd) escalation on Android we intentionally send a DATA-ONLY message
+            // so the Flutter background handler can show an "insistent" local notification.
+            if (isUrgentEscalation)
+            {
+                data["title"] = title;
+                data["body"] = body;
+            }
+
             var message = new Message
             {
                 Token = deviceToken,
-                Notification = new Notification
-                {
-                    Title = title,
-                    Body = body
-                },
                 Data = data,
                 Android = new AndroidConfig
                 {
                     Priority = Priority.High,
-                    Notification = new AndroidNotification
-                    {
-                        ChannelId = "reminders",
-                        Sound = "default",
-                        DefaultVibrateTimings = true
-                    }
+                    Notification = isUrgentEscalation
+                        ? null
+                        : new AndroidNotification
+                        {
+                            ChannelId = channelId,
+                            DefaultVibrateTimings = true
+                        }
                 },
                 Apns = new ApnsConfig
                 {
@@ -72,12 +91,44 @@ public class NotificationService : INotificationService
                     },
                     Aps = new Aps
                     {
-                        Sound = "default",
+                        // For iOS: play default sound for level 0/1, custom for urgent escalation.
+                        Sound = isReminder
+                            ? (isUrgentEscalation ? "reminder_alarm.caf" : "default")
+                            : null,
                         Badge = 1,
                         ContentAvailable = true
                     }
                 }
             };
+
+            if (!isUrgentEscalation)
+            {
+                message.Notification = new Notification
+                {
+                    Title = title,
+                    Body = body
+                };
+            }
+            else
+            {
+                // Provide an iOS alert when using Android data-only for urgent escalation.
+                message.Apns.Aps.Alert = new ApsAlert
+                {
+                    Title = title,
+                    Body = body
+                };
+            }
+
+            // Android sound: leave null for default sound on channels; custom only for urgent.
+            if (!isUrgentEscalation && isReminder)
+            {
+                // No explicit sound => use the channel's default sound.
+                message.Android.Notification!.Sound = null;
+            }
+            if (!isUrgentEscalation && isSos)
+            {
+                message.Android.Notification!.Sound = null;
+            }
 
             var response = await FirebaseMessaging.DefaultInstance.SendAsync(message);
             _logger.LogInformation("FCM message sent successfully: {MessageId}", response);
@@ -175,5 +226,23 @@ public class NotificationService : INotificationService
         {
             _logger.LogError(ex, "Failed to invalidate device token");
         }
+    }
+
+    private static string GetAndroidChannelId(bool isReminder, bool isSos, int escalationLevel)
+    {
+        if (isSos)
+        {
+            return "sos_emergency";
+        }
+
+        if (isReminder)
+        {
+            if (escalationLevel >= 2) return "reminders_urgent";
+            if (escalationLevel >= 1) return "reminders_high";
+            return "reminders";
+        }
+
+        // Fallback for unknown types.
+        return "reminders";
     }
 }

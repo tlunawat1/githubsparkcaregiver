@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_config.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../data/datasources/remote/remote.dart';
+import '../../domain/notification_service.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 import '../widgets/voice_recorder_widget.dart';
 
@@ -32,6 +34,49 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
   String _priority = 'normal';
   String? _voiceNotePath;
   bool _isLoading = false;
+
+  int _notificationIdForReminder(String reminderId) {
+    // Keep IDs stable across app restarts so edits can cancel/reschedule.
+    return (reminderId.hashCode & 0x7fffffff) % 100000;
+  }
+
+  DateTime _nextScheduledTime({
+    required int hour,
+    required int minute,
+    required String repeatPattern,
+    required Set<int> selectedDays,
+  }) {
+    final now = DateTime.now();
+    var candidate = DateTime(now.year, now.month, now.day, hour, minute);
+
+    // If time already passed for today, start checking from tomorrow.
+    if (!candidate.isAfter(now)) {
+      candidate = candidate.add(const Duration(days: 1));
+    }
+
+    if (repeatPattern == 'weekly') {
+      // Weekly: same weekday next week if today's window passed.
+      final daysUntilNextWeek = 7 - (now.weekday - 1);
+      // If we already rolled to tomorrow above, keep candidate as-is.
+      if (candidate.difference(now).inDays == 0) {
+        candidate = candidate.add(Duration(days: daysUntilNextWeek));
+      }
+    }
+
+    if (repeatPattern == 'specific_days') {
+      // selectedDays are indices 0..6 for Mon..Sun.
+      if (selectedDays.isEmpty) return candidate;
+      for (var i = 0; i < 14; i++) {
+        final day = candidate.add(Duration(days: i));
+        final idx = day.weekday - 1;
+        if (selectedDays.contains(idx)) {
+          return DateTime(day.year, day.month, day.day, hour, minute);
+        }
+      }
+    }
+
+    return candidate;
+  }
 
   final List<String> _repeatOptions = [
     'once',
@@ -100,7 +145,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
         repeatDays = days.join(',');
       }
 
-      await _reminderApi.createReminder(
+      final created = await _reminderApi.createReminder(
         dependentId: widget.dependentId,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim().isEmpty
@@ -114,6 +159,28 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
         priority: _priority,
         startDate: DateTime.now(),
       );
+
+      // If push notifications are disabled, fall back to local scheduling.
+      // When FCM is enabled, the backend is responsible for sending reminder pushes.
+      if (!AppConfig.enablePushNotifications) {
+        final scheduledTime = _nextScheduledTime(
+          hour: created.hour,
+          minute: created.minute,
+          repeatPattern: created.repeatPattern,
+          selectedDays: _selectedDays,
+        );
+
+        await NotificationService().scheduleReminderNotification(
+          id: _notificationIdForReminder(created.id),
+          title: created.title,
+          body: (created.description ?? '').isEmpty
+              ? 'Reminder due now'
+              : created.description!,
+          scheduledTime: scheduledTime,
+          payload: '{"type":"reminder","reminderId":"${created.id}"}',
+          isHighPriority: created.priority.toLowerCase() != 'normal',
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

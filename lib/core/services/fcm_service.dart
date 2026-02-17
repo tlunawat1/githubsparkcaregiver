@@ -52,6 +52,10 @@ class FcmService {
           token: _currentToken!,
           platform: platform,
         );
+
+        // Backward-compat: some backend paths still read Users.DeviceToken.
+        // Keep it in sync until everything is migrated to UserDeviceTokens.
+        await _userApi.updateDeviceToken(_currentToken!);
         debugPrint('Device token registered successfully');
       } catch (e) {
         debugPrint('Failed to register device token: $e');

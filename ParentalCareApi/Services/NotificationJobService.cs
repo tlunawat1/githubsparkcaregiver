@@ -49,6 +49,25 @@ public class NotificationJobService : INotificationJobService
             return;
         }
 
+        // If snoozed and snooze window hasn't elapsed yet, skip sending.
+        // (Jobs should be rescheduled on snooze, but this guards against race conditions.)
+        if (instance.Status == "snoozed" && instance.SnoozedUntil.HasValue)
+        {
+            var snoozedUntilUtc = DateTime.SpecifyKind(instance.SnoozedUntil.Value, DateTimeKind.Utc);
+            if (DateTime.UtcNow < snoozedUntilUtc)
+            {
+                _logger.LogInformation(
+                    "Skipping notification for {InstanceId} - snoozed until {SnoozedUntilUtc}",
+                    instanceId, snoozedUntilUtc);
+                return;
+            }
+
+            // Snooze window elapsed: transition back to pending so escalations behave normally.
+            instance.Status = "pending";
+            instance.SnoozedUntil = null;
+            await context.SaveChangesAsync();
+        }
+
         var reminder = instance.Reminder;
         var dependent = reminder.Dependent;
 

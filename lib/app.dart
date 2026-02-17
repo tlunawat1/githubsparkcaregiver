@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/di/injection.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/fcm_service.dart';
+import 'core/services/reminder_alarm_service.dart';
 import 'core/theme/app_theme.dart';
 import 'data/datasources/remote/remote.dart';
 import 'data/repositories/repositories.dart';
@@ -107,6 +108,9 @@ class _ParentalCareAppState extends State<ParentalCareApp>
       isOnboardingComplete: _isOnboardingComplete,
       userRole: _userRole,
     );
+
+    // Wire up the navigator key for the alarm service
+    ReminderAlarmService.instance.navigatorKey = rootNavigatorKey;
 
     if (mounted) {
       setState(() => _isLoading = false);

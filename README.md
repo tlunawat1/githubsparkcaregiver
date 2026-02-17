@@ -167,6 +167,8 @@ See [ParentalCareApi/DEPLOYMENT.md](ParentalCareApi/DEPLOYMENT.md) for detailed 
 
 ### Quick Backend Deploy
 
+#### macOS/Linux (bash)
+
 ```bash
 cd ParentalCareApi
 
@@ -182,6 +184,16 @@ az webapp deploy \
   --name remotecaregiver-api \
   --src-path ./deploy.zip \
   --type zip
+```
+
+#### Windows (PowerShell)
+
+```powershell
+cd ParentalCareApi
+
+# One-time: az login
+
+./deploy.ps1 -AppName "remotecaregiver-api" -ResourceGroup "RemoteCaregiverRG"
 ```
 
 ## Configuration

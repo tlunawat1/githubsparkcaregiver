@@ -135,7 +135,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
     Haptics.mediumImpact();
 
     try {
-      final snoozeUntil = DateTime.now().add(const Duration(minutes: 10));
+      final snoozeUntil = DateTime.now().toUtc().add(const Duration(minutes: 10));
       await _reminderInstanceApi.snooze(widget.instanceId, snoozeUntil);
 
       if (mounted) {

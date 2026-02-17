@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'dart:ui';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../utils/feedback_settings.dart';
+import 'reminder_alarm_service.dart';
 
 /// Handles Firebase Cloud Messaging notifications across all app states
 class NotificationHandler {
@@ -21,6 +25,17 @@ class NotificationHandler {
     'sos_emergency',
   ];
 
+  /// Custom sound for reminder notification channels (Android raw resource name).
+  static const _customSound =
+      RawResourceAndroidNotificationSound('reminder_alarm');
+
+  static int _parseEscalationLevel(Map<String, dynamic> data) {
+    final raw = data['escalationLevel'];
+    if (raw == null) return 0;
+    if (raw is int) return raw;
+    return int.tryParse(raw.toString()) ?? 0;
+  }
+
   Future<void> initialize() async {
     // Initialize local notifications for foreground display
     const androidSettings =
@@ -38,8 +53,19 @@ class NotificationHandler {
 
     await _localNotifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
+      onDidReceiveNotificationResponse: localNotificationTapHandler,
     );
+
+    // If the app was launched by tapping a local notification (e.g. the urgent/3rd
+    // reminder shown from the FCM background handler), the callback above may not
+    // fire automatically on cold start. Handle it explicitly here.
+    final launchDetails = await _localNotifications.getNotificationAppLaunchDetails();
+    final launchedFromLocalNotification = launchDetails?.didNotificationLaunchApp ?? false;
+    final launchResponse = launchDetails?.notificationResponse;
+    if (launchedFromLocalNotification && launchResponse != null) {
+      debugPrint('App launched from local notification: ${launchResponse.payload}');
+      handleLocalNotificationResponse(launchResponse);
+    }
 
     // Create notification channels for Android
     await _createNotificationChannels(forceRecreate: true);
@@ -97,6 +123,8 @@ class NotificationHandler {
         importance: Importance.high,
         playSound: playSound,
         enableVibration: enableVibration,
+        // Default system sound for the first two notifications.
+        sound: null,
       ),
     );
 
@@ -109,6 +137,8 @@ class NotificationHandler {
         importance: Importance.max,
         playSound: playSound,
         enableVibration: enableVibration,
+        // Default system sound for the first two notifications.
+        sound: null,
       ),
     );
 
@@ -121,10 +151,11 @@ class NotificationHandler {
         importance: Importance.max,
         playSound: playSound,
         enableVibration: enableVibration,
+        sound: playSound ? _customSound : null,
       ),
     );
 
-    // SOS alerts
+    // SOS alerts (keep default system sound for SOS)
     await androidPlugin.createNotificationChannel(
       AndroidNotificationChannel(
         'sos_emergency',
@@ -143,11 +174,37 @@ class NotificationHandler {
     final notification = message.notification;
     final data = message.data;
 
+    // Urgent (3rd) reminder escalations may arrive as Android data-only messages.
+    // Always inspect `data` so we can trigger continuous ringing while the app is in the foreground.
+    final type = data['type'] as String?;
+    final instanceId = data['instanceId'] as String?;
+    final escalationLevel = _parseEscalationLevel(data);
+
+    if (type == 'reminder' && instanceId != null && escalationLevel >= 2) {
+      debugPrint('Foreground urgent reminder: triggering alarm for instance $instanceId');
+      ReminderAlarmService.instance.triggerAlarm(instanceId);
+      return;
+    }
+
+    // For other notifications: if we have a notification payload, show it.
     if (notification != null) {
-      // Show local notification since FCM doesn't auto-show in foreground
+      // For first/second reminders: show a normal notification (default one-time sound).
       _showLocalNotification(
         title: notification.title ?? 'Reminder',
         body: notification.body ?? '',
+        payload: json.encode(data),
+        channelId: _getChannelId(data),
+      );
+      return;
+    }
+
+    // Data-only non-urgent messages: if title/body were supplied in data, show a local notification.
+    final title = data['title'] as String?;
+    final body = data['body'] as String?;
+    if (title != null || body != null) {
+      _showLocalNotification(
+        title: title ?? 'Reminder',
+        body: body ?? '',
         payload: json.encode(data),
         channelId: _getChannelId(data),
       );
@@ -157,7 +214,21 @@ class NotificationHandler {
   void _handleNotificationTap(RemoteMessage message) {
     debugPrint('Notification tapped: ${message.messageId}');
 
-    final instanceId = message.data['instanceId'] as String?;
+    final data = message.data;
+    final type = data['type'] as String?;
+    final instanceId = data['instanceId'] as String?;
+    final escalationLevel = _parseEscalationLevel(data);
+
+    if (type == 'reminder' && instanceId != null) {
+      // Only urgent (3rd) opens the Done/Snooze overlay.
+      if (escalationLevel >= 2) {
+        debugPrint('Urgent reminder tap: triggering alarm for instance $instanceId');
+        ReminderAlarmService.instance.triggerAlarm(instanceId);
+        return;
+      }
+    }
+
+    // Fallback: use the legacy onNotificationTapped callback
     if (instanceId != null && onNotificationTapped != null) {
       onNotificationTapped!(instanceId);
     }
@@ -165,17 +236,31 @@ class NotificationHandler {
 
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('Local notification tapped: ${response.payload}');
+    handleLocalNotificationResponse(response);
+  }
 
-    if (response.payload != null) {
-      try {
-        final data = json.decode(response.payload!) as Map<String, dynamic>;
-        final instanceId = data['instanceId'] as String?;
-        if (instanceId != null && onNotificationTapped != null) {
-          onNotificationTapped!(instanceId);
-        }
-      } catch (e) {
-        debugPrint('Error parsing notification payload: $e');
+  void handleLocalNotificationResponse(NotificationResponse response) {
+    if (response.payload == null) return;
+
+    try {
+      final data = json.decode(response.payload!) as Map<String, dynamic>;
+      final type = data['type'] as String?;
+      final instanceId = data['instanceId'] as String?;
+      final escalationLevel = _parseEscalationLevel(data);
+
+      // Only urgent (3rd) opens the Done/Snooze overlay.
+      if (type == 'reminder' && instanceId != null && escalationLevel >= 2) {
+        debugPrint('Local urgent reminder tap: triggering alarm for instance $instanceId');
+        ReminderAlarmService.instance.triggerAlarm(instanceId);
+        return;
       }
+
+      // Fallback: use the legacy onNotificationTapped callback
+      if (instanceId != null && onNotificationTapped != null) {
+        onNotificationTapped!(instanceId);
+      }
+    } catch (e) {
+      debugPrint('Error parsing notification payload: $e');
     }
   }
 
@@ -198,12 +283,16 @@ class NotificationHandler {
       showWhen: true,
       enableVibration: enableVibration,
       playSound: playSound,
+      // Default sound for first/second reminders; custom sound only for urgent channel.
+      sound: playSound && channelId == 'reminders_urgent' ? _customSound : null,
     );
 
     final iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: playSound,
+      // Default sound for first/second reminders; custom sound only for urgent channel.
+      sound: playSound && channelId == 'reminders_urgent' ? 'reminder_alarm.caf' : null,
     );
 
     final details = NotificationDetails(
@@ -257,6 +346,79 @@ class NotificationHandler {
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Background message received: ${message.messageId}');
-  // Background messages are handled by the system notification tray
-  // No additional processing needed here for basic notifications
+
+  WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
+
+  // For urgent (3rd) reminder escalations we receive an Android data-only message.
+  // Show an *insistent* local notification with the custom sound.
+  final data = message.data;
+  final type = data['type'] as String?;
+  final instanceId = data['instanceId'] as String?;
+  final escalationLevel = int.tryParse(data['escalationLevel'] ?? '0') ?? 0;
+
+  if (type != 'reminder' || instanceId == null || escalationLevel < 2) {
+    return;
+  }
+
+  final title = data['title'] ?? 'Reminder';
+  final body = data['body'] ?? '';
+
+  final plugin = FlutterLocalNotificationsPlugin();
+  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const initSettings = InitializationSettings(android: androidSettings);
+  // IMPORTANT: Provide a tap handler here too. This background isolate init can
+  // override the main isolate's callback if omitted, causing taps to only open
+  // the app without running our overlay logic.
+  await plugin.initialize(
+    initSettings,
+    onDidReceiveNotificationResponse: localNotificationTapHandler,
+  );
+
+  final androidPlugin = plugin.resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin>();
+
+  // Ensure urgent channel exists (custom sound).
+  await androidPlugin?.createNotificationChannel(
+    const AndroidNotificationChannel(
+      'reminders_urgent',
+      'Urgent Reminders',
+      description: 'Urgent reminder notifications (escalations)',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+      sound: RawResourceAndroidNotificationSound('reminder_alarm'),
+    ),
+  );
+
+  final androidDetails = AndroidNotificationDetails(
+    'reminders_urgent',
+    'Urgent Reminders',
+    channelDescription: 'Urgent reminder notifications (escalations)',
+    importance: Importance.max,
+    priority: Priority.max,
+    showWhen: true,
+    playSound: true,
+    enableVibration: true,
+    sound: const RawResourceAndroidNotificationSound('reminder_alarm'),
+    // FLAG_INSISTENT (4) - repeat sound until the user interacts.
+    additionalFlags: Int32List.fromList(<int>[4]),
+  );
+
+  await plugin.show(
+    DateTime.now().millisecondsSinceEpoch.remainder(100000),
+    title,
+    body,
+    NotificationDetails(android: androidDetails),
+    payload: json.encode(data),
+  );
+}
+
+/// Local notification response handler - must be top-level.
+///
+/// This is used both by the main app and by the FCM background handler's
+/// local-notification initialization, so taps reliably route to our logic.
+@pragma('vm:entry-point')
+void localNotificationTapHandler(NotificationResponse response) {
+  NotificationHandler().handleLocalNotificationResponse(response);
 }

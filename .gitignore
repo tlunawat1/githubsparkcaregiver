@@ -65,3 +65,20 @@ project.lock.json
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 **/firebase-service-account.json
+
+# Local/dev artifacts
+/logs/
+/artifacts/
+/tmp/
+/tmpclaude-*
+/azure-logs/
+azure-logs.zip
+nul
+
+# Azure/.NET deployment artifacts (generated locally)
+deploy-*.zip
+ParentalCareApi/deploy*.zip
+ParentalCareApi/deploy-output/
+ParentalCareApi/publish-*/
+ParentalCareApi/publish-output/
+ParentalCareApi/.azure/

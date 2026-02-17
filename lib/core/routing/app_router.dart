@@ -53,6 +53,9 @@ class AppRoutes {
   static const String linkedUserDetail = '/settings/linked-user';
 }
 
+/// Global navigator key for showing overlays from services (e.g., alarm alerts).
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// App router configuration with custom transitions
 class AppRouter {
   final bool isOnboardingComplete;
@@ -64,6 +67,7 @@ class AppRouter {
   });
 
   late final GoRouter router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: _getInitialLocation(),
     debugLogDiagnostics: true,
     routes: [

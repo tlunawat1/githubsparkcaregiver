@@ -57,7 +57,8 @@ class _TimezoneSettingsScreenState extends State<TimezoneSettingsScreen> {
     try {
       // Get device timezone
       try {
-        _deviceTimezone = await FlutterTimezone.getLocalTimezone();
+        final tz = await FlutterTimezone.getLocalTimezone();
+        _deviceTimezone = tz.identifier;
       } catch (e) {
         debugPrint('Could not detect device timezone: $e');
       }
