@@ -160,6 +160,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                   onFieldSubmitted: (_) => _handleLogin(),
                 ),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () => context.go(
+                                '${AppRoutes.forgotPassword}?role=${widget.role}',
+                              ),
+                      child: const Text('Forgot password?'),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: AppSpacing.xl),
 
                 // Login button

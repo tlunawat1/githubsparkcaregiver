@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
 using ParentalCareApi.Data;
 using ParentalCareApi.DTOs;
 using ParentalCareApi.Models;
@@ -323,6 +324,94 @@ public class AuthController : ControllerBase
             user.VerificationCodeExpiry));
     }
 
+    [HttpPost("request-password-reset")]
+    public async Task<ActionResult<SendVerificationCodeResponse>> RequestPasswordReset(
+        [FromBody] RequestPasswordResetRequest request)
+    {
+        if (!_authService.IsValidEmail(request.Email))
+            return BadRequest(new SendVerificationCodeResponse(false, "Invalid email format"));
+
+        var user = await _context.Users.FirstOrDefaultAsync(
+            u => u.Email == request.Email.ToLowerInvariant());
+
+        // Anti-enumeration: always return OK when user not found.
+        if (user == null)
+            return Ok(new SendVerificationCodeResponse(true, "If this email exists, a code will be sent"));
+
+        if (TryGetPasswordResetRetryAfterSeconds(user, out var retryAfterSeconds))
+        {
+            return StatusCode(StatusCodes.Status429TooManyRequests,
+                new SendVerificationCodeResponse(
+                    false,
+                    "Please wait before requesting another code",
+                    retryAfterSeconds));
+        }
+
+        var resetCode = SetNewPasswordResetCode(user);
+        await _context.SaveChangesAsync();
+
+        try
+        {
+            await _emailService.SendPasswordResetCodeAsync(user.Email, resetCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send password reset code to {Email}", user.Email);
+            return StatusCode(500, new SendVerificationCodeResponse(false, "Failed to send password reset code"));
+        }
+
+        return Ok(new SendVerificationCodeResponse(
+            true,
+            "Password reset code sent",
+            null,
+            user.PasswordResetCodeExpiry));
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<ActionResult<ResetPasswordResponse>> ResetPassword(
+        [FromBody] ResetPasswordRequest request)
+    {
+        if (!_authService.IsValidEmail(request.Email))
+            return BadRequest(new ResetPasswordResponse(false, "Invalid email format"));
+
+        if (!_authService.IsValidPassword(request.NewPassword))
+            return BadRequest(new ResetPasswordResponse(false, "Password must be at least 6 characters"));
+
+        var normalizedEmail = request.Email.ToLowerInvariant();
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+        // Anti-enumeration: treat missing user as invalid code.
+        if (user == null)
+            return BadRequest(new ResetPasswordResponse(false, "Invalid or expired reset code"));
+
+        var isValidCode = IsPasswordResetCodeValid(user, request.Code, out var isExpired);
+        if (!isValidCode)
+        {
+            return BadRequest(new ResetPasswordResponse(
+                false,
+                isExpired ? "Reset code has expired" : "Invalid reset code"));
+        }
+
+        user.PasswordHash = _authService.HashPassword(request.NewPassword);
+        user.PasswordResetCodeHash = null;
+        user.PasswordResetCodeExpiry = null;
+        user.PasswordResetCodeSentAt = null;
+
+        // Force re-login on other devices
+        user.RefreshToken = null;
+        user.RefreshTokenExpiry = null;
+
+        // Per product decision: successful reset implies email ownership.
+        if (!user.EmailVerified)
+            user.EmailVerified = true;
+
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new ResetPasswordResponse(true, "Password reset successfully"));
+    }
+
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
@@ -407,11 +496,64 @@ public class AuthController : ControllerBase
         return true;
     }
 
+    private bool TryGetPasswordResetRetryAfterSeconds(User user, out int retryAfterSeconds)
+    {
+        retryAfterSeconds = 0;
+        if (!user.PasswordResetCodeSentAt.HasValue)
+            return false;
+
+        var elapsed = DateTime.UtcNow - user.PasswordResetCodeSentAt.Value;
+        var cooldown = TimeSpan.FromSeconds(_emailVerificationOptions.ResendCooldownSeconds);
+        if (elapsed >= cooldown)
+            return false;
+
+        retryAfterSeconds = (int)Math.Ceiling((cooldown - elapsed).TotalSeconds);
+        return true;
+    }
+
     private void SetNewVerificationCode(User user)
     {
         user.VerificationCode = _authService.GenerateVerificationCode();
         user.VerificationCodeExpiry = DateTime.UtcNow.AddMinutes(_emailVerificationOptions.VerificationCodeExpiryMinutes);
         user.VerificationCodeSentAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private string SetNewPasswordResetCode(User user)
+    {
+        var code = GenerateSecure6DigitCode();
+        user.PasswordResetCodeHash = BCrypt.Net.BCrypt.HashPassword(code, BCrypt.Net.BCrypt.GenerateSalt(10));
+        user.PasswordResetCodeExpiry = DateTime.UtcNow.AddMinutes(_emailVerificationOptions.VerificationCodeExpiryMinutes);
+        user.PasswordResetCodeSentAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow;
+        return code;
+    }
+
+    private bool IsPasswordResetCodeValid(User user, string inputCode, out bool isExpired)
+    {
+        isExpired = false;
+        if (string.IsNullOrWhiteSpace(user.PasswordResetCodeHash) || user.PasswordResetCodeExpiry == null)
+            return false;
+
+        if (user.PasswordResetCodeExpiry.Value <= DateTime.UtcNow)
+        {
+            isExpired = true;
+            return false;
+        }
+
+        try
+        {
+            return BCrypt.Net.BCrypt.Verify(inputCode, user.PasswordResetCodeHash);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string GenerateSecure6DigitCode()
+    {
+        var value = RandomNumberGenerator.GetInt32(0, 1_000_000);
+        return value.ToString("D6");
     }
 }

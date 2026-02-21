@@ -242,6 +242,24 @@ using (var scope = app.Services.CreateScope())
                 ALTER TABLE Users ADD VerificationCodeSentAt DATETIME2 NULL
             END");
 
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'Users') AND name = 'PasswordResetCodeHash')
+            BEGIN
+                ALTER TABLE Users ADD PasswordResetCodeHash NVARCHAR(255) NULL
+            END");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'Users') AND name = 'PasswordResetCodeExpiry')
+            BEGIN
+                ALTER TABLE Users ADD PasswordResetCodeExpiry DATETIME2 NULL
+            END");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'Users') AND name = 'PasswordResetCodeSentAt')
+            BEGIN
+                ALTER TABLE Users ADD PasswordResetCodeSentAt DATETIME2 NULL
+            END");
+
         // Add NotificationJobIds column to ReminderInstances if it doesn't exist
         db.Database.ExecuteSqlRaw(@"
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'ReminderInstances') AND name = 'NotificationJobIds')

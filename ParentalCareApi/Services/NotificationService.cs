@@ -57,6 +57,14 @@ public class NotificationService : INotificationService
             var isReminder = string.Equals(type, "reminder", StringComparison.OrdinalIgnoreCase);
             var isSos = string.Equals(type, "sos", StringComparison.OrdinalIgnoreCase);
 
+            // For reminders, ensure each escalation shows as its own notification on Android.
+            // Without an explicit collapse key/tag, Android/FCM may replace/collapse notifications,
+            // which can look like the 2nd (+5min) escalation never arrived.
+            data.TryGetValue("instanceId", out var instanceId);
+            var androidCollapseKey = isReminder && !string.IsNullOrWhiteSpace(instanceId)
+                ? $"reminder:{instanceId}:{escalationLevel}"
+                : null;
+
             var channelId = GetAndroidChannelId(isReminder, isSos, escalationLevel);
             var isUrgentEscalation = isReminder && escalationLevel >= 2;
 
@@ -75,11 +83,13 @@ public class NotificationService : INotificationService
                 Android = new AndroidConfig
                 {
                     Priority = Priority.High,
+                    CollapseKey = androidCollapseKey,
                     Notification = isUrgentEscalation
                         ? null
                         : new AndroidNotification
                         {
                             ChannelId = channelId,
+                            Tag = androidCollapseKey,
                             DefaultVibrateTimings = true
                         }
                 },

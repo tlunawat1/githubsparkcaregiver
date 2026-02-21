@@ -72,3 +72,19 @@ public record SendVerificationCodeResponse(
     int? RetryAfterSeconds = null,
     DateTime? CodeExpiresAt = null
 );
+
+// Password reset
+public record RequestPasswordResetRequest(
+    [Required][EmailAddress] string Email
+);
+
+public record ResetPasswordRequest(
+    [Required][EmailAddress] string Email,
+    [Required][StringLength(6)] string Code,
+    [Required][MinLength(6)] string NewPassword
+);
+
+public record ResetPasswordResponse(
+    bool Success,
+    string Message
+);

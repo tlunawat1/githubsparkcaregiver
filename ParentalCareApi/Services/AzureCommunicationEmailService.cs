@@ -67,4 +67,39 @@ public class AzureCommunicationEmailService : IEmailService
             throw;
         }
     }
+
+    public async Task SendPasswordResetCodeAsync(
+        string toEmail,
+        string resetCode,
+        CancellationToken cancellationToken = default)
+    {
+        var content = new EmailContent("Your password reset code")
+        {
+            PlainText =
+                $"Your ParentalCare password reset code is {resetCode}. " +
+                $"It expires in {_options.VerificationCodeExpiryMinutes} minutes.",
+            Html =
+                "<html><body>" +
+                "<h2>Reset your password</h2>" +
+                $"<p>Your ParentalCare password reset code is <strong>{resetCode}</strong>.</p>" +
+                $"<p>This code expires in {_options.VerificationCodeExpiryMinutes} minutes.</p>" +
+                "<p>If you did not request this, you can safely ignore this email.</p>" +
+                "</body></html>"
+        };
+
+        var message = new EmailMessage(
+            senderAddress: _options.SenderAddress,
+            content: content,
+            recipients: new EmailRecipients(new List<EmailAddress> { new(toEmail) }));
+
+        try
+        {
+            await _emailClient.SendAsync(WaitUntil.Started, message, cancellationToken);
+        }
+        catch (RequestFailedException ex)
+        {
+            _logger.LogError(ex, "Failed to send password reset email to {Email}", toEmail);
+            throw;
+        }
+    }
 }

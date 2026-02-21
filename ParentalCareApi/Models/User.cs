@@ -43,6 +43,12 @@ public class User
     public DateTime? VerificationCodeExpiry { get; set; }
     public DateTime? VerificationCodeSentAt { get; set; }
 
+    [StringLength(255)]
+    public string? PasswordResetCodeHash { get; set; }
+
+    public DateTime? PasswordResetCodeExpiry { get; set; }
+    public DateTime? PasswordResetCodeSentAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
