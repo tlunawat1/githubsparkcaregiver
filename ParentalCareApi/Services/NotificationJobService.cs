@@ -136,9 +136,11 @@ public class NotificationJobService : INotificationJobService
     {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
         var instance = await context.ReminderInstances
             .Include(i => i.Reminder)
+            .ThenInclude(r => r.Dependent)
             .FirstOrDefaultAsync(i => i.Id == instanceId);
 
         if (instance == null)
@@ -154,22 +156,60 @@ public class NotificationJobService : INotificationJobService
             return;
         }
 
-        // Skip if already missed
-        if (instance.Status == "missed")
+        // If not already missed, transition to missed.
+        // If already missed, we still may need to send caregiver notifications (e.g. when status was
+        // set by an alternate path like "missed on fetch" but push failed/never ran).
+        if (instance.Status != "missed")
         {
-            return;
+            instance.Status = "missed";
+            await context.SaveChangesAsync();
         }
 
-        instance.Status = "missed";
-        await context.SaveChangesAsync();
-
         var dependentId = instance.Reminder.DependentId;
+        var dependentName = instance.Reminder.Dependent?.Name;
+        var reminderTitle = instance.Reminder.Title;
 
         // Query caregivers directly from database to ensure SignalR delivery
         var caregiverIds = await context.CareRelationships
             .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
             .Select(cr => cr.CaregiverId)
             .ToListAsync();
+
+        // Push notification to caregivers (standard tray notification).
+        if (caregiverIds.Count > 0)
+        {
+            var title = string.IsNullOrWhiteSpace(dependentName)
+                ? $"Missed: {reminderTitle}"
+                : $"{dependentName} missed: {reminderTitle}";
+            var body = "Reminder was missed";
+
+            var data = new Dictionary<string, string>
+            {
+                { "type", "reminder_missed" },
+                { "instanceId", instance.Id },
+                { "reminderId", instance.ReminderId },
+                { "dependentId", dependentId },
+                { "status", "missed" }
+            };
+
+            foreach (var caregiverId in caregiverIds)
+            {
+                // Idempotency: don't spam duplicates if already successfully sent for this caregiver+instance.
+                var alreadySent = await context.NotificationLogs.AnyAsync(n =>
+                    n.UserId == caregiverId &&
+                    n.Type == "reminder_missed" &&
+                    n.ReferenceId == instance.Id &&
+                    n.Status == "sent");
+
+                if (alreadySent)
+                {
+                    continue;
+                }
+
+                var result = await notificationService.SendToUserAsync(caregiverId, title, body, data);
+                await LogNotificationAsync(context, caregiverId, "reminder_missed", instance.Id, title, body, data, 0, result);
+            }
+        }
 
         var instanceDto = new
         {

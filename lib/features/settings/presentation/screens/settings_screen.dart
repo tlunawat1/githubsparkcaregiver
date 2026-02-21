@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -8,6 +9,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/services/notification_handler.dart';
+import '../../../../core/services/reminder_alarm_service.dart';
 import '../../../../core/utils/feedback_settings.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
@@ -128,6 +130,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (confirmed == true && mounted) {
+      // Stop any continuous ringing immediately.
+      await ReminderAlarmService.instance.stopAlarm();
+
+      // Ensure this device stops receiving pushes until the next login.
+      // Backend logout also invalidates all tokens for the user.
+      try {
+        await FirebaseMessaging.instance.deleteToken();
+      } catch (e) {
+        debugPrint('Error deleting FCM token on logout: $e');
+      }
+
       try {
         // Call API logout (clears device token from server)
         await _authApi.logout();

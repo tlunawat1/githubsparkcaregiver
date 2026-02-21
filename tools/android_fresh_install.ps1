@@ -1,9 +1,11 @@
 [CmdletBinding()]
 param(
     [string]$DeviceId = "emulator-5554",
+    [string[]]$DeviceIds,
     [string]$PackageName = "com.parentalcare.parentalCareApp",
     [ValidateSet("debug", "profile", "release")]
-    [string]$Mode = "debug"
+    [string]$Mode = "debug",
+    [string]$ApkPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,35 +27,79 @@ function Resolve-AdbPath() {
     throw "adb.exe not found. Set ANDROID_HOME or install Android platform-tools."
 }
 
+$effectiveDeviceIds = if ($null -ne $DeviceIds -and $DeviceIds.Count -gt 0) { $DeviceIds } else { @($DeviceId) }
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $adb = Resolve-AdbPath
 
-Write-Step "Checking device '$DeviceId'"
+Write-Step "ADB devices"
 & $adb devices | Out-String | Write-Host
-$state = (& $adb -s $DeviceId get-state 2>$null)
-if ($LASTEXITCODE -ne 0 -or -not $state) {
-    throw "Device '$DeviceId' not reachable via adb. Run: flutter devices"
+
+function Assert-DeviceReady([string]$id) {
+    Write-Step "Checking device '$id'"
+    $state = (& $adb -s $id get-state 2>$null)
+    if ($LASTEXITCODE -ne 0 -or -not $state) {
+        throw "Device '$id' not reachable via adb. Run: flutter devices"
+    }
 }
 
-Write-Step "Force-stopping and uninstalling $PackageName"
-try { & $adb -s $DeviceId shell am force-stop $PackageName | Out-Null } catch {}
-try { & $adb -s $DeviceId shell pm clear $PackageName | Out-Null } catch {}
-try { & $adb -s $DeviceId shell pm uninstall --user 0 $PackageName | Out-Null } catch {}
+function Remove-AppTraces([string]$id) {
+    Write-Step "[$id] Force-stop + clear + uninstall $PackageName"
+    try { & $adb -s $id shell am force-stop $PackageName | Out-Null } catch {}
+    try { & $adb -s $id shell pm clear $PackageName | Out-Null } catch {}
+    try { & $adb -s $id shell pm uninstall --user 0 $PackageName | Out-Null } catch {}
 
-Write-Step "Removing external storage traces (Android/data + Android/obb)"
-try {
-    & $adb -s $DeviceId shell rm -rf "/sdcard/Android/data/$PackageName" "/sdcard/Android/obb/$PackageName" | Out-Null
-} catch {}
+    Write-Step "[$id] Removing external storage traces (Android/data + Android/obb + Android/media)"
+    try {
+        & $adb -s $id shell rm -rf "/sdcard/Android/data/$PackageName" "/sdcard/Android/obb/$PackageName" "/sdcard/Android/media/$PackageName" | Out-Null
+    } catch {}
+}
 
-Write-Step "Flutter clean + deps"
+function Resolve-DefaultApkPath([string]$root, [string]$mode) {
+    $fileName = switch ($mode) {
+        "debug" { "app-debug.apk" }
+        "profile" { "app-profile.apk" }
+        "release" { "app-release.apk" }
+        default { throw "Unsupported mode '$mode'" }
+    }
+    return (Join-Path $root (Join-Path "build\app\outputs\flutter-apk" $fileName))
+}
+
+foreach ($d in $effectiveDeviceIds) {
+    Assert-DeviceReady $d
+}
+
+foreach ($d in $effectiveDeviceIds) {
+    Remove-AppTraces $d
+}
+
 Push-Location $repoRoot
 try {
-    flutter clean
-    flutter pub get
+    $apk = if ($ApkPath) { $ApkPath } else { Resolve-DefaultApkPath -root $repoRoot -mode $Mode }
 
-    Write-Step "Fresh install/run ($Mode)"
-    $modeFlag = "--$Mode"
-    flutter run -d $DeviceId $modeFlag
+    if (-not $ApkPath) {
+        Write-Step "Flutter clean + deps"
+        flutter clean
+        flutter pub get
+
+        Write-Step "Building APK ($Mode)"
+        flutter build apk "--$Mode"
+    }
+
+    if (-not (Test-Path $apk)) {
+        throw "APK not found at '$apk'. If you built elsewhere, pass -ApkPath explicitly."
+    }
+
+    foreach ($d in $effectiveDeviceIds) {
+        Write-Step "[$d] Installing $apk"
+        & $adb -s $d install -r -t $apk | Out-String | Write-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "adb install failed for '$d'"
+        }
+
+        Write-Step "[$d] Launching $PackageName"
+        & $adb -s $d shell monkey -p $PackageName -c android.intent.category.LAUNCHER 1 | Out-Null
+    }
 }
 finally {
     Pop-Location

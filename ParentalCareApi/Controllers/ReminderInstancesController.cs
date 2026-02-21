@@ -23,6 +23,7 @@ public class ReminderInstancesController : ControllerBase
     private readonly ILogger<ReminderInstancesController> _logger;
     private readonly IConfiguration _configuration;
     private readonly INotificationService _notificationService;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public ReminderInstancesController(
         AppDbContext context,
@@ -30,7 +31,8 @@ public class ReminderInstancesController : ControllerBase
         INotificationJobService notificationJobService,
         ILogger<ReminderInstancesController> logger,
         IConfiguration configuration,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IServiceScopeFactory scopeFactory)
     {
         _context = context;
         _hubContext = hubContext;
@@ -38,6 +40,7 @@ public class ReminderInstancesController : ControllerBase
         _logger = logger;
         _configuration = configuration;
         _notificationService = notificationService;
+        _scopeFactory = scopeFactory;
     }
 
     /// <summary>
@@ -451,6 +454,10 @@ public class ReminderInstancesController : ControllerBase
             }
         });
 
+        // Enqueue the missed handler to ensure caregivers receive a tray push.
+        // Safe to call even if already missed.
+        Hangfire.BackgroundJob.Enqueue<INotificationJobService>(x => x.MarkAsMissedAsync(id));
+
         _logger.LogInformation("Instance {InstanceId} marked as missed", id);
 
         return Ok(dto);
@@ -591,51 +598,13 @@ public class ReminderInstancesController : ControllerBase
 
         _logger.LogInformation("=== Marked {Count} overdue instances as missed on fetch ===", dbInstances.Count);
 
-        // Fire-and-forget: notifications and job cancellation
-        _ = Task.Run(async () =>
+        // Enqueue reliable missed-handling jobs.
+        // MarkAsMissedAsync is idempotent and will skip duplicate caregiver notifications via NotificationLogs.
+        foreach (var instance in dbInstances)
         {
-            try
-            {
-                foreach (var (dependentId, depInstances) in instancesByDependent)
-                {
-                    // Get caregivers for this dependent
-                    var caregiverIds = await _context.CareRelationships
-                        .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
-                        .Select(cr => cr.CaregiverId)
-                        .ToListAsync();
-
-                    foreach (var instance in depInstances)
-                    {
-                        var dto = MapToDto(instance);
-
-                        // SignalR notifications
-                        await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
-
-                        // Push notification to caregivers
-                        foreach (var caregiverId in caregiverIds)
-                        {
-                            await _notificationService.SendToUserAsync(
-                                caregiverId,
-                                $"Missed: {instance.Reminder.Title}",
-                                $"{instance.Reminder.Dependent?.Name ?? "Dependent"} missed their reminder",
-                                new Dictionary<string, string>
-                                {
-                                    { "type", "missed_reminder" },
-                                    { "instanceId", instance.Id },
-                                    { "dependentId", dependentId }
-                                });
-                        }
-
-                        // Cancel Hangfire jobs
-                        await _notificationJobService.CancelNotificationJobsAsync(instance.Id);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send notifications for missed instances");
-            }
-        });
+            Hangfire.BackgroundJob.Enqueue<INotificationJobService>(x => x.MarkAsMissedAsync(instance.Id));
+            Hangfire.BackgroundJob.Enqueue<INotificationJobService>(x => x.CancelNotificationJobsAsync(instance.Id));
+        }
 
         return updatedInstances;
     }

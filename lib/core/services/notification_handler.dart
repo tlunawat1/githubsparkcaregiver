@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../utils/feedback_settings.dart';
 import 'reminder_alarm_service.dart';
 
@@ -358,6 +359,18 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final escalationLevel = int.tryParse(data['escalationLevel'] ?? '0') ?? 0;
 
   if (type != 'reminder' || instanceId == null || escalationLevel < 2) {
+    return;
+  }
+
+  // If the user is logged out, do NOT play/show the urgent insistent reminder.
+  // This avoids continuous ringing when a stale push arrives.
+  const secureStorage = FlutterSecureStorage();
+  final accessToken = await secureStorage.read(key: 'access_token');
+  final expiryRaw = await secureStorage.read(key: 'token_expiry');
+  final expiry = expiryRaw != null ? DateTime.tryParse(expiryRaw) : null;
+  final hasValidSession = accessToken != null && expiry != null && expiry.isAfter(DateTime.now());
+  if (!hasValidSession) {
+    debugPrint('Background urgent reminder ignored: user not authenticated');
     return;
   }
 

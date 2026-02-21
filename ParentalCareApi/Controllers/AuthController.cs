@@ -241,7 +241,34 @@ public class AuthController : ControllerBase
         if (user == null || !_tokenService.ValidateRefreshToken(user, request.RefreshToken))
             return Unauthorized(new { message = "Invalid or expired refresh token" });
 
-        return await GenerateLoginResponse(user);
+        // IMPORTANT:
+        // Do NOT rotate refresh tokens on every refresh.
+        // We currently store a single refresh token per user, so rotating it here causes other sessions/devices
+        // (still holding the previous refresh token) to get 401 and appear "auto-logged out".
+        var accessToken = _tokenService.GenerateAccessToken(user);
+        var expirationMinutes = int.Parse(_configuration["Jwt:ExpirationInMinutes"] ?? "60");
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new LoginResponse(
+            accessToken,
+            request.RefreshToken,
+            DateTime.UtcNow.AddMinutes(expirationMinutes),
+            new UserDto(
+                user.Id,
+                user.Name,
+                user.Email,
+                user.Role,
+                user.PhoneNumber,
+                user.UniqueCode,
+                user.AvatarUrl,
+                user.EmailVerified,
+                user.Timezone,
+                user.CreatedAt,
+                user.LastLoginAt
+            )
+        ));
     }
 
     [HttpPost("send-verification-code")]
@@ -425,6 +452,20 @@ public class AuthController : ControllerBase
         {
             user.RefreshToken = null;
             user.RefreshTokenExpiry = null;
+            // Legacy single-token field (fallback) - clear it on logout.
+            user.DeviceToken = null;
+
+            // Generic logout: invalidate all device tokens for this user.
+            var deviceTokens = await _context.UserDeviceTokens
+                .Where(t => t.UserId == userId && t.IsValid)
+                .ToListAsync();
+
+            foreach (var token in deviceTokens)
+            {
+                token.IsValid = false;
+                token.UpdatedAt = DateTime.UtcNow;
+            }
+
             await _context.SaveChangesAsync();
         }
 
@@ -434,11 +475,24 @@ public class AuthController : ControllerBase
     private async Task<ActionResult<LoginResponse>> GenerateLoginResponse(User user)
     {
         var accessToken = _tokenService.GenerateAccessToken(user);
-        var refreshToken = _tokenService.GenerateRefreshToken();
-        var refreshExpirationDays = int.Parse(_configuration["Jwt:RefreshExpirationInDays"] ?? "7");
 
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(refreshExpirationDays);
+        // Keep refresh tokens stable if one is already valid.
+        // This avoids unintentionally logging out other devices/sessions because we only store a single refresh token per user.
+        var refreshExpirationDays = int.Parse(_configuration["Jwt:RefreshExpirationInDays"] ?? "7");
+        var hasValidRefreshToken = !string.IsNullOrWhiteSpace(user.RefreshToken)
+            && user.RefreshTokenExpiry.HasValue
+            && user.RefreshTokenExpiry.Value > DateTime.UtcNow;
+
+        var refreshToken = hasValidRefreshToken
+            ? user.RefreshToken!
+            : _tokenService.GenerateRefreshToken();
+
+        if (!hasValidRefreshToken)
+        {
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(refreshExpirationDays);
+        }
+
         user.LastLoginAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
 
