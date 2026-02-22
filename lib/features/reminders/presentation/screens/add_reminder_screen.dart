@@ -9,13 +9,15 @@ import '../../domain/notification_service.dart';
 import '../../../../shared/widgets/accessible_button.dart';
 import '../widgets/voice_recorder_widget.dart';
 
-/// Screen for adding a new reminder
+/// Unified reminder form screen for add/edit.
 class AddReminderScreen extends StatefulWidget {
-  final String dependentId;
+  final String? dependentId;
+  final String? reminderId;
 
   const AddReminderScreen({
     super.key,
-    required this.dependentId,
+    this.dependentId,
+    this.reminderId,
   });
 
   @override
@@ -32,8 +34,13 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
   String _repeatPattern = 'daily';
   Set<int> _selectedDays = {};
   String _priority = 'normal';
-  String? _voiceNotePath;
+  String? _voiceNotePath; // local path for new recordings
+  String? _voiceNoteUrl; // remote url for existing recording
+  ReminderData? _reminder;
   bool _isLoading = false;
+  bool _isSaving = false;
+
+  bool get _isEdit => widget.reminderId != null;
 
   int _notificationIdForReminder(String reminderId) {
     // Keep IDs stable across app restarts so edits can cancel/reschedule.
@@ -95,10 +102,65 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
   final List<String> _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   @override
+  void initState() {
+    super.initState();
+    if (_isEdit) {
+      _loadReminder();
+    }
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadReminder() async {
+    setState(() => _isLoading = true);
+    try {
+      _reminder = await _reminderApi.getReminder(widget.reminderId!);
+      _titleController.text = _reminder!.title;
+      _descriptionController.text = _reminder!.description ?? '';
+      _selectedTime = TimeOfDay(hour: _reminder!.hour, minute: _reminder!.minute);
+      _repeatPattern = _reminder!.repeatPattern;
+      _priority = _reminder!.priority;
+      _voiceNoteUrl = _reminder!.voiceNoteUrl;
+      _selectedDays.clear();
+      if (_reminder!.repeatDays != null) {
+        final days = _reminder!.repeatDays!.split(',');
+        for (final day in days) {
+          final index = _dayNames.indexWhere(
+            (d) => d.toLowerCase() == day.trim().toLowerCase(),
+          );
+          if (index >= 0) {
+            _selectedDays.add(index);
+          }
+        }
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.message}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading reminder: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _selectTime() async {
@@ -130,11 +192,10 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() => _isSaving = true);
 
     try {
-      // Upload voice note if present
-      String? voiceNoteUrl;
+      String? voiceNoteUrl = _voiceNoteUrl;
       if (_voiceNotePath != null) {
         voiceNoteUrl = await _reminderApi.uploadVoiceNote(_voiceNotePath!);
       }
@@ -145,48 +206,90 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
         repeatDays = days.join(',');
       }
 
-      final created = await _reminderApi.createReminder(
-        dependentId: widget.dependentId,
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty
-            ? null
-            : _descriptionController.text.trim(),
-        voiceNoteUrl: voiceNoteUrl,
-        repeatPattern: _repeatPattern,
-        repeatDays: repeatDays,
-        hour: _selectedTime.hour,
-        minute: _selectedTime.minute,
-        priority: _priority,
-        startDate: DateTime.now(),
-      );
-
-      // If push notifications are disabled, fall back to local scheduling.
-      // When FCM is enabled, the backend is responsible for sending reminder pushes.
-      if (!AppConfig.enablePushNotifications) {
-        final scheduledTime = _nextScheduledTime(
-          hour: created.hour,
-          minute: created.minute,
-          repeatPattern: created.repeatPattern,
-          selectedDays: _selectedDays,
+      if (_isEdit) {
+        final updated = await _reminderApi.updateReminder(
+          id: widget.reminderId!,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+          voiceNoteUrl: voiceNoteUrl,
+          repeatPattern: _repeatPattern,
+          repeatDays: repeatDays,
+          hour: _selectedTime.hour,
+          minute: _selectedTime.minute,
+          priority: _priority,
         );
 
-        await NotificationService().scheduleReminderNotification(
-          id: _notificationIdForReminder(created.id),
-          title: created.title,
-          body: (created.description ?? '').isEmpty
-              ? 'Reminder due now'
-              : created.description!,
-          scheduledTime: scheduledTime,
-          payload: '{"type":"reminder","reminderId":"${created.id}"}',
-          isHighPriority: created.priority.toLowerCase() != 'normal',
-        );
-      }
+        if (!AppConfig.enablePushNotifications) {
+          final notificationId = _notificationIdForReminder(updated.id);
+          await NotificationService().cancelNotification(notificationId);
+          final scheduledTime = _nextScheduledTime(
+            hour: updated.hour,
+            minute: updated.minute,
+            repeatPattern: updated.repeatPattern,
+            selectedDays: _selectedDays,
+          );
+          await NotificationService().scheduleReminderNotification(
+            id: notificationId,
+            title: updated.title,
+            body: (updated.description ?? '').isEmpty ? 'Reminder due now' : updated.description!,
+            scheduledTime: scheduledTime,
+            payload: '{"type":"reminder","reminderId":"${updated.id}"}',
+            isHighPriority: updated.priority.toLowerCase() != 'normal',
+          );
+        }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reminder created')),
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Reminder updated')),
+          );
+          context.pop(true);
+        }
+      } else {
+        final dependentId = widget.dependentId;
+        if (dependentId == null || dependentId.isEmpty) {
+          throw Exception('Dependent ID is required for creating reminders');
+        }
+
+        final created = await _reminderApi.createReminder(
+          dependentId: dependentId,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+          voiceNoteUrl: voiceNoteUrl,
+          repeatPattern: _repeatPattern,
+          repeatDays: repeatDays,
+          hour: _selectedTime.hour,
+          minute: _selectedTime.minute,
+          priority: _priority,
+          startDate: DateTime.now(),
         );
-        context.pop(true); // Return true to indicate reminder was created
+
+        if (!AppConfig.enablePushNotifications) {
+          final scheduledTime = _nextScheduledTime(
+            hour: created.hour,
+            minute: created.minute,
+            repeatPattern: created.repeatPattern,
+            selectedDays: _selectedDays,
+          );
+          await NotificationService().scheduleReminderNotification(
+            id: _notificationIdForReminder(created.id),
+            title: created.title,
+            body: (created.description ?? '').isEmpty ? 'Reminder due now' : created.description!,
+            scheduledTime: scheduledTime,
+            payload: '{"type":"reminder","reminderId":"${created.id}"}',
+            isHighPriority: created.priority.toLowerCase() != 'normal',
+          );
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Reminder created')),
+          );
+          context.pop(true);
+        }
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -201,14 +304,73 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating reminder: $e'),
+            content: Text('Error saving reminder: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _deleteReminder() async {
+    if (!_isEdit) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Reminder'),
+        content: const Text('Are you sure you want to delete this reminder?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        if (!AppConfig.enablePushNotifications) {
+          await NotificationService().cancelNotification(
+            _notificationIdForReminder(widget.reminderId!),
+          );
+        }
+        await _reminderApi.deleteReminder(widget.reminderId!);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Reminder deleted')),
+          );
+          context.pop(true);
+        }
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${e.message}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error deleting reminder: $e'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
       }
     }
   }
@@ -218,9 +380,31 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: Text(_isEdit ? 'Edit Reminder' : 'Add Reminder')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_isEdit && _reminder == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Edit Reminder')),
+        body: const Center(child: Text('Reminder not found')),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Reminder'),
+        title: Text(_isEdit ? 'Edit Reminder' : 'Add Reminder'),
+        actions: [
+          if (_isEdit)
+            IconButton(
+              icon: Icon(Icons.delete, color: colorScheme.error),
+              onPressed: _deleteReminder,
+              tooltip: 'Delete',
+            ),
+        ],
       ),
       body: Form(
         key: _formKey,
@@ -425,14 +609,17 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
             const SizedBox(height: AppSpacing.sm),
             VoiceRecorderWidget(
               voiceNotePath: _voiceNotePath,
+              voiceNoteUrl: _voiceNoteUrl,
               onRecordingComplete: (path) {
                 setState(() {
                   _voiceNotePath = path;
+                  _voiceNoteUrl = null;
                 });
               },
               onDelete: () {
                 setState(() {
                   _voiceNotePath = null;
+                  _voiceNoteUrl = null;
                 });
               },
             ),
@@ -440,10 +627,10 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
 
             // Save button
             AccessibleButton(
-              onPressed: _isLoading ? null : _saveReminder,
-              label: 'Save Reminder',
+              onPressed: _isSaving ? null : _saveReminder,
+              label: _isEdit ? 'Save Changes' : 'Save Reminder',
               icon: Icons.check,
-              isLoading: _isLoading,
+              isLoading: _isSaving,
             ),
             const SizedBox(height: AppSpacing.lg),
           ],
