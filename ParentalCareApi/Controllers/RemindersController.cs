@@ -291,16 +291,20 @@ public class RemindersController : ControllerBase
         if (request.VoiceNoteUrl != null)
             reminder.VoiceNoteUrl = request.VoiceNoteUrl;
 
+        // Track what changed so we know whether to regenerate instances
+        var oldRepeatPattern = reminder.RepeatPattern;
+        var oldRepeatDays = reminder.RepeatDays;
+        var oldStartDate = reminder.StartDate;
+        var oldEndDate = reminder.EndDate;
+        var oldIsActive = reminder.IsActive;
+
         if (!string.IsNullOrWhiteSpace(request.RepeatPattern))
             reminder.RepeatPattern = request.RepeatPattern;
 
         if (request.RepeatDays != null)
             reminder.RepeatDays = request.RepeatDays;
 
-        // Track if time changed to update instances
         var timeChanged = false;
-        var oldHour = reminder.Hour;
-        var oldMinute = reminder.Minute;
 
         if (request.Hour.HasValue)
         {
@@ -330,85 +334,177 @@ public class RemindersController : ControllerBase
 
         reminder.UpdatedAt = DateTime.UtcNow;
 
-        // Update all instances if time changed
-        var updatedInstances = new List<ReminderInstance>();
+        var scheduleChanged = reminder.RepeatPattern != oldRepeatPattern
+            || reminder.RepeatDays != oldRepeatDays
+            || reminder.StartDate != oldStartDate
+            || reminder.EndDate != oldEndDate;
 
-        if (timeChanged)
+        var deactivated = oldIsActive && !reminder.IsActive;
+
+        // --- Handle deactivation via update (same protection as DELETE) ---
+        if (deactivated)
         {
-            // Get dependent's timezone for proper UTC conversion
-            var dependent = await _context.Users.FindAsync(reminder.DependentId);
-            var timezone = dependent?.Timezone ?? "UTC";
-
-            // Get all instances for this reminder (today and future)
-            var today = DateTime.UtcNow.Date;
-            var instances = await _context.ReminderInstances
-                .Where(i => i.ReminderId == id && i.ScheduledTime.Date >= today)
+            var pendingInstances = await _context.ReminderInstances
+                .Where(i => i.ReminderId == id && (i.Status == "pending" || i.Status == "snoozed"))
                 .ToListAsync();
 
-            var now = DateTime.UtcNow;
-
-            foreach (var instance in instances)
+            foreach (var instance in pendingInstances)
             {
-                // Update the scheduled time with proper timezone conversion
-                var date = instance.ScheduledTime.Date;
-                var newScheduledTime = NotificationJobService.ConvertToUtc(
-                    reminder.Hour,
-                    reminder.Minute,
-                    date,
-                    timezone
-                );
-                instance.ScheduledTime = newScheduledTime;
-
-                // If new time is in the future, reset status to pending
-                if (newScheduledTime > now)
+                if (!string.IsNullOrEmpty(instance.NotificationJobIds))
                 {
-                    if (instance.Status != "pending")
+                    try
                     {
-                        instance.Status = "pending";
-                        instance.CompletedAt = null;
-                        instance.SnoozedUntil = null;
-                        instance.EscalationLevel = 0;
-                        _logger.LogInformation("Reset instance {InstanceId} to pending (new time {NewTime} is in future)", instance.Id, newScheduledTime);
+                        var jobIds = System.Text.Json.JsonSerializer.Deserialize<List<string>>(instance.NotificationJobIds);
+                        if (jobIds != null)
+                        {
+                            foreach (var jobId in jobIds)
+                                BackgroundJob.Delete(jobId);
+                        }
+                        instance.NotificationJobIds = null;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error cancelling jobs for instance {InstanceId}", instance.Id);
                     }
                 }
-
-                updatedInstances.Add(instance);
             }
 
-            _logger.LogInformation("Updated {Count} instances with new time for reminder {Id}", instances.Count, id);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Reminder deactivated via update: {Id}, cancelled jobs for {Count} instances", id, pendingInstances.Count);
+
+            var reminderDto = MapToDto(reminder);
+            var caregiverIds = await _context.CareRelationships
+                .Where(cr => cr.DependentId == reminder.DependentId && cr.Status == "active")
+                .Select(cr => cr.CaregiverId)
+                .ToListAsync();
+            await _hubContext.SendReminderUpdatedAsync(reminder.DependentId, reminderDto, caregiverIds);
+
+            return Ok(reminderDto);
+        }
+
+        // --- Handle schedule or time changes: regenerate future instances ---
+        var newInstances = new List<ReminderInstance>();
+
+        if (scheduleChanged || timeChanged)
+        {
+            var dependent = await _context.Users.FindAsync(reminder.DependentId);
+            var timezone = dependent?.Timezone ?? "UTC";
+            var today = GetCurrentDateInTimezone(timezone);
+            var now = DateTime.UtcNow;
+
+            // Cancel Hangfire jobs and remove all future pending/snoozed instances
+            var futureInstances = await _context.ReminderInstances
+                .Where(i => i.ReminderId == id
+                    && i.ScheduledTime >= now
+                    && (i.Status == "pending" || i.Status == "snoozed"))
+                .ToListAsync();
+
+            foreach (var instance in futureInstances)
+            {
+                if (!string.IsNullOrEmpty(instance.NotificationJobIds))
+                {
+                    try
+                    {
+                        var oldJobIds = System.Text.Json.JsonSerializer.Deserialize<List<string>>(instance.NotificationJobIds);
+                        if (oldJobIds != null)
+                        {
+                            foreach (var jobId in oldJobIds)
+                                BackgroundJob.Delete(jobId);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error cancelling jobs for instance {InstanceId}", instance.Id);
+                    }
+                }
+            }
+
+            _context.ReminderInstances.RemoveRange(futureInstances);
+            _logger.LogInformation("Removed {Count} future instances for reminder {Id} due to schedule change", futureInstances.Count, id);
+
+            // Regenerate instances based on the updated reminder
+            var startDate = reminder.StartDate.Date >= today ? reminder.StartDate.Date : today;
+            var windowEnd = today.AddDays(7);
+            var endDate = reminder.EndDate?.Date ?? windowEnd;
+            endDate = endDate < windowEnd ? endDate : windowEnd;
+
+            switch (reminder.RepeatPattern.ToLower())
+            {
+                case "once":
+                    if (reminder.StartDate.Date >= today && reminder.StartDate.Date <= windowEnd)
+                        newInstances.Add(CreateInstance(reminder, reminder.StartDate.Date, timezone));
+                    break;
+
+                case "daily":
+                    for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                        newInstances.Add(CreateInstance(reminder, date, timezone));
+                    break;
+
+                case "weekly":
+                    var targetDow = reminder.StartDate.DayOfWeek;
+                    for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                    {
+                        if (date.DayOfWeek == targetDow)
+                            newInstances.Add(CreateInstance(reminder, date, timezone));
+                    }
+                    break;
+
+                case "specific_days":
+                    if (!string.IsNullOrEmpty(reminder.RepeatDays))
+                    {
+                        try
+                        {
+                            var days = System.Text.Json.JsonSerializer.Deserialize<int[]>(reminder.RepeatDays) ?? [];
+                            for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                            {
+                                if (days.Contains((int)date.DayOfWeek))
+                                    newInstances.Add(CreateInstance(reminder, date, timezone));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to parse RepeatDays for reminder {ReminderId}", reminder.Id);
+                        }
+                    }
+                    break;
+            }
+
+            // Filter out instances whose scheduled time is already in the past
+            newInstances = newInstances.Where(i => i.ScheduledTime > now).ToList();
+
+            if (newInstances.Count > 0)
+                _context.ReminderInstances.AddRange(newInstances);
+
+            _logger.LogInformation("Generated {Count} new instances for reminder {Id} after schedule change", newInstances.Count, id);
         }
 
         await _context.SaveChangesAsync();
 
-        // Enqueue background job to reschedule notification jobs (decoupled from HTTP request)
-        if (timeChanged)
+        // Schedule Hangfire jobs for new instances
+        if (newInstances.Count > 0)
         {
-            BackgroundJob.Enqueue<INotificationJobService>(x => x.RescheduleReminderNotificationsAsync(id));
+            var reminderId = id;
+            BackgroundJob.Enqueue<INotificationJobService>(x => x.ProcessReminderNotificationsAsync(reminderId));
         }
 
         _logger.LogInformation("Reminder updated: {Id}", id);
 
-        var reminderDto = MapToDto(reminder);
+        var dto = MapToDto(reminder);
         var dependentId = reminder.DependentId;
 
-        // Query caregivers directly from database to ensure SignalR delivery
-        var caregiverIds = await _context.CareRelationships
+        var allCaregiverIds = await _context.CareRelationships
             .Where(cr => cr.DependentId == dependentId && cr.Status == "active")
             .Select(cr => cr.CaregiverId)
             .ToListAsync();
 
-        // SignalR: Send ReminderUpdated to dependent AND caregivers via Clients.User() for reliable delivery
-        _logger.LogInformation("Sending ReminderUpdated SignalR to dependent {DependentId} and {CaregiverCount} caregivers",
-            dependentId, caregiverIds.Count);
-        await _hubContext.SendReminderUpdatedAsync(dependentId, reminderDto, caregiverIds);
+        await _hubContext.SendReminderUpdatedAsync(dependentId, dto, allCaregiverIds);
         _logger.LogInformation("ReminderUpdated SignalR sent successfully");
 
-        // SignalR: Notify about updated instances - MUST await to ensure delivery
-        if (updatedInstances.Count > 0)
+        // Notify about new instances so clients refresh immediately
+        if (newInstances.Count > 0)
         {
-            _logger.LogInformation("Sending {Count} InstanceStatusChanged SignalR notifications to dependent {DependentId} and {CaregiverCount} caregivers",
-                updatedInstances.Count, dependentId, caregiverIds.Count);
-            foreach (var instance in updatedInstances)
+            _logger.LogInformation("Sending {Count} InstanceCreated SignalR notifications", newInstances.Count);
+            foreach (var instance in newInstances)
             {
                 var instanceDto = new
                 {
@@ -425,12 +521,11 @@ public class RemindersController : ControllerBase
                     VoiceNoteUrl = reminder.VoiceNoteUrl,
                     Priority = reminder.Priority
                 };
-                await _hubContext.SendInstanceStatusChangedAsync(dependentId, instanceDto, caregiverIds);
+                await _hubContext.SendInstanceCreatedAsync(dependentId, instanceDto, allCaregiverIds);
             }
-            _logger.LogInformation("All InstanceStatusChanged SignalR notifications sent successfully");
         }
 
-        return Ok(reminderDto);
+        return Ok(dto);
     }
 
     [HttpDelete("{id}")]
