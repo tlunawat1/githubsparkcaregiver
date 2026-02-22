@@ -42,6 +42,13 @@ public class NotificationJobService : INotificationJobService
             return;
         }
 
+        // Skip if the parent reminder has been deleted (soft-deleted)
+        if (instance.Reminder == null || !instance.Reminder.IsActive)
+        {
+            _logger.LogInformation("Skipping notification for {InstanceId} - reminder is inactive/deleted", instanceId);
+            return;
+        }
+
         // Skip if already completed or missed
         if (instance.Status == "completed" || instance.Status == "missed")
         {
@@ -146,6 +153,13 @@ public class NotificationJobService : INotificationJobService
         if (instance == null)
         {
             _logger.LogWarning("Reminder instance {InstanceId} not found for auto-miss", instanceId);
+            return;
+        }
+
+        // Skip if the parent reminder has been deleted (soft-deleted)
+        if (instance.Reminder == null || !instance.Reminder.IsActive)
+        {
+            _logger.LogInformation("Skipping auto-miss for {InstanceId} - reminder is inactive/deleted", instanceId);
             return;
         }
 

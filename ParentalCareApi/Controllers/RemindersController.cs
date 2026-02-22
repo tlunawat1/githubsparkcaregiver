@@ -454,9 +454,37 @@ public class RemindersController : ControllerBase
         reminder.IsActive = false;
         reminder.UpdatedAt = DateTime.UtcNow;
 
+        // Cancel all pending Hangfire notification jobs for this reminder's instances
+        var pendingInstances = await _context.ReminderInstances
+            .Where(i => i.ReminderId == id && (i.Status == "pending" || i.Status == "snoozed"))
+            .ToListAsync();
+
+        foreach (var instance in pendingInstances)
+        {
+            if (!string.IsNullOrEmpty(instance.NotificationJobIds))
+            {
+                try
+                {
+                    var jobIds = System.Text.Json.JsonSerializer.Deserialize<List<string>>(instance.NotificationJobIds);
+                    if (jobIds != null)
+                    {
+                        foreach (var jobId in jobIds)
+                        {
+                            BackgroundJob.Delete(jobId);
+                        }
+                    }
+                    instance.NotificationJobIds = null;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error cancelling jobs for instance {InstanceId}", instance.Id);
+                }
+            }
+        }
+
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Reminder deleted: {Id}", id);
+        _logger.LogInformation("Reminder deleted: {Id}, cancelled jobs for {Count} instances", id, pendingInstances.Count);
 
         // Query caregivers to notify them about the deletion
         var caregiverIds = await _context.CareRelationships
