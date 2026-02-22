@@ -7,6 +7,7 @@ public interface INotificationJobService
     Task MarkAsMissedAsync(string instanceId);
     Task ScheduleNotificationJobsAsync(string instanceId, DateTime scheduledTimeUtc);
     Task CancelNotificationJobsAsync(string instanceId);
+    Task CancelReminderNotificationJobsAsync(string reminderId);
 
     /// <summary>
     /// Processes notification scheduling for all instances of a reminder.

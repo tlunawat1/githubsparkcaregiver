@@ -498,6 +498,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
 
       return TimelineItem(
         id: instance.id,
+        reminderId: instance.reminderId,
         title: reminder.title,
         scheduledTime: instance.scheduledTime.toLocal(),
         status: instance.status,
@@ -521,11 +522,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
       items: timelineItems,
       disableSorting: true,
       onItemTap: (item) async {
-        final reminder = _reminders.firstWhere(
-          (r) => r.title == item.title,
-          orElse: () => _reminders.first,
-        );
-        final result = await context.goToEditReminder(reminder.id);
+        final result = await context.goToEditReminder(item.reminderId);
         if (result == true) _loadData();
       },
     );

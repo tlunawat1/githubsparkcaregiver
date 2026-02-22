@@ -9,6 +9,7 @@ import '../../core/utils/haptics.dart';
 /// Data model for a timeline item
 class TimelineItem {
   final String id;
+  final String reminderId;
   final String title;
   final DateTime scheduledTime;
   final String status; // 'pending', 'completed', 'missed', 'snoozed'
@@ -17,6 +18,7 @@ class TimelineItem {
 
   const TimelineItem({
     required this.id,
+    required this.reminderId,
     required this.title,
     required this.scheduledTime,
     required this.status,

@@ -532,6 +532,7 @@ public class RemindersController : ControllerBase
     public async Task<IActionResult> DeleteReminder(string id)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
         if (userId == null)
             return Unauthorized();
@@ -541,45 +542,34 @@ public class RemindersController : ControllerBase
         if (reminder == null)
             return NotFound(new { message = "Reminder not found" });
 
-        // Only creator can delete
+        // Delete allowed for:
+        // 1) creator caregiver, or
+        // 2) another caregiver with an active relationship to the dependent.
+        // Dependents cannot delete reminder templates.
+        if (userRole != "caregiver")
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only caregivers can delete reminders" });
+
         if (reminder.CreatorId != userId)
-            return Forbid();
+        {
+            var hasRelationship = await _context.CareRelationships.AnyAsync(
+                cr => cr.CaregiverId == userId &&
+                      cr.DependentId == reminder.DependentId &&
+                      cr.Status == "active");
+
+            if (!hasRelationship)
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You don't have access to delete this reminder" });
+        }
 
         // Soft delete
         reminder.IsActive = false;
         reminder.UpdatedAt = DateTime.UtcNow;
 
-        // Cancel all pending Hangfire notification jobs for this reminder's instances
-        var pendingInstances = await _context.ReminderInstances
-            .Where(i => i.ReminderId == id && (i.Status == "pending" || i.Status == "snoozed"))
-            .ToListAsync();
-
-        foreach (var instance in pendingInstances)
-        {
-            if (!string.IsNullOrEmpty(instance.NotificationJobIds))
-            {
-                try
-                {
-                    var jobIds = System.Text.Json.JsonSerializer.Deserialize<List<string>>(instance.NotificationJobIds);
-                    if (jobIds != null)
-                    {
-                        foreach (var jobId in jobIds)
-                        {
-                            BackgroundJob.Delete(jobId);
-                        }
-                    }
-                    instance.NotificationJobIds = null;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error cancelling jobs for instance {InstanceId}", instance.Id);
-                }
-            }
-        }
-
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Reminder deleted: {Id}, cancelled jobs for {Count} instances", id, pendingInstances.Count);
+        // Cancel jobs in the background so delete returns quickly.
+        BackgroundJob.Enqueue<INotificationJobService>(x => x.CancelReminderNotificationJobsAsync(id));
+
+        _logger.LogInformation("Reminder deleted: {Id}. Enqueued background cancellation for notification jobs", id);
 
         // Query caregivers to notify them about the deletion
         var caregiverIds = await _context.CareRelationships

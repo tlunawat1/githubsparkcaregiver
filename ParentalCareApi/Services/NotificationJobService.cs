@@ -342,6 +342,54 @@ public class NotificationJobService : INotificationJobService
         }
     }
 
+    public async Task CancelReminderNotificationJobsAsync(string reminderId)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var instances = await context.ReminderInstances
+            .Where(i => i.ReminderId == reminderId && (i.Status == "pending" || i.Status == "snoozed"))
+            .ToListAsync();
+
+        if (instances.Count == 0)
+        {
+            return;
+        }
+
+        var cancelledJobs = 0;
+        foreach (var instance in instances)
+        {
+            if (string.IsNullOrEmpty(instance.NotificationJobIds))
+            {
+                continue;
+            }
+
+            try
+            {
+                var jobIds = JsonSerializer.Deserialize<List<string>>(instance.NotificationJobIds);
+                if (jobIds != null)
+                {
+                    foreach (var jobId in jobIds)
+                    {
+                        BackgroundJob.Delete(jobId);
+                        cancelledJobs++;
+                    }
+                }
+
+                instance.NotificationJobIds = null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error cancelling jobs for instance {InstanceId}", instance.Id);
+            }
+        }
+
+        await context.SaveChangesAsync();
+        _logger.LogInformation(
+            "Cancelled {JobCount} jobs for {InstanceCount} instances of reminder {ReminderId}",
+            cancelledJobs, instances.Count, reminderId);
+    }
+
     public async Task ProcessReminderNotificationsAsync(string reminderId)
     {
         using var scope = _scopeFactory.CreateScope();
