@@ -64,11 +64,18 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 class AppRouter {
   final bool isOnboardingComplete;
   final String? userRole;
+  final bool isAuthenticated;
 
   AppRouter({
     required this.isOnboardingComplete,
     this.userRole,
+    this.isAuthenticated = false,
   });
+
+  /// Navigate to the welcome screen (used for forced logout)
+  static void goToWelcome(BuildContext context) {
+    GoRouter.of(context).go(AppRoutes.welcome);
+  }
 
   late final GoRouter router = GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -306,6 +313,12 @@ class AppRouter {
   String _getInitialLocation() {
     if (!isOnboardingComplete) {
       return AppRoutes.welcome;
+    }
+
+    // If onboarding was completed but auth is invalid, send to login
+    if (!isAuthenticated) {
+      final role = userRole ?? 'caregiver';
+      return '${AppRoutes.login}?role=$role';
     }
 
     if (userRole == 'caregiver') {

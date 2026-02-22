@@ -22,6 +22,7 @@ class _ParentalCareAppState extends State<ParentalCareApp>
   bool _isLoading = true;
   bool _isOnboardingComplete = false;
   String? _userRole;
+  bool _isAuthenticated = false;
 
   @override
   void initState() {
@@ -54,28 +55,42 @@ class _ParentalCareAppState extends State<ParentalCareApp>
     final apiClient = getIt<ApiClient>();
     final signalRService = getIt<SignalRService>();
     
-    // Only manage SignalR if user is authenticated
-    if (apiClient.isAuthenticated) {
-      // Ensure SignalR is connected
-      final wasConnected = signalRService.isConnected;
-      debugPrint('App: SignalR was connected: $wasConnected');
+    // Proactively refresh token if expired (before any API calls)
+    if (apiClient.hasSession) {
+      final tokenValid = await apiClient.ensureValidToken();
       
-      if (!wasConnected) {
-        debugPrint('App: Reconnecting SignalR after resume...');
+      if (tokenValid) {
+        // Update SignalR with the (possibly refreshed) token
         signalRService.setAccessToken(apiClient.accessToken);
-        await signalRService.ensureConnected();
-      } else {
-        // Even if appears connected, verify by attempting a ping
-        // The connection might be stale
-        debugPrint('App: Verifying SignalR connection...');
-        try {
-          // Force a connection check by ensuring we're connected
+        
+        final wasConnected = signalRService.isConnected;
+        debugPrint('App: SignalR was connected: $wasConnected');
+        
+        if (!wasConnected) {
+          debugPrint('App: Reconnecting SignalR after resume...');
           await signalRService.ensureConnected();
-        } catch (e) {
-          debugPrint('App: SignalR verification failed, reconnecting: $e');
-          await signalRService.connect();
+        } else {
+          debugPrint('App: Verifying SignalR connection...');
+          try {
+            await signalRService.ensureConnected();
+          } catch (e) {
+            debugPrint('App: SignalR verification failed, reconnecting: $e');
+            await signalRService.connect();
+          }
         }
+      } else if (!apiClient.hasSession) {
+        // Refresh token was explicitly rejected by server -- force re-login
+        debugPrint('App: Session expired during resume, redirecting to login');
+        _navigateToLogin();
       }
+    }
+  }
+
+  /// Navigate user to the welcome/login screen
+  void _navigateToLogin() {
+    final context = rootNavigatorKey.currentContext;
+    if (context != null && mounted) {
+      AppRouter.goToWelcome(context);
     }
   }
 
@@ -88,17 +103,39 @@ class _ParentalCareAppState extends State<ParentalCareApp>
       _isOnboardingComplete = await settingsRepository.isOnboardingComplete();
       _userRole = await settingsRepository.getUserRole();
 
-      // Connect SignalR and register FCM token if user is already authenticated
-      if (_isOnboardingComplete && _userRole != null && apiClient.isAuthenticated) {
-        signalRService.setAccessToken(apiClient.accessToken);
-        signalRService.connect();
-        debugPrint('SignalR connecting on app start');
+      if (_isOnboardingComplete && _userRole != null && apiClient.hasSession) {
+        // Proactively refresh token if expired before initializing services
+        _isAuthenticated = await apiClient.ensureValidToken();
+        
+        if (_isAuthenticated) {
+          // Wire callback: update SignalR token whenever tokens are refreshed
+          apiClient.onTokensUpdated = (accessToken, refreshToken, expiry) {
+            debugPrint('App: Tokens updated, syncing to SignalR');
+            signalRService.setAccessToken(accessToken);
+          };
+          
+          // Wire callback: redirect to login when auth is permanently lost
+          apiClient.onAuthenticationRequired = () {
+            debugPrint('App: Authentication required, redirecting to login');
+            _navigateToLogin();
+          };
 
-        // Initialize FCM and register device token
-        final fcmService = FcmService(getIt<UserApi>());
-        await fcmService.initialize();
-        await fcmService.registerDeviceToken();
-        debugPrint('FCM token registered on app start');
+          signalRService.setAccessToken(apiClient.accessToken);
+          signalRService.connect();
+          debugPrint('SignalR connecting on app start');
+
+          final fcmService = FcmService(getIt<UserApi>());
+          await fcmService.initialize();
+          await fcmService.registerDeviceToken();
+          debugPrint('FCM token registered on app start');
+        } else {
+          debugPrint('App: Token refresh failed on startup, user needs to re-login');
+          // Still wire the callback for future use
+          apiClient.onAuthenticationRequired = () {
+            debugPrint('App: Authentication required, redirecting to login');
+            _navigateToLogin();
+          };
+        }
       }
     } catch (e) {
       debugPrint('Error loading settings: $e');
@@ -107,9 +144,9 @@ class _ParentalCareAppState extends State<ParentalCareApp>
     _appRouter = AppRouter(
       isOnboardingComplete: _isOnboardingComplete,
       userRole: _userRole,
+      isAuthenticated: _isAuthenticated,
     );
 
-    // Wire up the navigator key for the alarm service
     ReminderAlarmService.instance.navigatorKey = rootNavigatorKey;
 
     if (mounted) {

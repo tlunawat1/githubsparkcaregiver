@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -35,6 +37,8 @@ class ApiClient {
   String? _refreshToken;
   DateTime? _tokenExpiry;
 
+  Completer<void>? _refreshCompleter;
+
   // Callbacks for token refresh
   Function(String accessToken, String refreshToken, DateTime expiry)?
       onTokensUpdated;
@@ -59,11 +63,33 @@ class ApiClient {
     }
   }
 
-  /// Check if user is authenticated
+  /// Check if user is authenticated (valid access token)
   bool get isAuthenticated =>
       _accessToken != null &&
       _tokenExpiry != null &&
       _tokenExpiry!.isAfter(DateTime.now());
+
+  /// Check if user has a session that can be restored via refresh
+  bool get hasSession => _refreshToken != null;
+
+  /// Proactively ensure a valid access token exists.
+  /// Call during app startup or resume to refresh an expired JWT
+  /// before making API calls.
+  /// Returns true if we have a valid token afterwards.
+  Future<bool> ensureValidToken() async {
+    if (isAuthenticated) return true;
+    if (_refreshToken == null) return false;
+
+    debugPrint('ApiClient: Token expired, proactively refreshing...');
+    try {
+      await _refreshAccessToken();
+      debugPrint('ApiClient: Proactive token refresh succeeded');
+      return true;
+    } catch (e) {
+      debugPrint('ApiClient: Proactive token refresh failed: $e');
+      return _accessToken != null;
+    }
+  }
 
   /// Get current access token (for SignalR)
   String? get accessToken => _accessToken;
@@ -303,12 +329,20 @@ class ApiClient {
     return _tokenExpiry!.subtract(buffer).isBefore(DateTime.now());
   }
 
-  /// Refresh the access token
+  /// Refresh the access token with mutex to prevent concurrent refreshes
   Future<void> _refreshAccessToken() async {
+    // If a refresh is already in progress, wait for it
+    if (_refreshCompleter != null) {
+      debugPrint('ApiClient: Refresh already in progress, waiting...');
+      return _refreshCompleter!.future;
+    }
+
     if (_refreshToken == null) {
       onAuthenticationRequired?.call();
       throw ApiException(401, 'No refresh token available');
     }
+
+    _refreshCompleter = Completer<void>();
 
     try {
       final response = await _httpClient
@@ -320,7 +354,7 @@ class ApiClient {
             },
             body: jsonEncode({'refreshToken': _refreshToken}),
           )
-          .timeout(_timeout);
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -329,17 +363,40 @@ class ApiClient {
           refreshToken: body['refreshToken'] as String,
           expiry: DateTime.parse(body['expiresAt'] as String),
         );
-      } else {
-        // Refresh failed, require re-authentication
+        _refreshCompleter!.complete();
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        // Server explicitly rejected the refresh token -- session is truly invalid
+        debugPrint('ApiClient: Server rejected refresh token (${response.statusCode}), clearing session');
         await clearTokens();
         onAuthenticationRequired?.call();
+        _refreshCompleter!.completeError(
+          ApiException(401, 'Session expired. Please log in again.'),
+        );
         throw ApiException(401, 'Session expired. Please log in again.');
+      } else {
+        // Server error (5xx) or other transient issue -- keep tokens intact
+        debugPrint('ApiClient: Refresh got status ${response.statusCode}, keeping tokens for retry');
+        final error = ApiException(response.statusCode, 'Token refresh temporarily failed');
+        _refreshCompleter!.completeError(error);
+        throw error;
       }
     } catch (e) {
-      if (e is ApiException) rethrow;
-      await clearTokens();
-      onAuthenticationRequired?.call();
-      throw ApiException(401, 'Failed to refresh session');
+      if (e is ApiException) {
+        if (!_refreshCompleter!.isCompleted) {
+          _refreshCompleter!.completeError(e);
+        }
+        rethrow;
+      }
+      // Transient network errors (timeout, DNS, socket) -- do NOT clear tokens.
+      // The refresh token is still valid and can be retried later.
+      debugPrint('ApiClient: Transient error during refresh (${e.runtimeType}), keeping tokens for retry');
+      final error = ApiException(0, 'Network error during token refresh');
+      if (!_refreshCompleter!.isCompleted) {
+        _refreshCompleter!.completeError(error);
+      }
+      throw error;
+    } finally {
+      _refreshCompleter = null;
     }
   }
 
