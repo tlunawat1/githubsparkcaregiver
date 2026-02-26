@@ -181,6 +181,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   icon: const Icon(Icons.pin),
                   label: const Text('Login via Code'),
                 ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () => context.go(
+                              '${AppRoutes.forgotPassword}?role=${widget.role}',
+                            ),
+                    child: const Text('Forgot password?'),
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.xl),
 
                 // Register link

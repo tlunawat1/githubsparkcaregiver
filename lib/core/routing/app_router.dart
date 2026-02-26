@@ -7,6 +7,8 @@ import '../../features/auth/presentation/screens/profile_setup_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/registration_screen.dart';
 import '../../features/auth/presentation/screens/email_verification_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/caregiver/presentation/screens/caregiver_home_screen.dart';
 import '../../features/caregiver/presentation/screens/dependent_selector_screen.dart';
 import '../../features/caregiver/presentation/screens/dependent_dashboard_screen.dart';
@@ -32,6 +34,8 @@ class AppRoutes {
   static const String login = '/login';
   static const String register = '/register';
   static const String emailVerification = '/email-verification';
+  static const String forgotPassword = '/forgot-password';
+  static const String resetPassword = '/reset-password';
 
   // Caregiver routes
   static const String caregiverHome = '/caregiver';
@@ -128,6 +132,29 @@ class AppRouter {
           final email = state.uri.queryParameters['email'] ?? '';
           return AppTransitions.scaleFade(
             child: EmailVerificationScreen(userId: userId, role: role, email: email),
+            state: state,
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        name: 'forgotPassword',
+        pageBuilder: (context, state) {
+          final role = state.uri.queryParameters['role'] ?? 'caregiver';
+          return AppTransitions.slideFromRight(
+            child: ForgotPasswordScreen(role: role),
+            state: state,
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.resetPassword,
+        name: 'resetPassword',
+        pageBuilder: (context, state) {
+          final role = state.uri.queryParameters['role'] ?? 'caregiver';
+          final email = state.uri.queryParameters['email'] ?? '';
+          return AppTransitions.slideFromRight(
+            child: ResetPasswordScreen(role: role, email: email),
             state: state,
           );
         },

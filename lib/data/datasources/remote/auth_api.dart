@@ -181,6 +181,23 @@ class SendVerificationCodeResponse {
   }
 }
 
+class ResetPasswordResponse {
+  final bool success;
+  final String message;
+
+  ResetPasswordResponse({
+    required this.success,
+    required this.message,
+  });
+
+  factory ResetPasswordResponse.fromJson(Map<String, dynamic> json) {
+    return ResetPasswordResponse(
+      success: json['success'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+    );
+  }
+}
+
 /// Authentication API service
 class AuthApi {
   final ApiClient _client;
@@ -324,6 +341,39 @@ class AuthApi {
     );
 
     return SendVerificationCodeResponse.fromJson(response);
+  }
+
+  /// Request a password reset code to be emailed.
+  /// Always returns success for non-existent emails (anti-enumeration).
+  Future<SendVerificationCodeResponse> requestPasswordReset({
+    required String email,
+  }) async {
+    final response = await _client.post(
+      '/api/auth/request-password-reset',
+      body: {'email': email},
+      requiresAuth: false,
+    );
+
+    return SendVerificationCodeResponse.fromJson(response);
+  }
+
+  /// Reset password using emailed code.
+  Future<ResetPasswordResponse> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final response = await _client.post(
+      '/api/auth/reset-password',
+      body: {
+        'email': email,
+        'code': code,
+        'newPassword': newPassword,
+      },
+      requiresAuth: false,
+    );
+
+    return ResetPasswordResponse.fromJson(response);
   }
 
   /// Refresh access token
