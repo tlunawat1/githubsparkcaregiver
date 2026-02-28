@@ -47,50 +47,15 @@ class RoleSelectionScreen extends StatelessWidget {
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Text(
-                                'Select Role',
-                                style: theme.textTheme.titleLarge?.copyWith(
+                                'Select your role',
+                                style: theme.textTheme.headlineMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 30,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: RedesignTokens.primary,
-                                  borderRadius: BorderRadius.circular(100),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                width: 16,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surface.withValues(
-                                    alpha: 0.7,
-                                  ),
-                                  borderRadius: BorderRadius.circular(100),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text(
-                          'Select your role',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           'This determines how you\'ll use the app. You can switch roles later in settings.',
