@@ -9,16 +9,13 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
-import '../../../../shared/widgets/accessible_button.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 
 /// Full-screen reminder alert for dependents
 class ReminderAlertScreen extends StatefulWidget {
   final String instanceId;
 
-  const ReminderAlertScreen({
-    super.key,
-    required this.instanceId,
-  });
+  const ReminderAlertScreen({super.key, required this.instanceId});
 
   @override
   State<ReminderAlertScreen> createState() => _ReminderAlertScreenState();
@@ -135,15 +132,15 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
     Haptics.mediumImpact();
 
     try {
-      final snoozeUntil = DateTime.now().toUtc().add(const Duration(minutes: 10));
+      final snoozeUntil = DateTime.now().toUtc().add(
+        const Duration(minutes: 10),
+      );
       await _reminderInstanceApi.snooze(widget.instanceId, snoozeUntil);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Snoozed for 10 minutes'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Snoozed for 10 minutes')));
         context.go(AppRoutes.dependentHome);
       }
     } on ApiException catch (e) {
@@ -174,8 +171,9 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
 
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: colorScheme.primaryContainer,
-        body: const Center(child: CircularProgressIndicator()),
+        body: RedesignBackground(
+          child: const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
@@ -200,109 +198,117 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
       );
     }
 
-    final isHighPriority = _reminder!.priority == 'high';
-    final backgroundColor =
-        isHighPriority ? AppColors.errorLight : colorScheme.primaryContainer;
-    final accentColor =
-        isHighPriority ? AppColors.error : colorScheme.primary;
+    final accentColor = _reminder!.priority == 'high'
+        ? AppColors.error
+        : colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: Padding(
-          padding: AppSpacing.screenPadding,
-          child: Column(
-            children: [
-              // Back button
-              Align(
-                alignment: Alignment.topLeft,
-                child: IconButton(
-                  onPressed: () => context.go(AppRoutes.dependentHome),
-                  icon: const Icon(Icons.close),
-                  iconSize: 32,
-                ),
-              ),
-              const Spacer(),
-              // Reminder icon
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: accentColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: accentColor.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      spreadRadius: 5,
+      body: RedesignBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: AppSpacing.screenPadding,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    IconButton.filledTonal(
+                      onPressed: () => context.go(AppRoutes.dependentHome),
+                      icon: const Icon(Icons.close_rounded),
                     ),
+                    const Spacer(),
+                    Text(
+                      'Reminder Alert',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 48),
                   ],
                 ),
-                child: Icon(
-                  _reminder!.voiceNoteUrl != null
-                      ? Icons.mic
-                      : Icons.notifications_active,
-                  color: Colors.white,
-                  size: 64,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              // Time (convert UTC to local)
-              Text(
-                _instance != null
-                    ? DateFormat.jm().format(_instance!.scheduledTime.toLocal())
-                    : '',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: accentColor,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              // Title
-              Text(
-                _reminder!.title,
-                style: theme.textTheme.displaySmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              // Description
-              if (_reminder!.description != null) ...[
                 const SizedBox(height: AppSpacing.md),
-                Text(
-                  _reminder!.description!,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        GlassCard(
+                          margin: EdgeInsets.zero,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xl,
+                            vertical: AppSpacing.lg,
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                _instance != null
+                                    ? DateFormat.jm().format(
+                                        _instance!.scheduledTime.toLocal(),
+                                      )
+                                    : '--:--',
+                                style: theme.textTheme.displayMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Morning Session',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: accentColor,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        Text(
+                          _reminder!.title,
+                          style: theme.textTheme.headlineLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (_reminder!.description != null) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            _reminder!.description!,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                        if (_reminder!.voiceNoteUrl != null) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          _VoiceNotePlayer(
+                            isPlaying: _isPlaying,
+                            onPlayPause: _playVoiceNote,
+                            accentColor: accentColor,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  textAlign: TextAlign.center,
                 ),
-              ],
-              // Voice note player
-              if (_reminder!.voiceNoteUrl != null) ...[
-                const SizedBox(height: AppSpacing.xl),
-                _VoiceNotePlayer(
-                  isPlaying: _isPlaying,
-                  onPlayPause: _playVoiceNote,
-                  accentColor: accentColor,
+                const SizedBox(height: AppSpacing.md),
+                GradientPrimaryButton(
+                  label: 'Done',
+                  icon: Icons.check_circle,
+                  onPressed: _markDone,
                 ),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton.tonal(
+                  onPressed: _snooze,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                  ),
+                  child: const Text('Remind me in 10 minutes'),
+                ),
+                const SizedBox(height: AppSpacing.md),
               ],
-              const Spacer(),
-              // Action buttons
-              AccessibleButton(
-                onPressed: _markDone,
-                label: 'Done',
-                icon: Icons.check,
-                size: AccessibleButtonSize.xlarge,
-                backgroundColor: AppColors.success,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AccessibleOutlinedButton(
-                onPressed: _snooze,
-                label: 'Remind me in 10 minutes',
-                icon: Icons.snooze,
-                size: AccessibleButtonSize.large,
-              ),
-              const SizedBox(height: AppSpacing.xl),
-            ],
+            ),
           ),
         ),
       ),
@@ -328,14 +334,11 @@ class _VoiceNotePlayer extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: theme.colorScheme.surface.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-          ),
-        ],
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

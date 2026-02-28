@@ -6,7 +6,7 @@ import '../../../../core/constants/app_config.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../domain/notification_service.dart';
-import '../../../../shared/widgets/accessible_button.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 import '../widgets/voice_recorder_widget.dart';
 
 /// Unified reminder form screen for add/edit.
@@ -14,11 +14,7 @@ class AddReminderScreen extends StatefulWidget {
   final String? dependentId;
   final String? reminderId;
 
-  const AddReminderScreen({
-    super.key,
-    this.dependentId,
-    this.reminderId,
-  });
+  const AddReminderScreen({super.key, this.dependentId, this.reminderId});
 
   @override
   State<AddReminderScreen> createState() => _AddReminderScreenState();
@@ -32,7 +28,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
 
   TimeOfDay _selectedTime = TimeOfDay.now();
   String _repeatPattern = 'daily';
-  Set<int> _selectedDays = {};
+  final Set<int> _selectedDays = {};
   String _priority = 'normal';
   String? _voiceNotePath; // local path for new recordings
   String? _voiceNoteUrl; // remote url for existing recording
@@ -99,7 +95,15 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
     'specific_days': 'Specific Days',
   };
 
-  final List<String> _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  final List<String> _dayNames = [
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
 
   @override
   void initState() {
@@ -122,7 +126,10 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
       _reminder = await _reminderApi.getReminder(widget.reminderId!);
       _titleController.text = _reminder!.title;
       _descriptionController.text = _reminder!.description ?? '';
-      _selectedTime = TimeOfDay(hour: _reminder!.hour, minute: _reminder!.minute);
+      _selectedTime = TimeOfDay(
+        hour: _reminder!.hour,
+        minute: _reminder!.minute,
+      );
       _repeatPattern = _reminder!.repeatPattern;
       _priority = _reminder!.priority;
       _voiceNoteUrl = _reminder!.voiceNoteUrl;
@@ -202,7 +209,9 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
 
       String? repeatDays;
       if (_repeatPattern == 'specific_days') {
-        final days = _selectedDays.map((i) => _dayNames[i].toLowerCase()).toList();
+        final days = _selectedDays
+            .map((i) => _dayNames[i].toLowerCase())
+            .toList();
         repeatDays = days.join(',');
       }
 
@@ -233,7 +242,9 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
           await NotificationService().scheduleReminderNotification(
             id: notificationId,
             title: updated.title,
-            body: (updated.description ?? '').isEmpty ? 'Reminder due now' : updated.description!,
+            body: (updated.description ?? '').isEmpty
+                ? 'Reminder due now'
+                : updated.description!,
             scheduledTime: scheduledTime,
             payload: '{"type":"reminder","reminderId":"${updated.id}"}',
             isHighPriority: updated.priority.toLowerCase() != 'normal',
@@ -241,9 +252,9 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Reminder updated')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Reminder updated')));
           context.pop(true);
         }
       } else {
@@ -277,7 +288,9 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
           await NotificationService().scheduleReminderNotification(
             id: _notificationIdForReminder(created.id),
             title: created.title,
-            body: (created.description ?? '').isEmpty ? 'Reminder due now' : created.description!,
+            body: (created.description ?? '').isEmpty
+                ? 'Reminder due now'
+                : created.description!,
             scheduledTime: scheduledTime,
             payload: '{"type":"reminder","reminderId":"${created.id}"}',
             isHighPriority: created.priority.toLowerCase() != 'normal',
@@ -285,9 +298,9 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Reminder created')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Reminder created')));
           context.pop(true);
         }
       }
@@ -348,9 +361,9 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
         }
         await _reminderApi.deleteReminder(widget.reminderId!);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Reminder deleted')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Reminder deleted')));
           context.pop(true);
         }
       } on ApiException catch (e) {
@@ -382,258 +395,356 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
 
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: Text(_isEdit ? 'Edit Reminder' : 'Add Reminder')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: RedesignBackground(
+          child: const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
     if (_isEdit && _reminder == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Reminder')),
-        body: const Center(child: Text('Reminder not found')),
+        body: RedesignBackground(
+          child: SafeArea(
+            child: Center(
+              child: Text(
+                'Reminder not found',
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+          ),
+        ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Edit Reminder' : 'Add Reminder'),
-        actions: [
-          if (_isEdit)
-            IconButton(
-              icon: Icon(Icons.delete, color: colorScheme.error),
-              onPressed: _deleteReminder,
-              tooltip: 'Delete',
-            ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: AppSpacing.screenPadding,
-          children: [
-            // Title
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                hintText: 'e.g., Take medication',
-                prefixIcon: Icon(Icons.title),
-              ),
-              textCapitalization: TextCapitalization.sentences,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter a title';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Description (optional)
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-                hintText: 'Additional details...',
-                prefixIcon: Icon(Icons.notes),
-              ),
-              textCapitalization: TextCapitalization.sentences,
-              maxLines: 2,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Time picker
-            Text(
-              'Time',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            InkWell(
-              onTap: _selectTime,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(color: colorScheme.outline),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.access_time, color: colorScheme.primary, size: 20),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      _selectedTime.format(context),
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    const Spacer(),
-                    Icon(Icons.edit, color: colorScheme.onSurfaceVariant, size: 18),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Repeat pattern
-            Text(
-              'Repeat',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.xs,
-              children: _repeatOptions.map((option) {
-                final isSelected = _repeatPattern == option;
-                return GestureDetector(
-                  onTap: () => setState(() => _repeatPattern = option),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: AppSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                    ),
-                    child: Text(
-                      _repeatLabels[option]!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: isSelected
-                            ? colorScheme.onPrimary
-                            : colorScheme.onSurface,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
+      body: RedesignBackground(
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.sm,
                   ),
-                );
-              }).toList(),
-            ),
-
-            // Day selector for specific days
-            if (_repeatPattern == 'specific_days') ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Select Days',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(7, (index) {
-                  final isSelected = _selectedDays.contains(index);
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        if (isSelected) {
-                          _selectedDays.remove(index);
-                        } else {
-                          _selectedDays.add(index);
-                        }
-                      });
-                    },
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? colorScheme.primary
-                            : colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: Row(
+                    children: [
+                      IconButton.filledTonal(
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
                       ),
-                      child: Center(
+                      Expanded(
                         child: Text(
-                          _dayNames[index],
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: isSelected
-                                ? colorScheme.onPrimary
-                                : colorScheme.onSurface,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          _isEdit ? 'Edit Reminder' : 'New Reminder',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.lg),
-
-            // Priority
-            Text(
-              'Priority',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: _PriorityOption(
-                    label: 'Normal',
-                    isSelected: _priority == 'normal',
-                    color: colorScheme.primary,
-                    onTap: () => setState(() => _priority = 'normal'),
+                      if (_isEdit)
+                        IconButton.filledTonal(
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: colorScheme.error,
+                          ),
+                          onPressed: _deleteReminder,
+                          tooltip: 'Delete',
+                        )
+                      else
+                        const SizedBox(width: 48),
+                    ],
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: _PriorityOption(
-                    label: 'High',
-                    isSelected: _priority == 'high',
-                    color: colorScheme.error,
-                    onTap: () => setState(() => _priority = 'high'),
+                  child: ListView(
+                    padding: AppSpacing.screenPadding,
+                    children: [
+                      // Title
+                      _SectionLabel(text: 'Task Title'),
+                      TextFormField(
+                        controller: _titleController,
+                        decoration: _glassInputDecoration(
+                          context,
+                          hintText: 'e.g., Take medication',
+                          prefixIcon: Icons.title,
+                        ),
+                        textCapitalization: TextCapitalization.sentences,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter a title';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      // Description (optional)
+                      _SectionLabel(text: 'Description'),
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: _glassInputDecoration(
+                          context,
+                          hintText: 'Additional details...',
+                          prefixIcon: Icons.notes,
+                        ),
+                        textCapitalization: TextCapitalization.sentences,
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Time picker
+                      _SectionLabel(text: 'Set Time'),
+                      const SizedBox(height: AppSpacing.sm),
+                      InkWell(
+                        onTap: _selectTime,
+                        borderRadius: BorderRadius.circular(AppRadius.xl),
+                        child: GlassCard(
+                          margin: EdgeInsets.zero,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                color: colorScheme.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Text(
+                                _selectedTime.format(context),
+                                style: theme.textTheme.titleLarge,
+                              ),
+                              const Spacer(),
+                              Icon(
+                                Icons.edit,
+                                color: colorScheme.onSurfaceVariant,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Repeat pattern
+                      _SectionLabel(text: 'Repeat'),
+                      const SizedBox(height: AppSpacing.sm),
+                      Wrap(
+                        spacing: AppSpacing.xs,
+                        children: _repeatOptions.map((option) {
+                          final isSelected = _repeatPattern == option;
+                          return GestureDetector(
+                            onTap: () =>
+                                setState(() => _repeatPattern = option),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: AppSpacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? colorScheme.primary
+                                    : colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.sm,
+                                ),
+                              ),
+                              child: Text(
+                                _repeatLabels[option]!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: isSelected
+                                      ? colorScheme.onPrimary
+                                      : colorScheme.onSurface,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                      // Day selector for specific days
+                      if (_repeatPattern == 'specific_days') ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'Select Days',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(7, (index) {
+                            final isSelected = _selectedDays.contains(index);
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selectedDays.remove(index);
+                                  } else {
+                                    _selectedDays.add(index);
+                                  }
+                                });
+                              },
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? colorScheme.primary
+                                      : colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.sm,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    _dayNames[index],
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: isSelected
+                                          ? colorScheme.onPrimary
+                                          : colorScheme.onSurface,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Priority
+                      _SectionLabel(text: 'Priority'),
+                      const SizedBox(height: AppSpacing.sm),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _PriorityOption(
+                              label: 'Normal',
+                              isSelected: _priority == 'normal',
+                              color: colorScheme.primary,
+                              onTap: () => setState(() => _priority = 'normal'),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: _PriorityOption(
+                              label: 'High',
+                              isSelected: _priority == 'high',
+                              color: colorScheme.error,
+                              onTap: () => setState(() => _priority = 'high'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Voice note
+                      _SectionLabel(text: 'Voice Memo'),
+                      const SizedBox(height: AppSpacing.sm),
+                      VoiceRecorderWidget(
+                        voiceNotePath: _voiceNotePath,
+                        voiceNoteUrl: _voiceNoteUrl,
+                        onRecordingComplete: (path) {
+                          setState(() {
+                            _voiceNotePath = path;
+                            _voiceNoteUrl = null;
+                          });
+                        },
+                        onDelete: () {
+                          setState(() {
+                            _voiceNotePath = null;
+                            _voiceNoteUrl = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                  ),
+                  child: GradientPrimaryButton(
+                    onPressed: _isSaving ? null : _saveReminder,
+                    label: _isEdit ? 'Save Changes' : 'Save Reminder',
+                    icon: Icons.check_circle,
+                    isLoading: _isSaving,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Voice note
-            Text(
-              'Voice Note (optional)',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            VoiceRecorderWidget(
-              voiceNotePath: _voiceNotePath,
-              voiceNoteUrl: _voiceNoteUrl,
-              onRecordingComplete: (path) {
-                setState(() {
-                  _voiceNotePath = path;
-                  _voiceNoteUrl = null;
-                });
-              },
-              onDelete: () {
-                setState(() {
-                  _voiceNotePath = null;
-                  _voiceNoteUrl = null;
-                });
-              },
-            ),
-            const SizedBox(height: AppSpacing.xxl),
+  InputDecoration _glassInputDecoration(
+    BuildContext context, {
+    required String hintText,
+    required IconData prefixIcon,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: Icon(prefixIcon),
+      filled: true,
+      fillColor: colorScheme.surface.withValues(alpha: 0.72),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(
+          color: colorScheme.primary.withValues(alpha: 0.7),
+        ),
+      ),
+    );
+  }
+}
 
-            // Save button
-            AccessibleButton(
-              onPressed: _isSaving ? null : _saveReminder,
-              label: _isEdit ? 'Save Changes' : 'Save Reminder',
-              icon: Icons.check,
-              isLoading: _isSaving,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: Text(
+        text.toUpperCase(),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 1.0,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

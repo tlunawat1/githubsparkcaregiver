@@ -16,6 +16,7 @@ import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/accessible_card.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 import '../../../../shared/widgets/swipe_to_logout_button.dart';
 import 'linked_user_detail_screen.dart';
 
@@ -60,7 +61,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _themeMode = await _settingsRepository.getThemeMode();
       _highContrast = await _settingsRepository.isHighContrastEnabled();
       _reduceAnimations = await _settingsRepository.isReduceAnimationsEnabled();
-      _notificationSound = await _settingsRepository.isNotificationSoundEnabled();
+      _notificationSound = await _settingsRepository
+          .isNotificationSoundEnabled();
       _hapticFeedback = await _settingsRepository.isHapticFeedbackEnabled();
 
       // Fetch user data from API
@@ -166,173 +168,195 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Settings')),
-        body: _buildSkeletonLoading(),
+        body: RedesignBackground(
+          child: SafeArea(child: _buildSkeletonLoading()),
+        ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (_userRole == 'caregiver') {
-              context.go(AppRoutes.caregiverHome);
-            } else {
-              context.go(AppRoutes.dependentHome);
-            }
-          },
+      body: RedesignBackground(
+        child: SafeArea(
+          child: ListView(
+            padding: AppSpacing.screenPadding,
+            children: [
+              Row(
+                children: [
+                  IconButton.filledTonal(
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    onPressed: () {
+                      if (_userRole == 'caregiver') {
+                        context.go(AppRoutes.caregiverHome);
+                      } else {
+                        context.go(AppRoutes.dependentHome);
+                      }
+                    },
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Settings',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  const SizedBox(width: 48),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Profile section
+              _buildSectionHeader('Profile'),
+              _buildProfileCard(),
+              const SizedBox(height: AppSpacing.lg),
+
+              // My Dependents / My Caregivers section
+              _buildSectionHeader(
+                _userRole == 'caregiver' ? 'My Dependents' : 'My Caregivers',
+              ),
+              _buildLinkedUsersSection(),
+              const SizedBox(height: AppSpacing.lg),
+
+              // Appearance section
+              _buildSectionHeader('Appearance'),
+              AccessibleCard(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.brightness_6),
+                      title: const Text('Theme'),
+                      subtitle: Text(_getThemeLabel(_themeMode)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _showThemeDialog,
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.contrast),
+                      title: const Text('High Contrast'),
+                      subtitle: const Text('Increases text visibility'),
+                      value: _highContrast,
+                      onChanged: (value) async {
+                        await _settingsRepository.setHighContrast(value);
+                        setState(() => _highContrast = value);
+                      },
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.animation_rounded),
+                      title: const Text('Reduce Animations'),
+                      subtitle: const Text('Simpler, faster transitions'),
+                      value: _reduceAnimations,
+                      onChanged: (value) async {
+                        await _settingsRepository.setReduceAnimations(value);
+                        setState(() => _reduceAnimations = value);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              // Notifications section
+              _buildSectionHeader('Notifications & Feedback'),
+              AccessibleCard(
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      secondary: const Icon(Icons.volume_up),
+                      title: const Text('Notification Sound'),
+                      subtitle: const Text('Play sound for reminders'),
+                      value: _notificationSound,
+                      onChanged: (value) async {
+                        await _settingsRepository.setNotificationSoundEnabled(
+                          value,
+                        );
+                        FeedbackSettings.setNotificationSoundEnabled(value);
+                        await NotificationHandler()
+                            .refreshNotificationChannels();
+                        setState(() => _notificationSound = value);
+                      },
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.vibration),
+                      title: const Text('Haptic Feedback'),
+                      subtitle: const Text('Vibration on interactions'),
+                      value: _hapticFeedback,
+                      onChanged: (value) async {
+                        await _settingsRepository.setHapticFeedbackEnabled(
+                          value,
+                        );
+                        FeedbackSettings.setHapticFeedbackEnabled(value);
+                        await NotificationHandler()
+                            .refreshNotificationChannels();
+                        setState(() => _hapticFeedback = value);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              // Timezone section
+              _buildSectionHeader('Time & Location'),
+              AccessibleCard(
+                child: ListTile(
+                  leading: const Icon(Icons.schedule),
+                  title: const Text('Timezone'),
+                  subtitle: Text(_userTimezone),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    await context.push(AppRoutes.timezoneSettings);
+                    // Reload settings when returning from timezone screen
+                    _loadSettings();
+                  },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              // About section
+              _buildSectionHeader('About'),
+              AccessibleCard(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.info_outline),
+                      title: const Text('Version'),
+                      subtitle: Text(AppConfig.appVersion),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.article_outlined),
+                      title: const Text('Privacy Policy'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Coming soon')),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.help_outline),
+                      title: const Text('Help & Support'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Coming soon')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
+              // Logout section
+              _buildSectionHeader('Account'),
+              SwipeToLogoutButton(onSwipeComplete: _handleLogout),
+              const SizedBox(height: AppSpacing.xxl),
+            ],
+          ),
         ),
-        title: const Text('Settings'),
-      ),
-      body: ListView(
-        padding: AppSpacing.screenPadding,
-        children: [
-          // Profile section
-          _buildSectionHeader('Profile'),
-          _buildProfileCard(),
-          const SizedBox(height: AppSpacing.lg),
-
-          // My Dependents / My Caregivers section
-          _buildSectionHeader(_userRole == 'caregiver' ? 'My Dependents' : 'My Caregivers'),
-          _buildLinkedUsersSection(),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Appearance section
-          _buildSectionHeader('Appearance'),
-          AccessibleCard(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.brightness_6),
-                  title: const Text('Theme'),
-                  subtitle: Text(_getThemeLabel(_themeMode)),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _showThemeDialog,
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.contrast),
-                  title: const Text('High Contrast'),
-                  subtitle: const Text('Increases text visibility'),
-                  value: _highContrast,
-                  onChanged: (value) async {
-                    await _settingsRepository.setHighContrast(value);
-                    setState(() => _highContrast = value);
-                  },
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.animation_rounded),
-                  title: const Text('Reduce Animations'),
-                  subtitle: const Text('Simpler, faster transitions'),
-                  value: _reduceAnimations,
-                  onChanged: (value) async {
-                    await _settingsRepository.setReduceAnimations(value);
-                    setState(() => _reduceAnimations = value);
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Notifications section
-          _buildSectionHeader('Notifications & Feedback'),
-          AccessibleCard(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  secondary: const Icon(Icons.volume_up),
-                  title: const Text('Notification Sound'),
-                  subtitle: const Text('Play sound for reminders'),
-                  value: _notificationSound,
-                  onChanged: (value) async {
-                    await _settingsRepository.setNotificationSoundEnabled(value);
-                    FeedbackSettings.setNotificationSoundEnabled(value);
-                    await NotificationHandler().refreshNotificationChannels();
-                    setState(() => _notificationSound = value);
-                  },
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.vibration),
-                  title: const Text('Haptic Feedback'),
-                  subtitle: const Text('Vibration on interactions'),
-                  value: _hapticFeedback,
-                  onChanged: (value) async {
-                    await _settingsRepository.setHapticFeedbackEnabled(value);
-                    FeedbackSettings.setHapticFeedbackEnabled(value);
-                    await NotificationHandler().refreshNotificationChannels();
-                    setState(() => _hapticFeedback = value);
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Timezone section
-          _buildSectionHeader('Time & Location'),
-          AccessibleCard(
-            child: ListTile(
-              leading: const Icon(Icons.schedule),
-              title: const Text('Timezone'),
-              subtitle: Text(_userTimezone),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                await context.push(AppRoutes.timezoneSettings);
-                // Reload settings when returning from timezone screen
-                _loadSettings();
-              },
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // About section
-          _buildSectionHeader('About'),
-          AccessibleCard(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text('Version'),
-                  subtitle: Text(AppConfig.appVersion),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.article_outlined),
-                  title: const Text('Privacy Policy'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Coming soon')),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.help_outline),
-                  title: const Text('Help & Support'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Coming soon')),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Logout section
-          _buildSectionHeader('Account'),
-          SwipeToLogoutButton(
-            onSwipeComplete: _handleLogout,
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-        ],
       ),
     );
   }
@@ -396,12 +420,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 // Edit profile button
                 IconButton(
-                  icon: Icon(
-                    Icons.edit_outlined,
-                    color: colorScheme.primary,
-                  ),
+                  icon: Icon(Icons.edit_outlined, color: colorScheme.primary),
                   onPressed: () async {
-                    final updated = await context.push<bool>(AppRoutes.editProfile);
+                    final updated = await context.push<bool>(
+                      AppRoutes.editProfile,
+                    );
                     if (updated == true) {
                       _loadSettings(); // Reload to show updated name
                     }
@@ -510,10 +533,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.qr_code,
-                          color: colorScheme.primary,
-                        ),
+                        Icon(Icons.qr_code, color: colorScheme.primary),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: SelectableText(
@@ -529,9 +549,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         IconButton(
                           icon: const Icon(Icons.copy),
                           onPressed: () {
-                            Clipboard.setData(
-                              ClipboardData(text: _uniqueCode),
-                            );
+                            Clipboard.setData(ClipboardData(text: _uniqueCode));
                             Haptics.lightImpact();
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -575,6 +593,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListView(
       padding: AppSpacing.screenPadding,
       children: const [
+        SizedBox(height: 56),
         ShimmerCard(height: 18, width: 140),
         SizedBox(height: AppSpacing.sm),
         ShimmerCard(height: 140),
@@ -615,9 +634,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
           child: Center(
-            child: CircularProgressIndicator(
-              color: colorScheme.primary,
-            ),
+            child: CircularProgressIndicator(color: colorScheme.primary),
           ),
         ),
       );
@@ -697,10 +714,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => _navigateToLinkedUserDetail(relationship, linkedUser),
+                onTap: () =>
+                    _navigateToLinkedUserDetail(relationship, linkedUser),
               ),
-              if (index < _linkedUsers.length - 1)
-                const Divider(height: 1),
+              if (index < _linkedUsers.length - 1) const Divider(height: 1),
             ],
           );
         }).toList(),
@@ -742,9 +759,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.w600,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.9,
         ),
       ),
     );
@@ -769,7 +787,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildThemeOption('system', 'System default', Icons.settings_suggest),
+            _buildThemeOption(
+              'system',
+              'System default',
+              Icons.settings_suggest,
+            ),
             _buildThemeOption('light', 'Light', Icons.light_mode),
             _buildThemeOption('dark', 'Dark', Icons.dark_mode),
           ],
@@ -784,7 +806,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListTile(
       leading: Icon(icon),
       title: Text(label),
-      trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+      trailing: isSelected
+          ? const Icon(Icons.check, color: Colors.green)
+          : null,
       onTap: () async {
         await _settingsRepository.setThemeMode(value);
         setState(() => _themeMode = value);

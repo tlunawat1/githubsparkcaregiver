@@ -1,18 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/custom_icons.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
-import '../../../../core/utils/animation_settings.dart';
 import '../../../../core/utils/category_inference.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/settings_repository.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Dashboard screen showing a dependent's reminders and status
@@ -20,13 +18,11 @@ import '../../../../shared/widgets/widgets.dart';
 class DependentDashboardScreen extends StatefulWidget {
   final String dependentId;
 
-  const DependentDashboardScreen({
-    super.key,
-    required this.dependentId,
-  });
+  const DependentDashboardScreen({super.key, required this.dependentId});
 
   @override
-  State<DependentDashboardScreen> createState() => _DependentDashboardScreenState();
+  State<DependentDashboardScreen> createState() =>
+      _DependentDashboardScreenState();
 }
 
 class _DependentDashboardScreenState extends State<DependentDashboardScreen>
@@ -47,21 +43,26 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
 
   List<ReminderInstanceData> get _filteredInstances {
     if (_activeStatusFilter == null) return _todayInstances;
-    return _todayInstances.where((i) => i.status == _activeStatusFilter).toList();
+    return _todayInstances
+        .where((i) => i.status == _activeStatusFilter)
+        .toList();
   }
 
   // Computed stats
-  int get _completedCount => _todayInstances.where((i) => i.status == 'completed').length;
-  int get _pendingCount => _todayInstances.where((i) => i.status == 'pending').length;
-  int get _missedCount => _todayInstances.where((i) => i.status == 'missed').length;
+  int get _completedCount =>
+      _todayInstances.where((i) => i.status == 'completed').length;
   int get _totalCount => _todayInstances.length;
 
   // Get urgent items (missed or pending that should have happened)
   List<ReminderInstanceData> get _urgentItems {
     final now = DateTime.now();
     return _todayInstances.where((i) {
-      if (i.status == 'missed') return true;
-      if (i.status == 'pending' && i.scheduledTime.toLocal().isBefore(now)) return true;
+      if (i.status == 'missed') {
+        return true;
+      }
+      if (i.status == 'pending' && i.scheduledTime.toLocal().isBefore(now)) {
+        return true;
+      }
       return false;
     }).toList();
   }
@@ -141,7 +142,9 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   }
 
   void _setupConnectionStateListener() {
-    _connectionStateSubscription = _signalRService.connectionState.listen((state) {
+    _connectionStateSubscription = _signalRService.connectionState.listen((
+      state,
+    ) {
       if (state == SignalRConnectionState.connected) {
         _loadData();
         if (!_isSignalRInitialized) {
@@ -173,7 +176,9 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
 
     try {
       _dependent = await _userApi.getById(widget.dependentId);
-      _reminders = await _reminderApi.getReminders(dependentId: widget.dependentId);
+      _reminders = await _reminderApi.getReminders(
+        dependentId: widget.dependentId,
+      );
       _todayInstances = await _reminderInstanceApi.getInstances(
         dependentId: widget.dependentId,
         date: DateTime.now(),
@@ -195,168 +200,190 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_dependent?.name ?? 'Dashboard'),
-        actions: [
-          IconButton(
-            icon: Icon(AppIcons.emergencyContact),
-            onPressed: () => context.goToEmergencyContacts(widget.dependentId),
-            tooltip: 'Emergency Contacts',
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? _buildSkeletonLoading()
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: CustomScrollView(
-                slivers: [
-                  // Header with greeting and progress
-                  SliverToBoxAdapter(
-                    child: _buildHeader(),
-                  ),
-
-                  // Urgent section (if there are missed/overdue items)
-                  if (_urgentItems.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: _buildUrgentSection(),
-                    ),
-
-                  // Quick stats (tappable filters)
-                  SliverToBoxAdapter(
-                    child: _buildQuickStats(),
-                  ),
-
-                  // Today's schedule section
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        AppSpacing.lg,
-                        AppSpacing.md,
-                        AppSpacing.sm,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _activeStatusFilter != null
-                                ? '${_activeStatusFilter![0].toUpperCase()}${_activeStatusFilter!.substring(1)} Reminders'
-                                : 'Today\'s Schedule',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+      body: RedesignBackground(
+        child: SafeArea(
+          child: _isLoading
+              ? _buildSkeletonLoading()
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.sm,
                           ),
-                          if (_activeStatusFilter != null)
-                            TextButton(
-                              onPressed: () => setState(() => _activeStatusFilter = null),
-                              child: Text('Clear'),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Timeline or filtered list
-                  if (_filteredInstances.isEmpty)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: AppSpacing.screenPadding,
-                        child: _activeStatusFilter != null
-                            ? _NoFilterResultsCard(status: _activeStatusFilter!)
-                            : _EmptyRemindersCard(),
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: AppSpacing.screenPaddingHorizontal,
-                      sliver: SliverToBoxAdapter(
-                        child: _buildTimelineView(),
-                      ),
-                    ),
-
-                  // All reminders section
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        AppSpacing.xl,
-                        AppSpacing.md,
-                        AppSpacing.sm,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'All Reminders',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Row(
+                            children: [
+                              IconButton.filledTonal(
+                                onPressed: () =>
+                                    Navigator.of(context).maybePop(),
+                                icon: const Icon(Icons.arrow_back_rounded),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  _dependent?.name ?? 'Dashboard',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton.filledTonal(
+                                onPressed: () => context.goToEmergencyContacts(
+                                  widget.dependentId,
+                                ),
+                                icon: const Icon(
+                                  Icons.contact_emergency_outlined,
+                                ),
+                                tooltip: 'Emergency Contacts',
+                              ),
+                            ],
                           ),
-                          TextButton.icon(
-                            onPressed: () async {
-                              final result = await context.goToAddReminder(widget.dependentId);
-                              if (result == true) _loadData();
-                            },
-                            icon: Icon(AppIcons.add),
-                            label: const Text('Add'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (_reminders.isEmpty)
-                    SliverToBoxAdapter(
-                      child: EmptyState(
-                        icon: Icons.notifications_off_outlined,
-                        title: 'No Reminders',
-                        message: 'Create a reminder to help ${_dependent?.name ?? 'your dependent'} stay on track.',
-                        actionLabel: 'Add Reminder',
-                        onAction: () async {
-                          final result = await context.goToAddReminder(widget.dependentId);
-                          if (result == true) _loadData();
-                        },
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: AppSpacing.screenPadding,
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final reminder = _reminders[index];
-                            final card = _buildReminderTemplateCard(reminder);
-
-                            // Apply staggered animation if enabled
-                            if (AnimationSettings.shouldAnimate(context)) {
-                              return card
-                                  .animate()
-                                  .fadeIn(
-                                    duration: 200.ms,
-                                    delay: (index * 50).ms,
-                                  )
-                                  .slideX(
-                                    begin: 0.05,
-                                    end: 0,
-                                    duration: 200.ms,
-                                    delay: (index * 50).ms,
-                                    curve: Curves.easeOut,
-                                  );
-                            }
-                            return card;
-                          },
-                          childCount: _reminders.length,
                         ),
                       ),
-                    ),
-
-                  // Bottom padding
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 100),
+                      SliverToBoxAdapter(child: _buildHeader()),
+                      if (_urgentItems.isNotEmpty)
+                        SliverToBoxAdapter(child: _buildUrgentSection()),
+                      SliverToBoxAdapter(child: _buildQuickStats()),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.sm,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Today\'s Schedule',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  letterSpacing: 1.0,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _activeStatusFilter == null
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _activeStatusFilter = null;
+                                        });
+                                      },
+                                child: const Text('Clear'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (_filteredInstances.isEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: AppSpacing.screenPadding,
+                            child: _activeStatusFilter != null
+                                ? _NoFilterResultsCard(
+                                    status: _activeStatusFilter!,
+                                  )
+                                : _EmptyRemindersCard(),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: AppSpacing.screenPaddingHorizontal,
+                          sliver: SliverList.builder(
+                            itemCount: _filteredInstances.length,
+                            itemBuilder: (context, index) {
+                              final sorted =
+                                  List<ReminderInstanceData>.from(
+                                    _filteredInstances,
+                                  )..sort(
+                                    (a, b) => a.scheduledTime.compareTo(
+                                      b.scheduledTime,
+                                    ),
+                                  );
+                              final instance = sorted[index];
+                              return _buildScheduleCard(instance);
+                            },
+                          ),
+                        ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.lg,
+                            AppSpacing.md,
+                            AppSpacing.sm,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'All Reminders',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () async {
+                                  final result = await context.goToAddReminder(
+                                    widget.dependentId,
+                                  );
+                                  if (result == true) {
+                                    _loadData();
+                                  }
+                                },
+                                icon: const Icon(Icons.add_rounded),
+                                label: const Text('Add'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (_reminders.isEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: AppSpacing.screenPadding,
+                            child: EmptyState(
+                              icon: Icons.notifications_off_outlined,
+                              title: 'No Reminders',
+                              message:
+                                  'Create a reminder to help ${_dependent?.name ?? 'your dependent'} stay on track.',
+                              actionLabel: 'Add Reminder',
+                              onAction: () async {
+                                final result = await context.goToAddReminder(
+                                  widget.dependentId,
+                                );
+                                if (result == true) {
+                                  _loadData();
+                                }
+                              },
+                            ),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: AppSpacing.screenPaddingHorizontal,
+                          sliver: SliverList.builder(
+                            itemCount: _reminders.length,
+                            itemBuilder: (context, index) {
+                              return _buildAllReminderTemplateCard(
+                                _reminders[index],
+                              );
+                            },
+                          ),
+                        ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final result = await context.goToAddReminder(widget.dependentId);
@@ -369,11 +396,69 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: AppSpacing.screenPadding,
-      child: DailyProgressBar(
-        completed: _completedCount,
-        total: _totalCount,
+    final theme = Theme.of(context);
+    final completion = _totalCount == 0 ? 0.0 : _completedCount / _totalCount;
+    final percent = (completion * 100).round();
+
+    return GlassCard(
+      margin: AppSpacing.screenPadding,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Today\'s Progress',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    '$_completedCount of $_totalCount done',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '$percent%',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              minHeight: 10,
+              value: completion.clamp(0.0, 1.0),
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 16, color: Colors.teal),
+              const SizedBox(width: 6),
+              Text(
+                percent >= 50
+                    ? 'Halfway there! Keep it up!'
+                    : 'Great start! Keep going!',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -387,24 +472,15 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
       return const SizedBox.shrink();
     }
 
-    return Container(
+    return GlassCard(
       margin: AppSpacing.screenPaddingHorizontal,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
       ),
-      decoration: BoxDecoration(
-        gradient: AppColors.missedGradient,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
       child: Row(
         children: [
-          Icon(
-            AppIcons.priorityHigh,
-            color: AppColors.error,
-            size: 20,
-          ),
+          Icon(AppIcons.priorityHigh, color: AppColors.error, size: 20),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
@@ -421,11 +497,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
           ),
           // Close button
           IconButton(
-            icon: Icon(
-              Icons.close_rounded,
-              color: AppColors.error,
-              size: 20,
-            ),
+            icon: Icon(Icons.close_rounded, color: AppColors.error, size: 20),
             onPressed: () {
               Haptics.lightImpact();
               setState(() {
@@ -435,10 +507,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
             tooltip: 'Dismiss',
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(
-              minWidth: 32,
-              minHeight: 32,
-            ),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
         ],
       ),
@@ -446,8 +515,8 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
   }
 
   Widget _buildQuickStats() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.md,
         AppSpacing.md,
@@ -456,30 +525,24 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
       child: Row(
         children: [
           Expanded(
-            child: _StatChip(
+            child: _FilterPill(
               label: 'Done',
-              value: _completedCount,
-              color: AppColors.success,
               isSelected: _activeStatusFilter == 'completed',
               onTap: () => _toggleStatusFilter('completed'),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: _StatChip(
+            child: _FilterPill(
               label: 'Pending',
-              value: _pendingCount,
-              color: AppColors.warning,
               isSelected: _activeStatusFilter == 'pending',
               onTap: () => _toggleStatusFilter('pending'),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: _StatChip(
+            child: _FilterPill(
               label: 'Missed',
-              value: _missedCount,
-              color: AppColors.error,
               isSelected: _activeStatusFilter == 'missed',
               onTap: () => _toggleStatusFilter('missed'),
             ),
@@ -489,51 +552,116 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
     );
   }
 
-  Widget _buildTimelineView() {
-    final timelineItems = _filteredInstances.map((instance) {
-      final reminder = _reminders.firstWhere(
-        (r) => r.id == instance.reminderId,
-        orElse: () => _reminders.first,
-      );
+  Widget _buildScheduleCard(ReminderInstanceData instance) {
+    final theme = Theme.of(context);
+    final reminder = _reminders.cast<ReminderData?>().firstWhere(
+      (r) => r?.id == instance.reminderId,
+      orElse: () => null,
+    );
+    final title = reminder?.title ?? instance.reminderTitle ?? 'Reminder';
+    final category = CategoryInference.inferCategory(title);
+    final icon = AppIcons.getCategoryIcon(category);
+    final iconColor = AppIcons.getCategoryColor(category);
+    final time = TimeOfDay.fromDateTime(
+      instance.scheduledTime.toLocal(),
+    ).format(context);
+    final repeatLabel = reminder == null
+        ? 'Scheduled'
+        : switch (reminder.repeatPattern) {
+            'once' => 'Once',
+            'daily' => 'Daily',
+            'weekly' => 'Weekly',
+            'specific_days' => 'Specific days',
+            _ => reminder.repeatPattern,
+          };
+    final statusColor = switch (instance.status) {
+      'completed' => Colors.green,
+      'missed' => Colors.redAccent,
+      'pending' => theme.colorScheme.primary,
+      _ => theme.colorScheme.onSurfaceVariant,
+    };
+    final statusLabel = switch (instance.status) {
+      'completed' => 'Done',
+      'missed' => 'Missed',
+      'pending' => 'Pending',
+      _ => 'Next',
+    };
 
-      return TimelineItem(
-        id: instance.id,
-        reminderId: instance.reminderId,
-        title: reminder.title,
-        scheduledTime: instance.scheduledTime.toLocal(),
-        status: instance.status,
-        hasVoiceNote: reminder.voiceNoteUrl != null,
-        description: reminder.description,
-      );
-    }).toList()
-      ..sort((a, b) {
-        final aPending = a.status == 'pending';
-        final bPending = b.status == 'pending';
-        if (aPending != bPending) {
-          return aPending ? -1 : 1; // pending always on top
-        }
-        if (aPending && bPending) {
-          return a.scheduledTime.compareTo(b.scheduledTime); // soonest first
-        }
-        return b.scheduledTime.compareTo(a.scheduledTime); // rest descending
-      });
-
-    return TimelineView(
-      items: timelineItems,
-      disableSorting: true,
-      onItemTap: (item) async {
-        final result = await context.goToEditReminder(item.reminderId);
-        if (result == true) _loadData();
-      },
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: GestureDetector(
+        onTap: () async {
+          final result = await context.goToEditReminder(instance.reminderId);
+          if (result == true) {
+            _loadData();
+          }
+        },
+        child: GlassCard(
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$time • $repeatLabel',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: statusColor,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildReminderTemplateCard(ReminderData reminder) {
+  Widget _buildAllReminderTemplateCard(ReminderData reminder) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final category = CategoryInference.inferCategory(reminder.title);
-
-    final time = '${reminder.hour.toString().padLeft(2, '0')}:${reminder.minute.toString().padLeft(2, '0')}';
+    final icon = AppIcons.getCategoryIcon(category);
+    final iconColor = AppIcons.getCategoryColor(category);
+    final time =
+        '${reminder.hour.toString().padLeft(2, '0')}:${reminder.minute.toString().padLeft(2, '0')}';
     final repeatLabel = switch (reminder.repeatPattern) {
       'once' => 'Once',
       'daily' => 'Daily',
@@ -544,73 +672,68 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: AccessibleCard(
+      child: GestureDetector(
         onTap: () async {
           final result = await context.goToEditReminder(reminder.id);
-          if (result == true) _loadData();
+          if (result == true) {
+            _loadData();
+          }
         },
-        child: Row(
-          children: [
-            // Category icon
-            CategoryIconWidget(
-              category: category,
-              size: 48,
-              iconSize: 24,
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    reminder.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+        child: GlassCard(
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      reminder.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$time • $repeatLabel',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (reminder.priority == 'high')
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    'HIGH',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Icon(
-                        AppIcons.time,
-                        size: 14,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$time • $repeatLabel',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (reminder.priority == 'high')
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'HIGH',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            const SizedBox(width: AppSpacing.sm),
-            Icon(
-              AppIcons.forward,
-              color: colorScheme.onSurfaceVariant,
-              size: 20,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -735,25 +858,19 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
         ),
 
         // Bottom padding
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 100),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
 }
 
-class _StatChip extends StatelessWidget {
+class _FilterPill extends StatelessWidget {
   final String label;
-  final int value;
-  final Color color;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _StatChip({
+  const _FilterPill({
     required this.label,
-    required this.value,
-    required this.color,
     required this.isSelected,
     required this.onTap,
   });
@@ -766,52 +883,29 @@ class _StatChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.2) : color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surface.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: isSelected ? color : Colors.transparent,
-            width: 2,
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  '$value',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
+        child: Center(
+          child: Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: isSelected
+                  ? Colors.white
+                  : theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? color : null,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ),
     );

@@ -4,21 +4,21 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/theme/redesign_tokens.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/repositories/repositories.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Screen for managing emergency contacts for a dependent
 class EmergencyContactsScreen extends StatefulWidget {
   final String dependentId;
 
-  const EmergencyContactsScreen({
-    super.key,
-    required this.dependentId,
-  });
+  const EmergencyContactsScreen({super.key, required this.dependentId});
 
   @override
-  State<EmergencyContactsScreen> createState() => _EmergencyContactsScreenState();
+  State<EmergencyContactsScreen> createState() =>
+      _EmergencyContactsScreenState();
 }
 
 class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
@@ -40,7 +40,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
     try {
       _dependent = await _userRepository.getUserById(widget.dependentId);
-      _contacts = await _contactRepository.getContactsForDependent(widget.dependentId);
+      _contacts = await _contactRepository.getContactsForDependent(
+        widget.dependentId,
+      );
     } catch (e) {
       debugPrint('Error loading contacts: $e');
     }
@@ -55,46 +57,80 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Emergency Contacts'),
-        actions: [
-          if (_contacts.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.reorder),
-              onPressed: _showReorderDialog,
-              tooltip: 'Reorder contacts',
-            ),
-        ],
-      ),
-      body: _isLoading
-          ? const LoadingIndicator()
-          : _contacts.isEmpty
-              ? EmptyState(
-                  icon: Icons.contacts_outlined,
-                  title: 'No Emergency Contacts',
-                  message: 'Add contacts who should be notified in case of emergency.',
-                  actionLabel: 'Add Contact',
-                  onAction: _showAddContactDialog,
-                )
-              : ListView.builder(
-                  padding: AppSpacing.screenPadding,
-                  itemCount: _contacts.length + 1, // +1 for info card
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return _buildInfoCard();
-                    }
-                    final contact = _contacts[index - 1];
-                    return _ContactCard(
-                      contact: contact,
-                      onEdit: () => _showEditContactDialog(contact),
-                      onDelete: () => _deleteContact(contact),
-                    );
-                  },
+      body: RedesignBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.sm,
                 ),
-      floatingActionButton: FloatingActionButton.extended(
+                child: Row(
+                  children: [
+                    IconButton.filledTonal(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Emergency Contacts',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    if (_contacts.isNotEmpty)
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.reorder),
+                        onPressed: _showReorderDialog,
+                        tooltip: 'Reorder contacts',
+                      )
+                    else
+                      const SizedBox(width: 48),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _isLoading
+                    ? const LoadingIndicator()
+                    : _contacts.isEmpty
+                    ? EmptyState(
+                        icon: Icons.contacts_outlined,
+                        title: 'No Emergency Contacts',
+                        message:
+                            'Add contacts who should be notified in case of emergency.',
+                        actionLabel: 'Add Contact',
+                        onAction: _showAddContactDialog,
+                      )
+                    : ListView.builder(
+                        padding: AppSpacing.screenPadding,
+                        itemCount: _contacts.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            return _buildInfoCard();
+                          }
+                          final contact = _contacts[index - 1];
+                          return _ContactCard(
+                            contact: contact,
+                            onEdit: () => _showEditContactDialog(contact),
+                            onDelete: () => _deleteContact(contact),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
         onPressed: _showAddContactDialog,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Contact'),
+        backgroundColor: RedesignTokens.primary,
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.person_add_rounded),
       ),
     );
   }
@@ -103,18 +139,23 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
+    return GlassCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
       child: Row(
         children: [
-          Icon(
-            Icons.info_outline,
-            color: colorScheme.primary,
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: RedesignTokens.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.info_outline,
+              color: RedesignTokens.primary,
+              size: 18,
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -140,7 +181,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
   void _showContactDialog({EmergencyContact? existingContact}) {
     final nameController = TextEditingController(text: existingContact?.name);
-    final phoneController = TextEditingController(text: existingContact?.phoneNumber);
+    final phoneController = TextEditingController(
+      text: existingContact?.phoneNumber,
+    );
     String? selectedRelationship = existingContact?.relationship;
 
     showDialog(
@@ -173,7 +216,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<String>(
-                  value: selectedRelationship,
+                  initialValue: selectedRelationship,
                   decoration: const InputDecoration(
                     labelText: 'Relationship',
                     prefixIcon: Icon(Icons.people),
@@ -181,7 +224,10 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                   items: const [
                     DropdownMenuItem(value: 'family', child: Text('Family')),
                     DropdownMenuItem(value: 'doctor', child: Text('Doctor')),
-                    DropdownMenuItem(value: 'neighbor', child: Text('Neighbor')),
+                    DropdownMenuItem(
+                      value: 'neighbor',
+                      child: Text('Neighbor'),
+                    ),
                     DropdownMenuItem(value: 'friend', child: Text('Friend')),
                     DropdownMenuItem(value: 'other', child: Text('Other')),
                   ],
@@ -206,7 +252,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
                 if (name.isEmpty || phone.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please fill in all required fields')),
+                    const SnackBar(
+                      content: Text('Please fill in all required fields'),
+                    ),
                   );
                   return;
                 }
@@ -254,9 +302,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       await _loadData();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$name added')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$name added')));
       }
     } catch (e) {
       if (mounted) {
@@ -289,9 +337,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       await _loadData();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Contact updated')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Contact updated')));
       }
     } catch (e) {
       if (mounted) {
@@ -333,9 +381,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
         await _loadData();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${contact.name} deleted')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('${contact.name} deleted')));
         }
       } catch (e) {
         if (mounted) {
@@ -351,9 +399,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
   }
 
   void _showReorderDialog() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reordering coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Reordering coming soon')));
   }
 }
 
@@ -382,7 +430,8 @@ class _ContactCard extends StatelessWidget {
       _ => null,
     };
 
-    return AccessibleCard(
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
         children: [
           // Priority number
@@ -425,12 +474,15 @@ class _ContactCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
+                          color: RedesignTokens.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           relationshipLabel,
-                          style: theme.textTheme.labelSmall,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: RedesignTokens.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ],

@@ -7,27 +7,68 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/accessible_card.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 
 /// Common timezone options for quick selection
 const List<Map<String, String>> _commonTimezones = [
-  {'id': 'America/New_York', 'label': 'Eastern Time (US)', 'example': 'New York'},
+  {
+    'id': 'America/New_York',
+    'label': 'Eastern Time (US)',
+    'example': 'New York',
+  },
   {'id': 'America/Chicago', 'label': 'Central Time (US)', 'example': 'Chicago'},
   {'id': 'America/Denver', 'label': 'Mountain Time (US)', 'example': 'Denver'},
-  {'id': 'America/Los_Angeles', 'label': 'Pacific Time (US)', 'example': 'Los Angeles'},
-  {'id': 'America/Toronto', 'label': 'Eastern Time (Canada)', 'example': 'Toronto'},
-  {'id': 'America/Vancouver', 'label': 'Pacific Time (Canada)', 'example': 'Vancouver'},
+  {
+    'id': 'America/Los_Angeles',
+    'label': 'Pacific Time (US)',
+    'example': 'Los Angeles',
+  },
+  {
+    'id': 'America/Toronto',
+    'label': 'Eastern Time (Canada)',
+    'example': 'Toronto',
+  },
+  {
+    'id': 'America/Vancouver',
+    'label': 'Pacific Time (Canada)',
+    'example': 'Vancouver',
+  },
   {'id': 'Europe/London', 'label': 'Greenwich Mean Time', 'example': 'London'},
   {'id': 'Europe/Paris', 'label': 'Central European Time', 'example': 'Paris'},
-  {'id': 'Europe/Berlin', 'label': 'Central European Time', 'example': 'Berlin'},
-  {'id': 'Asia/Kolkata', 'label': 'India Standard Time', 'example': 'Mumbai, Delhi'},
+  {
+    'id': 'Europe/Berlin',
+    'label': 'Central European Time',
+    'example': 'Berlin',
+  },
+  {
+    'id': 'Asia/Kolkata',
+    'label': 'India Standard Time',
+    'example': 'Mumbai, Delhi',
+  },
   {'id': 'Asia/Dubai', 'label': 'Gulf Standard Time', 'example': 'Dubai'},
   {'id': 'Asia/Singapore', 'label': 'Singapore Time', 'example': 'Singapore'},
   {'id': 'Asia/Tokyo', 'label': 'Japan Standard Time', 'example': 'Tokyo'},
-  {'id': 'Asia/Shanghai', 'label': 'China Standard Time', 'example': 'Shanghai, Beijing'},
+  {
+    'id': 'Asia/Shanghai',
+    'label': 'China Standard Time',
+    'example': 'Shanghai, Beijing',
+  },
   {'id': 'Asia/Hong_Kong', 'label': 'Hong Kong Time', 'example': 'Hong Kong'},
-  {'id': 'Australia/Sydney', 'label': 'Australian Eastern Time', 'example': 'Sydney'},
-  {'id': 'Australia/Melbourne', 'label': 'Australian Eastern Time', 'example': 'Melbourne'},
-  {'id': 'Pacific/Auckland', 'label': 'New Zealand Time', 'example': 'Auckland'},
+  {
+    'id': 'Australia/Sydney',
+    'label': 'Australian Eastern Time',
+    'example': 'Sydney',
+  },
+  {
+    'id': 'Australia/Melbourne',
+    'label': 'Australian Eastern Time',
+    'example': 'Melbourne',
+  },
+  {
+    'id': 'Pacific/Auckland',
+    'label': 'New Zealand Time',
+    'example': 'Auckland',
+  },
 ];
 
 /// Screen for managing timezone settings
@@ -43,9 +84,25 @@ class _TimezoneSettingsScreenState extends State<TimezoneSettingsScreen> {
 
   String _currentTimezone = 'UTC';
   String? _deviceTimezone;
+  String _searchQuery = '';
   bool _isLoading = true;
   bool _isSaving = false;
   String? _errorMessage;
+
+  List<Map<String, String>> get _filteredTimezones {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return _commonTimezones;
+    }
+    return _commonTimezones.where((tz) {
+      final id = (tz['id'] ?? '').toLowerCase();
+      final label = (tz['label'] ?? '').toLowerCase();
+      final example = (tz['example'] ?? '').toLowerCase();
+      return id.contains(query) ||
+          label.contains(query) ||
+          example.contains(query);
+    }).toList();
+  }
 
   @override
   void initState() {
@@ -116,130 +173,234 @@ class _TimezoneSettingsScreenState extends State<TimezoneSettingsScreen> {
 
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Timezone')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: RedesignBackground(
+          child: const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text('Timezone'),
-      ),
-      body: ListView(
-        padding: AppSpacing.screenPadding,
-        children: [
-          // Error message
-          if (_errorMessage != null) ...[
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Row(
+      body: RedesignBackground(
+        child: SafeArea(
+          child: ListView(
+            padding: AppSpacing.screenPadding,
+            children: [
+              Row(
                 children: [
-                  Icon(Icons.error_outline, color: colorScheme.error),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(color: colorScheme.onErrorContainer),
+                  IconButton.filledTonal(
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    onPressed: () => context.pop(),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Time & Region',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
+                  ),
+                  const Spacer(),
+                  IconButton.filledTonal(
+                    icon: const Icon(Icons.more_vert_rounded),
+                    onPressed: () {},
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-
-          // Current timezone info
-          _buildSectionHeader('Current Timezone'),
-          AccessibleCard(
-            child: ListTile(
-              leading: Icon(Icons.schedule, color: colorScheme.primary),
-              title: Text(
-                _currentTimezone,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                _getTimezoneLabel(_currentTimezone) ?? 'Custom timezone',
-              ),
-              trailing: _isSaving
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : null,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Device timezone option
-          if (_deviceTimezone != null && _deviceTimezone != _currentTimezone) ...[
-            _buildSectionHeader('Detected Device Timezone'),
-            AccessibleCard(
-              child: ListTile(
-                leading: Icon(Icons.phone_android, color: colorScheme.secondary),
-                title: Text(_deviceTimezone!),
-                subtitle: Text(_getTimezoneLabel(_deviceTimezone!) ?? 'Device timezone'),
-                trailing: FilledButton.tonal(
-                  onPressed: _isSaving ? null : () => _updateTimezone(_deviceTimezone!),
-                  child: const Text('Use'),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-
-          // Common timezones
-          _buildSectionHeader('Select Timezone'),
-          AccessibleCard(
-            child: Column(
-              children: _commonTimezones.asMap().entries.map((entry) {
-                final index = entry.key;
-                final tz = entry.value;
-                final isSelected = tz['id'] == _currentTimezone;
-
-                return Column(
+              const SizedBox(height: AppSpacing.md),
+              GlassCard(
+                margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (index > 0) const Divider(height: 1),
-                    ListTile(
-                      title: Text(tz['label']!),
-                      subtitle: Text(tz['example']!),
-                      trailing: isSelected
-                          ? Icon(Icons.check_circle, color: colorScheme.primary)
-                          : null,
-                      onTap: _isSaving ? null : () => _updateTimezone(tz['id']!),
-                      selected: isSelected,
+                    Text(
+                      'Current Timezone',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _currentTimezone,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _getTimezoneLabel(_currentTimezone) ?? 'Custom timezone',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Info text
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Text(
-              'Your timezone is used to schedule reminders at the correct time. '
-              'When you change your timezone, all pending reminders will be '
-              'automatically adjusted.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
+              // Error message
+              if (_errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: colorScheme.error),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: colorScheme.onErrorContainer),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+
+              // Current timezone info
+              _buildSectionHeader('Current Selection'),
+              AccessibleCard(
+                child: ListTile(
+                  leading: Icon(Icons.schedule, color: colorScheme.primary),
+                  title: Text(_currentTimezone),
+                  subtitle: Text(
+                    _getTimezoneLabel(_currentTimezone) ?? 'Custom timezone',
+                  ),
+                  trailing: _isSaving
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_circle, color: Colors.green),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              // Device timezone option
+              if (_deviceTimezone != null &&
+                  _deviceTimezone != _currentTimezone) ...[
+                _buildSectionHeader('Detected Device Timezone'),
+                AccessibleCard(
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.phone_android,
+                      color: colorScheme.secondary,
+                    ),
+                    title: Text(_deviceTimezone!),
+                    subtitle: Text(
+                      _getTimezoneLabel(_deviceTimezone!) ?? 'Device timezone',
+                    ),
+                    trailing: FilledButton.tonal(
+                      onPressed: _isSaving
+                          ? null
+                          : () => _updateTimezone(_deviceTimezone!),
+                      child: const Text('Use'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+
+              // Common timezones
+              _buildSectionHeader('Select Timezone'),
+              Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: TextField(
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Search city or region...',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    filled: true,
+                    fillColor: colorScheme.surface.withValues(alpha: 0.72),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: BorderSide(
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.3,
+                        ),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: BorderSide(
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.3,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (_filteredTimezones.isEmpty)
+                AccessibleCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Text(
+                      'No timezone matches "${_searchQuery.trim()}"',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              else
+                AccessibleCard(
+                  child: Column(
+                    children: _filteredTimezones.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final tz = entry.value;
+                      final isSelected = tz['id'] == _currentTimezone;
+
+                      return Column(
+                        children: [
+                          if (index > 0) const Divider(height: 1),
+                          ListTile(
+                            title: Text(tz['label']!),
+                            subtitle: Text(tz['example']!),
+                            trailing: isSelected
+                                ? Icon(
+                                    Icons.check_circle,
+                                    color: colorScheme.primary,
+                                  )
+                                : null,
+                            onTap: _isSaving
+                                ? null
+                                : () => _updateTimezone(tz['id']!),
+                            selected: isSelected,
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              const SizedBox(height: AppSpacing.lg),
+
+              // Info text
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: Text(
+                  'Your timezone is used to schedule reminders at the correct time. '
+                  'When you change your timezone, all pending reminders will be '
+                  'automatically adjusted.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+            ],
           ),
-          const SizedBox(height: AppSpacing.xxl),
-        ],
+        ),
       ),
     );
   }
@@ -252,9 +413,10 @@ class _TimezoneSettingsScreenState extends State<TimezoneSettingsScreen> {
       ),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.w600,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
         ),
       ),
     );

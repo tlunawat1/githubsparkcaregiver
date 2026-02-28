@@ -12,7 +12,7 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/repositories/repositories.dart';
-import '../../../../shared/widgets/accessible_button.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 
 /// SOS emergency screen with countdown and cancellation option
 class SosScreen extends StatefulWidget {
@@ -149,160 +149,121 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.errorLight,
-      body: SafeArea(
-        child: Padding(
-          padding: AppSpacing.screenPadding,
-          child: Column(
-            children: [
-              // Close button row
-              Align(
-                alignment: Alignment.topRight,
-                child: IconButton(
+      body: RedesignBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: AppSpacing.screenPadding,
+            child: Column(
+              children: [
+                IconButton.filledTonal(
                   onPressed: () {
                     _countdownTimer?.cancel();
                     context.go(AppRoutes.dependentHome);
                   },
-                  icon: const Icon(Icons.close, size: 32),
-                  tooltip: 'Go back',
-                  style: IconButton.styleFrom(
-                    backgroundColor: theme.colorScheme.surface,
-                    padding: const EdgeInsets.all(12),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.emergency,
+                    color: theme.colorScheme.primary,
+                    size: 34,
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              // Warning icon
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.error.withValues(alpha: 0.4),
-                      blurRadius: 30,
-                      spreadRadius: 10,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.warning_rounded,
-                  color: Colors.white,
-                  size: 56,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              // Title
-              Text(
-                'SOS ACTIVATED',
-                style: theme.textTheme.displaySmall?.copyWith(
-                  color: AppColors.error,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              // Subtitle
-              Text(
-                'Emergency contacts will be notified in',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              // Countdown
-              Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.error,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.error.withValues(alpha: 0.5),
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    '$_remainingSeconds',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 72,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              // Contacts to be notified
-              if (_contacts.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Will notify:',
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  'SOS Activated',
+                  style: theme.textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Remote Care Monitoring Active',
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: _contacts.take(3).map((contact) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.error),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.person,
-                            size: 18,
-                            color: AppColors.error,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            contact.name,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
+                const SizedBox(height: AppSpacing.lg),
+                _CountdownRing(seconds: _remainingSeconds),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  'Emergency contacts and local response services will be notified in...',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                if (_contacts.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    alignment: WrapAlignment.center,
+                    children: _contacts.take(3).map((contact) {
+                      return GlassCard(
+                        margin: EdgeInsets.zero,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.person, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              contact.name,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+                const Spacer(),
+                FilledButton.tonal(
+                  onPressed: _cancelSOS,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(64),
+                    foregroundColor: AppColors.error,
+                    backgroundColor: AppColors.error.withValues(alpha: 0.12),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Cancel - I\'m Okay',
+                        style: TextStyle(fontWeight: FontWeight.w800),
                       ),
-                    );
-                  }).toList(),
+                      SizedBox(height: 2),
+                      Text(
+                        'Hold for 2 seconds to dismiss',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Current Location: Live',
+                      style: theme.textTheme.labelSmall,
+                    ),
+                  ],
                 ),
               ],
-              const Spacer(),
-              // Cancel button
-              Text(
-                'If you\'re okay, tap cancel below',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AccessibleButton(
-                onPressed: _cancelSOS,
-                label: 'CANCEL - I\'m Okay',
-                icon: Icons.check_circle,
-                size: AccessibleButtonSize.xlarge,
-                backgroundColor: AppColors.success,
-              ),
-              const SizedBox(height: AppSpacing.xl),
-            ],
+            ),
           ),
         ),
       ),
@@ -313,94 +274,105 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.errorLight,
-      body: SafeArea(
-        child: Padding(
-          padding: AppSpacing.screenPadding,
-          child: Column(
-            children: [
-              // Close button row
-              Align(
-                alignment: Alignment.topRight,
-                child: IconButton(
-                  onPressed: () => context.go(AppRoutes.dependentHome),
-                  icon: const Icon(Icons.close, size: 32),
-                  tooltip: 'Go back',
-                  style: IconButton.styleFrom(
-                    backgroundColor: theme.colorScheme.surface,
-                    padding: const EdgeInsets.all(12),
+      body: RedesignBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: AppSpacing.screenPadding,
+            child: Column(
+              children: [
+                const Spacer(),
+                Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: AppColors.success,
+                    size: 64,
                   ),
                 ),
-              ),
-              const Spacer(),
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  shape: BoxShape.circle,
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  'SOS Sent',
+                  style: theme.textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.check,
-                  color: Colors.white,
-                  size: 64,
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Help is on the way. Stay calm and remain in a safe location.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge,
                 ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Text(
-                'SOS Sent',
-                style: theme.textTheme.displaySmall?.copyWith(
-                  color: AppColors.error,
-                  fontWeight: FontWeight.bold,
+                const Spacer(),
+                GradientPrimaryButton(
+                  label: 'I\'m Okay - Cancel Alert',
+                  icon: Icons.check_circle_outline,
+                  onPressed: _cancelSOS,
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Your emergency contacts have been notified.',
-                style: theme.textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                const SizedBox(height: AppSpacing.sm),
+                TextButton(
+                  onPressed: () => context.go(AppRoutes.dependentHome),
+                  child: const Text('Return Home'),
                 ),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Help is on the way. Stay calm and stay where you are if possible.',
-                      style: theme.textTheme.bodyLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-              AccessibleButton(
-                onPressed: _cancelSOS,
-                label: 'I\'m Okay - Cancel Alert',
-                size: AccessibleButtonSize.large,
-                backgroundColor: AppColors.success,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextButton(
-                onPressed: () => context.go(AppRoutes.dependentHome),
-                child: Text(
-                  'Return Home',
-                  style: theme.textTheme.titleMedium,
-                ),
-              ),
-              const Spacer(),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CountdownRing extends StatelessWidget {
+  const _CountdownRing({required this.seconds});
+
+  final int seconds;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = AppConfig.sosCancellationWindowSeconds.toDouble();
+    final progress = ((seconds / total).clamp(0.0, 1.0)).toDouble();
+
+    return SizedBox(
+      width: 220,
+      height: 220,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 220,
+            height: 220,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 10,
+              backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.4),
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$seconds',
+                style: theme.textTheme.displayLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                'SECONDS',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  letterSpacing: 1.6,
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

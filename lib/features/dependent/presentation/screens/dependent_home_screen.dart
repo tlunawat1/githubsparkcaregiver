@@ -11,12 +11,14 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/custom_icons.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/theme/redesign_tokens.dart';
 import '../../../../core/utils/animation_settings.dart';
 import '../../../../core/utils/category_inference.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/local/database.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/link_request_banner.dart';
 import '../widgets/link_request_dialog.dart';
@@ -83,7 +85,9 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   /// Ensure SignalR is connected with automatic retry
   Future<void> _ensureSignalRConnected() async {
     debugPrint('DependentHomeScreen: Ensuring SignalR connection...');
-    debugPrint('DependentHomeScreen: Current SignalR state: ${_signalRService.currentState}');
+    debugPrint(
+      'DependentHomeScreen: Current SignalR state: ${_signalRService.currentState}',
+    );
 
     const maxRetries = 3;
     const retryDelay = Duration(seconds: 2);
@@ -92,19 +96,27 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
       final connected = await _signalRService.ensureConnected();
 
       if (connected) {
-        debugPrint('DependentHomeScreen: SignalR connected successfully on attempt $attempt');
+        debugPrint(
+          'DependentHomeScreen: SignalR connected successfully on attempt $attempt',
+        );
         return;
       }
 
-      debugPrint('DependentHomeScreen: SignalR connection attempt $attempt/$maxRetries failed');
+      debugPrint(
+        'DependentHomeScreen: SignalR connection attempt $attempt/$maxRetries failed',
+      );
 
       if (attempt < maxRetries) {
-        debugPrint('DependentHomeScreen: Retrying in ${retryDelay.inSeconds} seconds...');
+        debugPrint(
+          'DependentHomeScreen: Retrying in ${retryDelay.inSeconds} seconds...',
+        );
         await Future.delayed(retryDelay);
       }
     }
 
-    debugPrint('DependentHomeScreen: SignalR connection failed after $maxRetries attempts, continuing without real-time updates');
+    debugPrint(
+      'DependentHomeScreen: SignalR connection failed after $maxRetries attempts, continuing without real-time updates',
+    );
     // Continue anyway - user can still use pull-to-refresh
   }
 
@@ -122,11 +134,15 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
 
     if (state == AppLifecycleState.resumed) {
       debugPrint('DependentHomeScreen: App resumed from background');
-      debugPrint('DependentHomeScreen: Current SignalR state: ${_signalRService.currentState}');
+      debugPrint(
+        'DependentHomeScreen: Current SignalR state: ${_signalRService.currentState}',
+      );
 
       // Ensure SignalR is connected after resume (in background)
       _ensureSignalRConnected().then((_) {
-        debugPrint('DependentHomeScreen: SignalR check complete after resume, refreshing data');
+        debugPrint(
+          'DependentHomeScreen: SignalR check complete after resume, refreshing data',
+        );
         _loadData();
       });
     } else if (state == AppLifecycleState.paused) {
@@ -136,22 +152,32 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
 
   void _setupConnectionStateListener() {
     debugPrint('DependentHomeScreen: Setting up connection state listener');
-    _connectionStateSubscription = _signalRService.connectionState.listen((state) {
-      debugPrint('DependentHomeScreen: SignalR connection state changed: $state');
+    _connectionStateSubscription = _signalRService.connectionState.listen((
+      state,
+    ) {
+      debugPrint(
+        'DependentHomeScreen: SignalR connection state changed: $state',
+      );
 
       if (state == SignalRConnectionState.connected) {
         // Connection restored - refresh data to get any updates we missed
-        debugPrint('DependentHomeScreen: Connection restored, refreshing data to sync missed updates');
+        debugPrint(
+          'DependentHomeScreen: Connection restored, refreshing data to sync missed updates',
+        );
         _loadData();
 
         // If SignalR wasn't initialized yet, set up listeners now
         if (!_isSignalRInitialized) {
-          debugPrint('DependentHomeScreen: Late initialization - setting up SignalR listeners after reconnection');
+          debugPrint(
+            'DependentHomeScreen: Late initialization - setting up SignalR listeners after reconnection',
+          );
           _setupSignalRListeners();
           _isSignalRInitialized = true;
         }
       } else if (state == SignalRConnectionState.disconnected) {
-        debugPrint('DependentHomeScreen: SignalR disconnected - real-time updates paused');
+        debugPrint(
+          'DependentHomeScreen: SignalR disconnected - real-time updates paused',
+        );
       } else if (state == SignalRConnectionState.reconnecting) {
         debugPrint('DependentHomeScreen: SignalR reconnecting...');
       }
@@ -161,19 +187,27 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   void _setupSignalRListeners() {
     // Avoid duplicate subscriptions
     if (_signalRSubscription != null) {
-      debugPrint('DependentHomeScreen: SignalR event listener already set up, skipping');
+      debugPrint(
+        'DependentHomeScreen: SignalR event listener already set up, skipping',
+      );
       return;
     }
 
     debugPrint('DependentHomeScreen: Setting up SignalR event listeners');
-    debugPrint('DependentHomeScreen: SignalR isConnected=${_signalRService.isConnected}, state=${_signalRService.currentState}');
+    debugPrint(
+      'DependentHomeScreen: SignalR isConnected=${_signalRService.isConnected}, state=${_signalRService.currentState}',
+    );
 
     _signalRSubscription = _signalRService.events.listen((event) {
-      debugPrint('DependentHomeScreen: ========== SignalR EVENT RECEIVED ==========');
+      debugPrint(
+        'DependentHomeScreen: ========== SignalR EVENT RECEIVED ==========',
+      );
       debugPrint('DependentHomeScreen: Event type: ${event.type}');
       debugPrint('DependentHomeScreen: Event data: ${event.data}');
       debugPrint('DependentHomeScreen: Event timestamp: ${event.timestamp}');
-      debugPrint('DependentHomeScreen: ============================================');
+      debugPrint(
+        'DependentHomeScreen: ============================================',
+      );
 
       if (event.type == SignalREventType.instanceCreated ||
           event.type == SignalREventType.instanceStatusChanged ||
@@ -182,19 +216,27 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
           event.type == SignalREventType.reminderDeleted ||
           event.type == SignalREventType.linkVerified ||
           event.type == SignalREventType.linkRequestReceived) {
-        debugPrint('DependentHomeScreen: Event matched! Triggering data refresh for ${event.type}');
+        debugPrint(
+          'DependentHomeScreen: Event matched! Triggering data refresh for ${event.type}',
+        );
         _loadData();
       } else {
-        debugPrint('DependentHomeScreen: Event ${event.type} not handled by this screen');
+        debugPrint(
+          'DependentHomeScreen: Event ${event.type} not handled by this screen',
+        );
       }
     });
 
-    debugPrint('DependentHomeScreen: SignalR event listener registered successfully');
+    debugPrint(
+      'DependentHomeScreen: SignalR event listener registered successfully',
+    );
   }
 
   Future<void> _loadData() async {
     debugPrint('DependentHomeScreen: _loadData() called');
-    debugPrint('DependentHomeScreen: isInitialLoad=$_isInitialLoad, SignalR state=${_signalRService.currentState}');
+    debugPrint(
+      'DependentHomeScreen: isInitialLoad=$_isInitialLoad, SignalR state=${_signalRService.currentState}',
+    );
 
     // Only show loading indicator on initial load to avoid jarring screen flashes
     if (_isInitialLoad) {
@@ -209,31 +251,37 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
       if (_user != null) {
         final userId = _user!.id;
         _reminders = await _reminderApi.getReminders(dependentId: userId);
-        debugPrint('DependentHomeScreen: Loaded ${_reminders.length} reminders');
+        debugPrint(
+          'DependentHomeScreen: Loaded ${_reminders.length} reminders',
+        );
 
         _todayInstances = await _reminderInstanceApi.getInstances(
           dependentId: userId,
           date: DateTime.now(),
         );
-        debugPrint('DependentHomeScreen: Loaded ${_todayInstances.length} instances for today');
+        debugPrint(
+          'DependentHomeScreen: Loaded ${_todayInstances.length} instances for today',
+        );
 
         // Log instance statuses for debugging
         final statusCounts = <String, int>{};
         for (final instance in _todayInstances) {
-          statusCounts[instance.status] = (statusCounts[instance.status] ?? 0) + 1;
+          statusCounts[instance.status] =
+              (statusCounts[instance.status] ?? 0) + 1;
         }
         debugPrint('DependentHomeScreen: Instance statuses: $statusCounts');
 
         // Load pending link requests
         _pendingLinks = await _careRelationshipRepository
             .getPendingLinksForDependent(userId);
-        debugPrint('DependentHomeScreen: Loaded ${_pendingLinks.length} pending links');
+        debugPrint(
+          'DependentHomeScreen: Loaded ${_pendingLinks.length} pending links',
+        );
 
         // Load caregiver info for each pending link
         _pendingLinkCaregivers = {};
         for (final link in _pendingLinks) {
-          final caregiver =
-              await _userRepository.getUserById(link.caregiverId);
+          final caregiver = await _userRepository.getUserById(link.caregiverId);
           if (caregiver != null) {
             _pendingLinkCaregivers[link.id] = caregiver;
           }
@@ -262,153 +310,162 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     final greeting = _getGreeting(now.hour);
 
     return Scaffold(
-      body: SafeArea(
-        child: _isLoading
-            ? _buildSkeletonLoading()
-            : Stack(
-                children: [
-                  // Main scrollable content
-                  RefreshIndicator(
-                    onRefresh: _loadData,
-                    child: CustomScrollView(
-                      slivers: [
-                        // Header
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: AppSpacing.screenPadding,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '$greeting,',
-                                            style: theme.textTheme.titleLarge?.copyWith(
-                                              color: colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          Text(
-                                            _user?.name ?? 'Friend',
-                                            style: theme.textTheme.displaySmall?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.settings, size: 28),
-                                      onPressed: () => context.go(AppRoutes.settings),
-                                      tooltip: 'Settings',
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: AppSpacing.sm),
-                                Text(
-                                  DateFormat('EEEE, MMMM d').format(now),
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                if (_user?.uniqueCode != null &&
-                                    _user!.uniqueCode.isNotEmpty) ...[
-                                  const SizedBox(height: AppSpacing.md),
-                                  _buildUniqueCodeCard(),
-                                ],
-                                // Pending link request banners
-                                if (_pendingLinks.isNotEmpty) ...[
-                                  const SizedBox(height: AppSpacing.md),
-                                  ..._pendingLinks.map((link) {
-                                    final caregiver =
-                                        _pendingLinkCaregivers[link.id];
-                                    if (caregiver == null) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return LinkRequestBanner(
-                                      caregiver: caregiver,
-                                      relationship: link,
-                                      onTap: () =>
-                                          _showLinkRequestDialog(link, caregiver),
-                                    );
-                                  }),
-                                ],
-                                // Today's Progress section
-                                if (_todayInstances.isNotEmpty) ...[
-                                  const SizedBox(height: AppSpacing.lg),
-                                  _buildTodaysProgress(),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // Today's reminders
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.md,
-                              AppSpacing.lg,
-                              AppSpacing.md,
-                              AppSpacing.sm,
-                            ),
-                            child: Text(
-                              'Today\'s Reminders',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Reminder grid or empty state
-                        if (_todayInstances.isEmpty)
+      body: RedesignBackground(
+        child: SafeArea(
+          child: _isLoading
+              ? _buildSkeletonLoading()
+              : Stack(
+                  children: [
+                    // Main scrollable content
+                    RefreshIndicator(
+                      onRefresh: _loadData,
+                      child: CustomScrollView(
+                        slivers: [
+                          // Header
                           SliverToBoxAdapter(
                             child: Padding(
                               padding: AppSpacing.screenPadding,
-                              child: _buildNoRemindersCard(),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '$greeting, ${_user?.name ?? 'Friend'}',
+                                          style: theme.textTheme.headlineSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                        ),
+                                      ),
+                                      IconButton.filledTonal(
+                                        icon: const Icon(
+                                          Icons.settings,
+                                          size: 22,
+                                        ),
+                                        onPressed: () =>
+                                            context.go(AppRoutes.settings),
+                                        tooltip: 'Settings',
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: AppSpacing.sm),
+                                  Text(
+                                    DateFormat('EEEE, MMMM d').format(now),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                  ),
+                                  if (_user?.uniqueCode != null &&
+                                      _user!.uniqueCode.isNotEmpty) ...[
+                                    const SizedBox(height: AppSpacing.md),
+                                    _buildUniqueCodeCard(),
+                                  ],
+                                  // Pending link request banners
+                                  if (_pendingLinks.isNotEmpty) ...[
+                                    const SizedBox(height: AppSpacing.md),
+                                    ..._pendingLinks.map((link) {
+                                      final caregiver =
+                                          _pendingLinkCaregivers[link.id];
+                                      if (caregiver == null) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      return LinkRequestBanner(
+                                        caregiver: caregiver,
+                                        relationship: link,
+                                        onTap: () => _showLinkRequestDialog(
+                                          link,
+                                          caregiver,
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                  // Today's Progress section
+                                  if (_todayInstances.isNotEmpty) ...[
+                                    const SizedBox(height: AppSpacing.lg),
+                                    _buildTodaysProgress(),
+                                  ],
+                                ],
+                              ),
                             ),
-                          )
-                        else ...[
-                          // "Up Next" hero card for first pending reminder
-                          if (_getNextPendingReminder() != null)
+                          ),
+
+                          // Coming up reminders
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.md,
+                                AppSpacing.lg,
+                                AppSpacing.md,
+                                AppSpacing.sm,
+                              ),
+                              child: Text(
+                                'Coming Up Today',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Reminder grid or empty state
+                          if (_todayInstances.isEmpty)
                             SliverToBoxAdapter(
                               child: Padding(
-                                padding: AppSpacing.screenPaddingHorizontal,
-                                child: _buildUpNextCard(),
+                                padding: AppSpacing.screenPadding,
+                                child: _buildNoRemindersCard(),
                               ),
-                            ),
+                            )
+                          else ...[
+                            // "Up Next" hero card for first pending reminder
+                            if (_getNextPendingReminder() != null)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: AppSpacing.screenPaddingHorizontal,
+                                  child: _buildUpNextCard(),
+                                ),
+                              ),
 
-                          // Remaining reminders in 2-column grid with staggered animations
-                          SliverPadding(
-                            padding: AppSpacing.screenPaddingHorizontal,
-                            sliver: SliverGrid(
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: AppSpacing.md,
-                                crossAxisSpacing: AppSpacing.md,
-                                childAspectRatio: 1.55,
-                              ),
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
+                            // Remaining reminders in 2-column grid with staggered animations
+                            SliverPadding(
+                              padding: AppSpacing.screenPaddingHorizontal,
+                              sliver: SliverGrid(
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      mainAxisSpacing: AppSpacing.md,
+                                      crossAxisSpacing: AppSpacing.md,
+                                      childAspectRatio: 1.55,
+                                    ),
+                                delegate: SliverChildBuilderDelegate((
+                                  context,
+                                  index,
+                                ) {
                                   final otherReminders = _getOtherReminders();
-                                  if (index >= otherReminders.length) return null;
+                                  if (index >= otherReminders.length) {
+                                    return null;
+                                  }
 
                                   final instance = otherReminders[index];
-                                  final reminder = _reminders.cast<ReminderData?>().firstWhere(
-                                    (r) => r?.id == instance.reminderId,
-                                    orElse: () => null,
-                                  );
+                                  final reminder = _reminders
+                                      .cast<ReminderData?>()
+                                      .firstWhere(
+                                        (r) => r?.id == instance.reminderId,
+                                        orElse: () => null,
+                                      );
 
                                   // For pending instances, use reminder template time (hour/minute are in local time)
                                   // For completed/missed instances, convert UTC scheduledTime to local time
-                                  final localScheduledTime = instance.scheduledTime.toLocal();
-                                  final displayTime = instance.status == 'pending' && reminder != null
+                                  final localScheduledTime = instance
+                                      .scheduledTime
+                                      .toLocal();
+                                  final displayTime =
+                                      instance.status == 'pending' &&
+                                          reminder != null
                                       ? DateTime(
                                           localScheduledTime.year,
                                           localScheduledTime.month,
@@ -418,25 +475,17 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                         )
                                       : localScheduledTime;
 
-                                  final button = ReminderButton(
-                                    title: reminder?.title ??
-                                        instance.reminderTitle ??
-                                        'Reminder',
-                                    time: DateFormat.jm().format(displayTime),
-                                    status: _getInstanceStatus(instance.status),
-                                    hasVoiceNote: (reminder?.voiceNoteUrl ??
-                                            instance.voiceNoteUrl) !=
-                                        null,
-                                    isLoading:
-                                        _completingInstances.contains(instance.id),
-                                    onTap: () => _markInstanceComplete(instance.id),
-                                    onDetailsTap: () =>
-                                        _showDetailsModal(instance, reminder),
+                                  final card = _buildComingUpCard(
+                                    instance: instance,
+                                    reminder: reminder,
+                                    displayTime: displayTime,
                                   );
 
                                   // Apply staggered animation if animations are enabled
-                                  if (AnimationSettings.shouldAnimate(context)) {
-                                    return button
+                                  if (AnimationSettings.shouldAnimate(
+                                    context,
+                                  )) {
+                                    return card
                                         .animate()
                                         .fadeIn(
                                           duration: 200.ms,
@@ -450,56 +499,55 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                           curve: Curves.easeOut,
                                         );
                                   }
-                                  return button;
-                                },
-                                childCount: _getOtherReminders().length,
+                                  return card;
+                                }, childCount: _getOtherReminders().length),
                               ),
                             ),
+                          ],
+
+                          // Spacer for SOS button (increased to prevent overflow)
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 150),
                           ),
                         ],
-
-                        // Spacer for SOS button (increased to prevent overflow)
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: 150),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                  // SOS button fixed at bottom (further reduced - 25% smaller)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: SafeArea(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.lg,
-                          vertical: AppSpacing.sm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, -5),
+                    // SOS button fixed at bottom (further reduced - 25% smaller)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: SafeArea(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg,
+                            vertical: AppSpacing.sm,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface.withValues(alpha: 0.9),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, -5),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: SOSButton(
+                              size: 56,
+                              width: double.infinity,
+                              onActivated: () {
+                                context.go('${AppRoutes.dependentHome}/sos');
+                              },
                             ),
-                          ],
-                        ),
-                        child: Center(
-                          child: SOSButton(
-                            size: 56,
-                            width: double.infinity,
-                            onActivated: () {
-                              context.go('${AppRoutes.dependentHome}/sos');
-                            },
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -598,7 +646,10 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     }
   }
 
-  void _showDetailsModal(ReminderInstanceData instance, ReminderData? reminder) {
+  void _showDetailsModal(
+    ReminderInstanceData instance,
+    ReminderData? reminder,
+  ) {
     ReminderDetailsModal.show(
       context,
       title: reminder?.title ?? instance.reminderTitle ?? 'Reminder',
@@ -621,6 +672,113 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     }
   }
 
+  Widget _buildComingUpCard({
+    required ReminderInstanceData instance,
+    required ReminderData? reminder,
+    required DateTime displayTime,
+  }) {
+    final theme = Theme.of(context);
+    final title = reminder?.title ?? instance.reminderTitle ?? 'Reminder';
+    final category = CategoryInference.inferCategory(title);
+    final icon = AppIcons.getCategoryIcon(category);
+    final iconColor = AppIcons.getCategoryColor(category);
+    final isLoading = _completingInstances.contains(instance.id);
+    final statusLabel = switch (instance.status) {
+      'completed' => 'Done',
+      'missed' => 'Missed',
+      'pending' => 'Tap to complete',
+      'snoozed' => 'Snoozed',
+      _ => 'Upcoming',
+    };
+    final statusBg = switch (instance.status) {
+      'completed' => Colors.green.withValues(alpha: 0.14),
+      'missed' => Colors.redAccent.withValues(alpha: 0.14),
+      'pending' => theme.colorScheme.primary.withValues(alpha: 0.14),
+      'snoozed' => Colors.orange.withValues(alpha: 0.14),
+      _ => theme.colorScheme.surfaceContainerHighest,
+    };
+    final statusFg = switch (instance.status) {
+      'completed' => Colors.green,
+      'missed' => Colors.redAccent,
+      'pending' => theme.colorScheme.primary,
+      'snoozed' => Colors.orange,
+      _ => theme.colorScheme.onSurfaceVariant,
+    };
+
+    return GestureDetector(
+      onTap: () => _markInstanceComplete(instance.id),
+      onLongPress: () => _showDetailsModal(instance, reminder),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.78),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 18, color: iconColor),
+                ),
+                Text(
+                  DateFormat.jm().format(displayTime),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: statusBg,
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: isLoading
+                  ? SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: statusFg,
+                      ),
+                    )
+                  : Text(
+                      statusLabel.toUpperCase(),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: statusFg,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildNoRemindersCard() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -641,11 +799,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
               color: AppColors.success,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.check,
-              color: Colors.white,
-              size: 48,
-            ),
+            child: const Icon(Icons.check, color: Colors.white, size: 48),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -682,29 +836,21 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
 
   Widget _buildUniqueCodeCard() {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final uniqueCode = _user?.uniqueCode ?? '';
 
-    return Container(
+    return GlassCard(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
       ),
-      decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.secondary.withValues(alpha: 0.3),
-        ),
-      ),
       child: Row(
         children: [
-          Icon(Icons.qr_code, color: colorScheme.secondary, size: 24),
+          const Icon(Icons.qr_code, color: RedesignTokens.primary, size: 24),
           const SizedBox(width: AppSpacing.sm),
           Text(
             'Your Code:',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
@@ -714,7 +860,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 letterSpacing: 2,
-                color: colorScheme.secondary,
+                color: RedesignTokens.primary,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -735,10 +881,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
             tooltip: 'Copy code',
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(
-              minWidth: 32,
-              minHeight: 32,
-            ),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
         ],
       ),
@@ -749,7 +892,9 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   ReminderInstanceData? _getNextPendingReminder() {
     final sorted = _getSortedReminders();
     try {
-      return sorted.firstWhere((r) => r.status == 'pending' || r.status == 'snoozed');
+      return sorted.firstWhere(
+        (r) => r.status == 'pending' || r.status == 'snoozed',
+      );
     } catch (_) {
       return null;
     }
@@ -792,202 +937,174 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
 
     final isLoading = _completingInstances.contains(nextReminder.id);
 
-    Widget card = Semantics(
-      label: 'Up next: $title at ${DateFormat.jm().format(displayTime)}. Tap to complete.',
-      button: true,
-      child: Material(
-        color: AppColors.warningLight,
-        borderRadius: AppRadius.largeRadius,
-        child: InkWell(
-          onTap: isLoading ? null : () => _markInstanceComplete(nextReminder.id),
-          borderRadius: AppRadius.largeRadius,
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md), // Reduced from lg
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.largeRadius,
-              border: Border.all(color: AppColors.warning, width: 2),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.warningLight,
-                  AppColors.warningLight.withValues(alpha: 0.7),
-                ],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header row with badge and details button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.arrow_upward_rounded,
-                            color: Colors.white,
-                            size: 12,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            'UP NEXT',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: isLoading
-                          ? null
-                          : () {
-                              Haptics.lightImpact();
-                              _showDetailsModal(nextReminder, reminder);
-                            },
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: AppColors.warning.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.help_outline,
-                          size: 18,
-                          color: AppColors.warning,
-                        ),
-                      ),
-                    ),
-                  ],
+    Widget card = Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.15),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
                 ),
-                const SizedBox(height: AppSpacing.sm), // Reduced
-                // Main content row
-                Row(
-                  children: [
-                    // Category icon (smaller)
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: categoryColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        categoryIcon,
-                        color: categoryColor,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    // Title and time
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: AppColors.warningDark,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            DateFormat.jm().format(displayTime),
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              color: AppColors.warning,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(99),
                 ),
-                const SizedBox(height: AppSpacing.sm), // Reduced
-                // Action button (smaller)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: isLoading ? null : () => _markInstanceComplete(nextReminder.id),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.warning,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12), // Reduced
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.check_circle_outline, size: 20),
-                    label: Text(
-                      isLoading ? 'Completing...' : 'Mark as Done',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                child: Text(
+                  'UP NEXT',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
                   ),
                 ),
-              ],
-            ),
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule,
+                    size: 14,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    DateFormat.jm().format(displayTime),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: categoryColor.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(categoryIcon, color: categoryColor, size: 28),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: isLoading
+                      ? null
+                      : () => _markInstanceComplete(nextReminder.id),
+                  icon: isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle_outline),
+                  label: Text(isLoading ? 'Completing...' : 'Mark as Done'),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              IconButton.filledTonal(
+                onPressed: () => _showDetailsModal(nextReminder, reminder),
+                icon: const Icon(Icons.info_outline),
+              ),
+            ],
+          ),
+        ],
       ),
     );
 
-    // Apply entry animation if enabled
     if (AnimationSettings.shouldAnimate(context)) {
-      card = card
-          .animate()
-          .fadeIn(duration: 300.ms)
-          .scale(
-            begin: const Offset(0.95, 0.95),
-            end: const Offset(1, 1),
-            duration: 300.ms,
-            curve: Curves.easeOut,
-          );
+      card = card.animate().fadeIn(duration: 220.ms);
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      child: card,
-    );
+    return card;
   }
 
   /// Build Today's Progress section - same as caregiver dashboard
   Widget _buildTodaysProgress() {
     final total = _todayInstances.length;
-    final completed = _todayInstances.where((i) => i.status == 'completed').length;
+    final completed = _todayInstances
+        .where((i) => i.status == 'completed')
+        .length;
+    final ratio = total == 0 ? 0.0 : completed / total;
 
-    return DailyProgressBar(
-      completed: completed,
-      total: total,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Today\'s Progress',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                '$completed of $total tasks done',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              minHeight: 10,
+              value: ratio.clamp(0.0, 1.0),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1075,11 +1192,8 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
         ),
 
         // Spacer for SOS button
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 200),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 200)),
       ],
     );
   }
-
 }

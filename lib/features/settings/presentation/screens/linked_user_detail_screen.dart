@@ -5,7 +5,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
-import '../../../../shared/widgets/accessible_button.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 
 /// Data class holding linked user information passed to the detail screen
 class LinkedUserData {
@@ -35,10 +35,7 @@ class LinkedUserData {
 class LinkedUserDetailScreen extends StatefulWidget {
   final LinkedUserData userData;
 
-  const LinkedUserDetailScreen({
-    super.key,
-    required this.userData,
-  });
+  const LinkedUserDetailScreen({super.key, required this.userData});
 
   @override
   State<LinkedUserDetailScreen> createState() => _LinkedUserDetailScreenState();
@@ -158,9 +155,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${widget.userData.userName} removed'),
-          ),
+          SnackBar(content: Text('${widget.userData.userName} removed')),
         );
         context.pop(true);
       }
@@ -195,165 +190,216 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
         : 'Caregiver Details';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(roleLabel),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: AppSpacing.screenPadding,
-          children: [
-            // Avatar
-            Center(
-              child: CircleAvatar(
-                backgroundColor: colorScheme.primaryContainer,
-                radius: 48,
-                child: Text(
-                  _nameController.text.isNotEmpty
-                      ? _nameController.text[0].toUpperCase()
-                      : '?',
-                  style: theme.textTheme.displaySmall?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-
-            // Name field
-            TextFormField(
-              controller: _nameController,
-              decoration: InputDecoration(
-                labelText: 'Name',
-                prefixIcon: const Icon(Icons.person_outline),
-                suffixIcon: isEditable
-                    ? const Icon(Icons.edit_outlined, size: 20)
-                    : Icon(
-                        Icons.lock_outline,
-                        color: colorScheme.onSurfaceVariant,
-                        size: 20,
+      body: RedesignBackground(
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: AppSpacing.screenPadding,
+              children: [
+                Row(
+                  children: [
+                    IconButton.filledTonal(
+                      onPressed: () => context.pop(),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    Expanded(
+                      child: Text(
+                        roleLabel,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                filled: !isEditable,
-                fillColor: !isEditable
-                    ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
-                    : null,
-              ),
-              style: !isEditable
-                  ? TextStyle(color: colorScheme.onSurfaceVariant)
-                  : null,
-              readOnly: !isEditable,
-              textCapitalization: TextCapitalization.words,
-              validator: isEditable
-                  ? (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Name is required';
-                      }
-                      if (value.trim().length < 2) {
-                        return 'Name must be at least 2 characters';
-                      }
-                      return null;
-                    }
-                  : null,
-              onChanged: isEditable ? (_) => setState(() {}) : null,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Email field (read-only)
-            TextFormField(
-              initialValue: widget.userData.userEmail?.isNotEmpty == true
-                  ? widget.userData.userEmail
-                  : 'Not set',
-              decoration: InputDecoration(
-                labelText: 'Email',
-                prefixIcon: const Icon(Icons.email_outlined),
-                suffixIcon: Icon(
-                  Icons.lock_outline,
-                  color: colorScheme.onSurfaceVariant,
-                  size: 20,
+                    ),
+                    const SizedBox(width: 72),
+                  ],
                 ),
-                filled: true,
-                fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              ),
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-              readOnly: true,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Phone field (read-only)
-            TextFormField(
-              initialValue: widget.userData.userPhone?.isNotEmpty == true
-                  ? widget.userData.userPhone
-                  : 'Not set',
-              decoration: InputDecoration(
-                labelText: 'Phone',
-                prefixIcon: const Icon(Icons.phone_outlined),
-                suffixIcon: Icon(
-                  Icons.lock_outline,
-                  color: colorScheme.onSurfaceVariant,
-                  size: 20,
-                ),
-                filled: true,
-                fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              ),
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-              readOnly: true,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Unique Code field (read-only)
-            TextFormField(
-              initialValue: widget.userData.userCode,
-              decoration: InputDecoration(
-                labelText: 'Unique Code',
-                prefixIcon: const Icon(Icons.qr_code),
-                suffixIcon: Icon(
-                  Icons.lock_outline,
-                  color: colorScheme.onSurfaceVariant,
-                  size: 20,
-                ),
-                filled: true,
-                fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              ),
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
-                fontFamily: 'monospace',
-                letterSpacing: 1,
-              ),
-              readOnly: true,
-            ),
-            const SizedBox(height: AppSpacing.xxl),
-
-            // Update/Cancel buttons (only for caregiver editing)
-            if (isEditable) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: AccessibleOutlinedButton(
-                      onPressed: _isSaving ? null : () => context.pop(),
-                      label: 'Cancel',
-                      size: AccessibleButtonSize.medium,
+                const SizedBox(height: AppSpacing.md),
+                // Avatar
+                Center(
+                  child: CircleAvatar(
+                    backgroundColor: colorScheme.primaryContainer,
+                    radius: 48,
+                    child: Text(
+                      _nameController.text.isNotEmpty
+                          ? _nameController.text[0].toUpperCase()
+                          : '?',
+                      style: theme.textTheme.displaySmall?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: AccessibleButton(
-                      onPressed: (_isSaving || !_hasChanges) ? null : _saveChanges,
-                      label: 'Update',
-                      icon: Icons.check,
-                      isLoading: _isSaving,
-                      size: AccessibleButtonSize.medium,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // Name field
+                TextFormField(
+                  controller: _nameController,
+                  decoration: _glassInputDecoration(
+                    context,
+                    hintText: 'Full name',
+                    prefixIcon: Icons.person_outline,
+                    suffixIcon: isEditable
+                        ? const Icon(Icons.edit_outlined, size: 20)
+                        : Icon(
+                            Icons.lock_outline,
+                            color: colorScheme.onSurfaceVariant,
+                            size: 20,
+                          ),
+                  ),
+                  style: !isEditable
+                      ? TextStyle(color: colorScheme.onSurfaceVariant)
+                      : null,
+                  readOnly: !isEditable,
+                  textCapitalization: TextCapitalization.words,
+                  validator: isEditable
+                      ? (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Name is required';
+                          }
+                          if (value.trim().length < 2) {
+                            return 'Name must be at least 2 characters';
+                          }
+                          return null;
+                        }
+                      : null,
+                  onChanged: isEditable ? (_) => setState(() {}) : null,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
+                // Email field (read-only)
+                TextFormField(
+                  initialValue: widget.userData.userEmail?.isNotEmpty == true
+                      ? widget.userData.userEmail
+                      : 'Not set',
+                  decoration: _glassInputDecoration(
+                    context,
+                    hintText: 'Email address',
+                    prefixIcon: Icons.email_outlined,
+                    suffixIcon: Icon(
+                      Icons.lock_outline,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 20,
                     ),
                   ),
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  readOnly: true,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
+                // Phone field (read-only)
+                TextFormField(
+                  initialValue: widget.userData.userPhone?.isNotEmpty == true
+                      ? widget.userData.userPhone
+                      : 'Not set',
+                  decoration: _glassInputDecoration(
+                    context,
+                    hintText: 'Phone',
+                    prefixIcon: Icons.phone_outlined,
+                    suffixIcon: Icon(
+                      Icons.lock_outline,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                  ),
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  readOnly: true,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
+                // Unique Code field (read-only)
+                TextFormField(
+                  initialValue: widget.userData.userCode,
+                  decoration: _glassInputDecoration(
+                    context,
+                    hintText: 'Unique code',
+                    prefixIcon: Icons.qr_code,
+                    suffixIcon: Icon(
+                      Icons.lock_outline,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                  ),
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontFamily: 'monospace',
+                    letterSpacing: 1,
+                  ),
+                  readOnly: true,
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+
+                // Update/Cancel buttons (only for caregiver editing)
+                if (isEditable) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.tonal(
+                          onPressed: _isSaving ? null : () => context.pop(),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: GradientPrimaryButton(
+                          onPressed: (_isSaving || !_hasChanges)
+                              ? null
+                              : _saveChanges,
+                          label: 'Update',
+                          icon: Icons.check,
+                          isLoading: _isSaving,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.xl),
-            ],
 
-            // Swipe to Remove
-            _buildSwipeToRemove(context),
-            const SizedBox(height: AppSpacing.lg),
-          ],
+                // Swipe to Remove
+                _buildSwipeToRemove(context),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _glassInputDecoration(
+    BuildContext context, {
+    required String hintText,
+    required IconData prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: Icon(prefixIcon),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: colorScheme.surface.withValues(alpha: 0.72),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(
+          color: colorScheme.primary.withValues(alpha: 0.7),
         ),
       ),
     );
@@ -388,7 +434,9 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                 width: _dragPosition + _thumbSize + _trackPadding,
                 height: height,
                 decoration: BoxDecoration(
-                  color: colorScheme.error.withValues(alpha: 0.2 + (currentProgress * 0.3)),
+                  color: colorScheme.error.withValues(
+                    alpha: 0.2 + (currentProgress * 0.3),
+                  ),
                   borderRadius: BorderRadius.circular(height / 2),
                 ),
               ),
@@ -457,10 +505,14 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                       color: _isDragging
                           ? colorScheme.error
                           : colorScheme.error.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular((height - (_trackPadding * 2)) / 2),
+                      borderRadius: BorderRadius.circular(
+                        (height - (_trackPadding * 2)) / 2,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: colorScheme.error.withValues(alpha: _isDragging ? 0.4 : 0.2),
+                          color: colorScheme.error.withValues(
+                            alpha: _isDragging ? 0.4 : 0.2,
+                          ),
                           blurRadius: _isDragging ? 8 : 4,
                           offset: const Offset(0, 2),
                         ),

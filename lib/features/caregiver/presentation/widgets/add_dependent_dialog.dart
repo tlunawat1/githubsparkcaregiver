@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/theme/redesign_tokens.dart';
 import '../../../../data/datasources/remote/remote.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 import '../../../auth/domain/auth_service.dart';
 
 /// Dialog for adding a dependent by unique code or email
@@ -51,142 +53,176 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return AlertDialog(
-      title: Text(_showVerificationStep ? 'Verify Connection' : 'Add Dependent'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_errorMessage != null) ...[
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Row(
+    return Dialog(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(AppSpacing.md),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: GlassCard(
+          margin: EdgeInsets.zero,
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Icon(Icons.error_outline,
-                        color: colorScheme.error, size: 20),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: TextStyle(
-                          color: colorScheme.onErrorContainer,
-                          fontSize: 13,
-                        ),
+                    IconButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              if (_showVerificationStep) {
+                                setState(() {
+                                  _showVerificationStep = false;
+                                  _errorMessage = null;
+                                  _verificationCodeController.clear();
+                                });
+                              } else {
+                                Navigator.pop(context);
+                              }
+                            },
+                      icon: Icon(
+                        _showVerificationStep
+                            ? Icons.arrow_back_rounded
+                            : Icons.close_rounded,
                       ),
+                    ),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        _ProgressPill(active: true),
+                        const SizedBox(width: 6),
+                        _ProgressPill(active: _showVerificationStep),
+                      ],
+                    ),
+                    const Spacer(),
+                    const Icon(
+                      Icons.help_outline_rounded,
+                      color: Colors.transparent,
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-            ],
-            if (!_showVerificationStep) ...[
-              // Input mode selection
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildModeButton(
-                      'code',
-                      'Unique Code',
-                      Icons.qr_code,
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _showVerificationStep
+                      ? 'Verify Connection'
+                      : 'Find Your Dependent',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  _showVerificationStep
+                      ? 'Step 2 of 2: Enter the linking code provided by your dependent.'
+                      : 'Step 1 of 2: Enter the unique connection details provided to your family member.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (_errorMessage != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(
+                        color: colorScheme.onErrorContainer,
+                        fontSize: 13,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _buildModeButton(
-                      'email',
-                      'Email',
-                      Icons.email,
-                    ),
-                  ),
+                  const SizedBox(height: AppSpacing.md),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              // Input field based on mode
-              if (_inputMode == 'code') ...[
-                TextField(
-                  controller: _codeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Dependent\'s Code',
-                    hintText: 'e.g., A1B2C3D4E',
-                    prefixIcon: Icon(Icons.qr_code),
+                if (!_showVerificationStep) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildModeButton(
+                          'code',
+                          'Unique Code',
+                          Icons.qr_code,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _buildModeButton(
+                          'email',
+                          'Email Address',
+                          Icons.email,
+                        ),
+                      ),
+                    ],
                   ),
-                  textCapitalization: TextCapitalization.characters,
-                  maxLength: 9,
+                  const SizedBox(height: AppSpacing.md),
+                  if (_inputMode == 'code') ...[
+                    TextField(
+                      controller: _codeController,
+                      decoration: _inputDecoration(
+                        context,
+                        hint: 'Enter 9-character code',
+                        icon: Icons.tag_rounded,
+                      ),
+                      textCapitalization: TextCapitalization.characters,
+                      maxLength: 9,
+                    ),
+                    Text(
+                      'Codes are case-sensitive and valid for 24 hours.',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        letterSpacing: 0.4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ] else ...[
+                    TextField(
+                      controller: _emailController,
+                      decoration: _inputDecoration(
+                        context,
+                        hint: 'Enter email address',
+                        icon: Icons.mail_outline_rounded,
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ],
+                ] else ...[
+                  _buildVerificationStep(theme, colorScheme),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                GradientPrimaryButton(
+                  onPressed: _isLoading
+                      ? null
+                      : (_showVerificationStep
+                            ? _verifyAndConnect
+                            : _findDependent),
+                  isLoading: _isLoading,
+                  label: _showVerificationStep ? 'Verify' : 'Find Dependent',
+                  icon: Icons.arrow_forward_rounded,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Ask your dependent to share their 9-character unique code from their profile.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ] else ...[
-                TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Dependent\'s Email',
-                    hintText: 'Enter email address',
-                    prefixIcon: Icon(Icons.email),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Enter the email address your dependent used to register.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                const SizedBox(height: AppSpacing.xs),
+                TextButton(
+                  onPressed: _isLoading ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
                 ),
               ],
-            ] else ...[
-              // Verification step
-              _buildVerificationStep(theme, colorScheme),
-            ],
-          ],
+            ),
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _isLoading
-              ? null
-              : () {
-                  if (_showVerificationStep) {
-                    setState(() {
-                      _showVerificationStep = false;
-                      _errorMessage = null;
-                      _verificationCodeController.clear();
-                    });
-                  } else {
-                    Navigator.pop(context);
-                  }
-                },
-          child: Text(_showVerificationStep ? 'Back' : 'Cancel'),
-        ),
-        FilledButton(
-          onPressed: _isLoading
-              ? null
-              : (_showVerificationStep ? _verifyAndConnect : _findDependent),
-          child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(_showVerificationStep ? 'Verify' : 'Find Dependent'),
-        ),
-      ],
     );
   }
 
   Widget _buildModeButton(String mode, String label, IconData icon) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final isSelected = _inputMode == mode;
 
     return InkWell(
@@ -196,39 +232,77 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
           _errorMessage = null;
         });
       },
-      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderRadius: BorderRadius.circular(AppRadius.circular),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
+          horizontal: AppSpacing.sm,
           vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
           color: isSelected
-              ? colorScheme.primaryContainer
+              ? colorScheme.surface
               : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.circular),
           border: Border.all(
             color: isSelected
                 ? colorScheme.primary
-                : colorScheme.outline.withValues(alpha: 0.5),
-            width: isSelected ? 2 : 1,
+                : colorScheme.outline.withValues(alpha: 0.3),
+            width: isSelected ? 1.5 : 1,
           ),
         ),
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+              size: 16,
+              color: isSelected
+                  ? RedesignTokens.primary
+                  : colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(width: 4),
             Text(
               label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: isSelected
+                    ? RedesignTokens.primary
+                    : colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(
+    BuildContext context, {
+    required String hint,
+    required IconData icon,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, color: RedesignTokens.primary),
+      filled: true,
+      fillColor: colorScheme.surface.withValues(alpha: 0.9),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderSide: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderSide: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderSide: BorderSide(
+          color: RedesignTokens.primary.withValues(alpha: 0.8),
         ),
       ),
     );
@@ -347,9 +421,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
           keyboardType: TextInputType.number,
           maxLength: 5,
           textAlign: TextAlign.center,
-          style: theme.textTheme.headlineSmall?.copyWith(
-            letterSpacing: 8,
-          ),
+          style: theme.textTheme.headlineSmall?.copyWith(letterSpacing: 8),
         ),
       ],
     );
@@ -422,7 +494,9 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
           initiatedBy: 'caregiver',
         );
 
-        debugPrint('Relationship created: ${relationship.id}, status: ${relationship.status}');
+        debugPrint(
+          'Relationship created: ${relationship.id}, status: ${relationship.status}',
+        );
 
         setState(() {
           _foundDependent = dependent;
@@ -433,8 +507,10 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
       } catch (e) {
         debugPrint('Error creating relationship: $e');
         String errorMsg = 'Failed to create connection request';
-        if (e.toString().contains('already exists') || e.toString().contains('409')) {
-          errorMsg = '${dependent.name} is already connected or has a pending request';
+        if (e.toString().contains('already exists') ||
+            e.toString().contains('409')) {
+          errorMsg =
+              '${dependent.name} is already connected or has a pending request';
         }
         setState(() {
           _errorMessage = errorMsg;
@@ -466,13 +542,17 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
     });
 
     try {
-      debugPrint('Verifying relationship ${_pendingRelationship!.id} with code: $code');
+      debugPrint(
+        'Verifying relationship ${_pendingRelationship!.id} with code: $code',
+      );
       final response = await _relationshipApi.verifyLinkingCode(
         relationshipId: _pendingRelationship!.id,
         code: code,
       );
 
-      debugPrint('Verification response: success=${response.success}, message=${response.message}');
+      debugPrint(
+        'Verification response: success=${response.success}, message=${response.message}',
+      );
 
       if (!response.success) {
         setState(() {
@@ -502,5 +582,27 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
         _isLoading = false;
       });
     }
+  }
+}
+
+class _ProgressPill extends StatelessWidget {
+  const _ProgressPill({required this.active});
+
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 6,
+      decoration: BoxDecoration(
+        color: active
+            ? RedesignTokens.primary
+            : Theme.of(
+                context,
+              ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(99),
+      ),
+    );
   }
 }
