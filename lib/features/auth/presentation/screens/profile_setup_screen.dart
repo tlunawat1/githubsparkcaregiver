@@ -7,15 +7,13 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../data/repositories/repositories.dart';
 import '../../../../shared/widgets/accessible_button.dart';
+import '../../../../shared/widgets/redesign_ui.dart';
 
 /// Screen for setting up user profile after role selection
 class ProfileSetupScreen extends StatefulWidget {
   final String role;
 
-  const ProfileSetupScreen({
-    super.key,
-    required this.role,
-  });
+  const ProfileSetupScreen({super.key, required this.role});
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -93,129 +91,141 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final isCaregiver = widget.role == 'caregiver';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Set Up Profile'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(AppRoutes.roleSelection),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: AppSpacing.screenPadding,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: AppSpacing.lg),
-                // Role badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isCaregiver
-                        ? colorScheme.primaryContainer
-                        : colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+      body: RedesignBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: AppSpacing.screenPadding,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Icon(
-                        isCaregiver ? Icons.favorite : Icons.person,
-                        size: 16,
-                        color: isCaregiver
-                            ? colorScheme.primary
-                            : colorScheme.secondary,
+                      IconButton.filledTonal(
+                        onPressed: () => context.go(AppRoutes.roleSelection),
+                        icon: const Icon(Icons.arrow_back_rounded),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        isCaregiver ? 'Caregiver' : 'Dependent',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: isCaregiver
-                              ? colorScheme.primary
-                              : colorScheme.secondary,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Set Up Profile',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'What\'s your name?',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  isCaregiver
-                      ? 'This will help your dependents identify who set up their reminders.'
-                      : 'This will help your caregivers identify you.',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                // Name input
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Your Name',
-                    hintText: 'Enter your name',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: AppSpacing.lg),
+                  // Role badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isCaregiver
+                          ? colorScheme.primaryContainer
+                          : colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isCaregiver ? Icons.favorite : Icons.person,
+                          size: 16,
+                          color: isCaregiver
+                              ? colorScheme.primary
+                              : colorScheme.secondary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isCaregiver ? 'Caregiver' : 'Dependent',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: isCaregiver
+                                ? colorScheme.primary
+                                : colorScheme.secondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.done,
-                  style: theme.textTheme.bodyLarge,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your name';
-                    }
-                    if (value.trim().length < 2) {
-                      return 'Name must be at least 2 characters';
-                    }
-                    return null;
-                  },
-                  onFieldSubmitted: (_) => _completeSetup(),
-                ),
-                const SizedBox(height: AppSpacing.xxl),
-                // Additional info for caregiver
-                if (isCaregiver) ...[
-                  _InfoCard(
-                    icon: Icons.info_outline,
-                    title: 'Next Steps',
-                    description:
-                        'After setup, you\'ll be able to add dependents and create reminders for them.',
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    'What\'s your name?',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                ],
-                // Additional info for dependent
-                if (!isCaregiver) ...[
-                  _InfoCard(
-                    icon: Icons.info_outline,
-                    title: 'Getting Started',
-                    description:
-                        'After setup, you\'ll see your reminders on the home screen and can use the SOS button if needed.',
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    isCaregiver
+                        ? 'This will help your dependents identify who set up their reminders.'
+                        : 'This will help your caregivers identify you.',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.xl),
+                  // Name input
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Your Name',
+                      hintText: 'Enter your name',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.done,
+                    style: theme.textTheme.bodyLarge,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your name';
+                      }
+                      if (value.trim().length < 2) {
+                        return 'Name must be at least 2 characters';
+                      }
+                      return null;
+                    },
+                    onFieldSubmitted: (_) => _completeSetup(),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  // Additional info for caregiver
+                  if (isCaregiver) ...[
+                    _InfoCard(
+                      icon: Icons.info_outline,
+                      title: 'Next Steps',
+                      description:
+                          'After setup, you\'ll be able to add dependents and create reminders for them.',
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  // Additional info for dependent
+                  if (!isCaregiver) ...[
+                    _InfoCard(
+                      icon: Icons.info_outline,
+                      title: 'Getting Started',
+                      description:
+                          'After setup, you\'ll see your reminders on the home screen and can use the SOS button if needed.',
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  const SizedBox(height: AppSpacing.xl),
+                  // Complete button
+                  AccessibleButton(
+                    onPressed: _isLoading ? null : _completeSetup,
+                    label: 'Complete Setup',
+                    icon: Icons.check,
+                    isLoading: _isLoading,
+                  ),
                 ],
-                const SizedBox(height: AppSpacing.xl),
-                // Complete button
-                AccessibleButton(
-                  onPressed: _isLoading ? null : _completeSetup,
-                  label: 'Complete Setup',
-                  icon: Icons.check,
-                  isLoading: _isLoading,
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -249,11 +259,7 @@ class _InfoCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: colorScheme.primary,
-            size: 24,
-          ),
+          Icon(icon, color: colorScheme.primary, size: 24),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(

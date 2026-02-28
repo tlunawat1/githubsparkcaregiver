@@ -155,12 +155,25 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             padding: AppSpacing.screenPadding,
             child: Column(
               children: [
-                IconButton.filledTonal(
-                  onPressed: () {
-                    _countdownTimer?.cancel();
-                    context.go(AppRoutes.dependentHome);
-                  },
-                  icon: const Icon(Icons.close_rounded),
+                Row(
+                  children: [
+                    IconButton.filledTonal(
+                      onPressed: () {
+                        _countdownTimer?.cancel();
+                        context.go(AppRoutes.dependentHome);
+                      },
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'SOS Alert',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Container(

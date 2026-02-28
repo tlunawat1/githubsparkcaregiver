@@ -7,8 +7,9 @@ import 'core/services/reminder_alarm_service.dart';
 import 'core/theme/app_theme.dart';
 import 'data/datasources/remote/remote.dart';
 import 'data/repositories/repositories.dart';
+import 'shared/widgets/redesign_ui.dart';
 
-/// Main application widget 
+/// Main application widget
 class ParentalCareApp extends StatefulWidget {
   const ParentalCareApp({super.key});
 
@@ -40,7 +41,7 @@ class _ParentalCareAppState extends State<ParentalCareApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
+
     if (state == AppLifecycleState.resumed) {
       _onAppResumed();
     } else if (state == AppLifecycleState.paused) {
@@ -51,21 +52,21 @@ class _ParentalCareAppState extends State<ParentalCareApp>
   /// Handle app resume from background
   Future<void> _onAppResumed() async {
     debugPrint('App: Resumed from background');
-    
+
     final apiClient = getIt<ApiClient>();
     final signalRService = getIt<SignalRService>();
-    
+
     // Proactively refresh token if expired (before any API calls)
     if (apiClient.hasSession) {
       final tokenValid = await apiClient.ensureValidToken();
-      
+
       if (tokenValid) {
         // Update SignalR with the (possibly refreshed) token
         signalRService.setAccessToken(apiClient.accessToken);
-        
+
         final wasConnected = signalRService.isConnected;
         debugPrint('App: SignalR was connected: $wasConnected');
-        
+
         if (!wasConnected) {
           debugPrint('App: Reconnecting SignalR after resume...');
           await signalRService.ensureConnected();
@@ -106,14 +107,14 @@ class _ParentalCareAppState extends State<ParentalCareApp>
       if (_isOnboardingComplete && _userRole != null && apiClient.hasSession) {
         // Proactively refresh token if expired before initializing services
         _isAuthenticated = await apiClient.ensureValidToken();
-        
+
         if (_isAuthenticated) {
           // Wire callback: update SignalR token whenever tokens are refreshed
           apiClient.onTokensUpdated = (accessToken, refreshToken, expiry) {
             debugPrint('App: Tokens updated, syncing to SignalR');
             signalRService.setAccessToken(accessToken);
           };
-          
+
           // Wire callback: redirect to login when auth is permanently lost
           apiClient.onAuthenticationRequired = () {
             debugPrint('App: Authentication required, redirecting to login');
@@ -129,7 +130,9 @@ class _ParentalCareAppState extends State<ParentalCareApp>
           await fcmService.registerDeviceToken();
           debugPrint('FCM token registered on app start');
         } else {
-          debugPrint('App: Token refresh failed on startup, user needs to re-login');
+          debugPrint(
+            'App: Token refresh failed on startup, user needs to re-login',
+          );
           // Still wire the callback for future use
           apiClient.onAuthenticationRequired = () {
             debugPrint('App: Authentication required, redirecting to login');
@@ -163,8 +166,8 @@ class _ParentalCareAppState extends State<ParentalCareApp>
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,
         home: const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
+          body: RedesignBackground(
+            child: Center(child: CircularProgressIndicator()),
           ),
         ),
       );

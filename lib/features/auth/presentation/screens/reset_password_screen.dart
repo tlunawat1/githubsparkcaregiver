@@ -80,13 +80,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 ),
                                 icon: const Icon(Icons.arrow_back_rounded),
                               ),
-                              const Expanded(
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
                                 child: Text(
                                   'Reset Password',
-                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 48),
                             ],
                           ),
                           const SizedBox(height: AppSpacing.md),

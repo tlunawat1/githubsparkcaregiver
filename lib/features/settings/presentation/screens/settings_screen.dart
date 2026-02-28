@@ -183,7 +183,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Row(
                 children: [
                   IconButton.filledTonal(
-                    icon: const Icon(Icons.chevron_left_rounded),
+                    icon: const Icon(Icons.arrow_back_rounded),
                     onPressed: () {
                       if (_userRole == 'caregiver') {
                         context.go(AppRoutes.caregiverHome);
@@ -192,15 +192,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       }
                     },
                   ),
-                  const Spacer(),
+                  const SizedBox(width: AppSpacing.sm),
                   Text(
                     'Settings',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const Spacer(),
-                  const SizedBox(width: 48),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),

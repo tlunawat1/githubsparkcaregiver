@@ -11,7 +11,7 @@ class RedesignBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: isDark
             ? const LinearGradient(
@@ -21,7 +21,45 @@ class RedesignBackground extends StatelessWidget {
               )
             : RedesignTokens.pageGradient,
       ),
-      child: child,
+      child: Stack(
+        children: [
+          Positioned(
+            left: -70,
+            top: -50,
+            child: _BackgroundBubble(
+              size: 220,
+              color: RedesignTokens.primary.withValues(alpha: 0.20),
+            ),
+          ),
+          Positioned(
+            right: -90,
+            bottom: -70,
+            child: _BackgroundBubble(
+              size: 280,
+              color: const Color(0xFF6366F1).withValues(alpha: 0.16),
+            ),
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _BackgroundBubble extends StatelessWidget {
+  const _BackgroundBubble({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
     );
   }
 }

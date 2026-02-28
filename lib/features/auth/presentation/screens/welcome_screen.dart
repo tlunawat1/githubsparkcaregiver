@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/routing/app_router.dart';
-import '../../../../core/theme/redesign_tokens.dart';
 import '../../../../shared/widgets/redesign_ui.dart';
 
 /// Welcome screen shown on first app launch
@@ -17,145 +16,123 @@ class WelcomeScreen extends StatelessWidget {
 
     return Scaffold(
       body: RedesignBackground(
-        child: Stack(
-          children: [
-            Positioned(
-              left: -70,
-              top: -50,
-              child: _BlurBubble(
-                size: 220,
-                color: RedesignTokens.primary.withValues(alpha: 0.20),
-              ),
-            ),
-            Positioned(
-              right: -90,
-              bottom: -70,
-              child: _BlurBubble(
-                size: 280,
-                color: const Color(0xFF6366F1).withValues(alpha: 0.16),
-              ),
-            ),
-            SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.md,
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.md,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: 430,
+                      minHeight: constraints.maxHeight - (AppSpacing.md * 2),
                     ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: 430,
-                          minHeight:
-                              constraints.maxHeight - (AppSpacing.md * 2),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisAlignment: MainAxisAlignment.center,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Column(
                           children: [
-                            Column(
-                              children: [
-                                Container(
-                                  width: 84,
-                                  height: 84,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.primary.withValues(
-                                      alpha: 0.16,
-                                    ),
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(
-                                      color: colorScheme.primary.withValues(
-                                        alpha: 0.25,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    Icons.family_restroom,
-                                    size: 46,
-                                    color: colorScheme.primary,
+                            Container(
+                              width: 84,
+                              height: 84,
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary.withValues(
+                                  alpha: 0.16,
+                                ),
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: colorScheme.primary.withValues(
+                                    alpha: 0.25,
                                   ),
                                 ),
-                                const SizedBox(height: AppSpacing.md),
-                                Text(
-                                  'Parental Care',
-                                  style: theme.textTheme.headlineLarge
-                                      ?.copyWith(fontWeight: FontWeight.w800),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: AppSpacing.sm),
-                                Text(
-                                  'Stay connected with your loved ones',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            const GlassCard(
-                              margin: EdgeInsets.zero,
-                              padding: EdgeInsets.all(AppSpacing.md),
-                              child: Column(
-                                children: [
-                                  _FeatureItem(
-                                    icon: Icons.notifications_active,
-                                    title: 'Gentle Reminders',
-                                    description:
-                                        'Set reminders for medications, appointments, and daily tasks.',
-                                  ),
-                                  SizedBox(height: AppSpacing.sm),
-                                  _FeatureItem(
-                                    icon: Icons.emergency,
-                                    title: 'Emergency SOS',
-                                    description:
-                                        'Quick access to help when it\'s needed most with a single tap.',
-                                    iconColor: Color(0xFFE06B74),
-                                  ),
-                                  SizedBox(height: AppSpacing.sm),
-                                  _FeatureItem(
-                                    icon: Icons.mic,
-                                    title: 'Voice Messages',
-                                    description:
-                                        'Add personal voice notes to reminders for a human touch.',
-                                  ),
-                                ],
                               ),
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            GradientPrimaryButton(
-                              onPressed: () =>
-                                  context.go(AppRoutes.roleSelection),
-                              label: 'Get Started',
-                              icon: Icons.arrow_forward_rounded,
+                              child: Icon(
+                                Icons.family_restroom,
+                                size: 46,
+                                color: colorScheme.primary,
+                              ),
                             ),
                             const SizedBox(height: AppSpacing.md),
                             Text(
-                              'Trusted by 50,000+ families',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                letterSpacing: 1.3,
-                                fontWeight: FontWeight.w700,
-                                color: colorScheme.onSurfaceVariant.withValues(
-                                  alpha: 0.9,
-                                ),
+                              'Parental Care',
+                              style: theme.textTheme.headlineLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
                               ),
                               textAlign: TextAlign.center,
                             ),
-                            SizedBox(
-                              height: MediaQuery.paddingOf(context).bottom > 0
-                                  ? 0
-                                  : AppSpacing.sm,
+                            Text(
+                              'Stay connected with your loved ones',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: AppSpacing.lg),
+                        const GlassCard(
+                          margin: EdgeInsets.zero,
+                          padding: EdgeInsets.all(AppSpacing.md),
+                          child: Column(
+                            children: [
+                              _FeatureItem(
+                                icon: Icons.notifications_active,
+                                title: 'Gentle Reminders',
+                                description:
+                                    'Set reminders for medications, appointments, and daily tasks.',
+                              ),
+                              SizedBox(height: AppSpacing.sm),
+                              _FeatureItem(
+                                icon: Icons.emergency,
+                                title: 'Emergency SOS',
+                                description:
+                                    'Quick access to help when it\'s needed most with a single tap.',
+                                iconColor: Color(0xFFE06B74),
+                              ),
+                              SizedBox(height: AppSpacing.sm),
+                              _FeatureItem(
+                                icon: Icons.mic,
+                                title: 'Voice Messages',
+                                description:
+                                    'Add personal voice notes to reminders for a human touch.',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        GradientPrimaryButton(
+                          onPressed: () => context.go(AppRoutes.roleSelection),
+                          label: 'Get Started',
+                          icon: Icons.arrow_forward_rounded,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          'Trusted by 50,000+ families',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            letterSpacing: 1.3,
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.9,
+                            ),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(
+                          height: MediaQuery.paddingOf(context).bottom > 0
+                              ? 0
+                              : AppSpacing.sm,
+                        ),
+                      ],
                     ),
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -222,24 +199,6 @@ class _FeatureItem extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BlurBubble extends StatelessWidget {
-  const _BlurBubble({required this.size, required this.color});
-
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }

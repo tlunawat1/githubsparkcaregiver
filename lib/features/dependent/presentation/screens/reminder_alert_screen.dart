@@ -213,18 +213,18 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
                   children: [
                     IconButton.filledTonal(
                       onPressed: () => context.go(AppRoutes.dependentHome),
-                      icon: const Icon(Icons.close_rounded),
+                      icon: const Icon(Icons.arrow_back_rounded),
                     ),
-                    const Spacer(),
-                    Text(
-                      'Reminder Alert',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w700,
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Reminder Alert',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    const SizedBox(width: 48),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),

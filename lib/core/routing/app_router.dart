@@ -22,6 +22,7 @@ import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/settings/presentation/screens/timezone_settings_screen.dart';
 import '../../features/settings/presentation/screens/edit_profile_screen.dart';
 import '../../features/settings/presentation/screens/linked_user_detail_screen.dart';
+import '../../shared/widgets/redesign_ui.dart';
 import 'app_transitions.dart';
 
 /// Route names for type-safe navigation
@@ -41,9 +42,11 @@ class AppRoutes {
   static const String caregiverHome = '/caregiver';
   static const String dependentSelector = '/caregiver/dependents';
   static const String dependentDashboard = '/caregiver/dependent/:dependentId';
-  static const String addReminder = '/caregiver/dependent/:dependentId/add-reminder';
+  static const String addReminder =
+      '/caregiver/dependent/:dependentId/add-reminder';
   static const String editReminder = '/caregiver/reminder/:reminderId/edit';
-  static const String emergencyContacts = '/caregiver/dependent/:dependentId/emergency-contacts';
+  static const String emergencyContacts =
+      '/caregiver/dependent/:dependentId/emergency-contacts';
 
   // Dependent routes
   static const String dependentHome = '/dependent';
@@ -142,7 +145,11 @@ class AppRouter {
           final role = state.uri.queryParameters['role'] ?? 'caregiver';
           final email = state.uri.queryParameters['email'] ?? '';
           return AppTransitions.scaleFade(
-            child: EmailVerificationScreen(userId: userId, role: role, email: email),
+            child: EmailVerificationScreen(
+              userId: userId,
+              role: role,
+              email: email,
+            ),
             state: state,
           );
         },
@@ -339,23 +346,56 @@ class _ErrorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Error')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(
-              'Page not found',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () => context.go(AppRoutes.welcome),
-              child: const Text('Go Home'),
-            ),
-          ],
+      body: RedesignBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    IconButton.filledTonal(
+                      onPressed: () => context.go(AppRoutes.welcome),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Error',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Page not found',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () => context.go(AppRoutes.welcome),
+                        child: const Text('Go Home'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

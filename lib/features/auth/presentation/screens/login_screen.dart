@@ -71,20 +71,23 @@ class _LoginScreenState extends State<LoginScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: IconButton.filledTonal(
-                                onPressed: () =>
-                                    context.go(AppRoutes.roleSelection),
-                                icon: const Icon(
-                                  Icons.arrow_back_ios_new_rounded,
-                                  size: 18,
+                            Row(
+                              children: [
+                                IconButton.filledTonal(
+                                  onPressed: () =>
+                                      context.go(AppRoutes.roleSelection),
+                                  icon: const Icon(Icons.arrow_back_rounded),
                                 ),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: colorScheme.surface
-                                      .withValues(alpha: 0.65),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: Text(
+                                    'Login',
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                             const SizedBox(height: AppSpacing.lg),
                             GlassCard(

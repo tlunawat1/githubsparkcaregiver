@@ -203,16 +203,15 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                       onPressed: () => context.pop(),
                       icon: const Icon(Icons.arrow_back_rounded),
                     ),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         roleLabel,
-                        textAlign: TextAlign.center,
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 72),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),

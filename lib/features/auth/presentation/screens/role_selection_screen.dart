@@ -44,31 +44,44 @@ class RoleSelectionScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            const Spacer(),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 30,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: RedesignTokens.primary,
-                                    borderRadius: BorderRadius.circular(100),
-                                  ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                'Select Role',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
                                 ),
-                                const SizedBox(width: 6),
-                                Container(
-                                  width: 16,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.surface.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                    borderRadius: BorderRadius.circular(100),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 30,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: RedesignTokens.primary,
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 16,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surface.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         Text(

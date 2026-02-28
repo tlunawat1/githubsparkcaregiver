@@ -74,14 +74,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: IconButton.filledTonal(
-                              onPressed: () => context.go(
-                                '${AppRoutes.login}?role=${widget.role}',
+                          Row(
+                            children: [
+                              IconButton.filledTonal(
+                                onPressed: () => context.go(
+                                  '${AppRoutes.login}?role=${widget.role}',
+                                ),
+                                icon: const Icon(Icons.arrow_back_rounded),
                               ),
-                              icon: const Icon(Icons.arrow_back_rounded),
-                            ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  'Create Account',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Column(

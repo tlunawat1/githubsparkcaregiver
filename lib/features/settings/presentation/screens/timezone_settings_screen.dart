@@ -191,17 +191,14 @@ class _TimezoneSettingsScreenState extends State<TimezoneSettingsScreen> {
                     icon: const Icon(Icons.arrow_back_rounded),
                     onPressed: () => context.pop(),
                   ),
-                  const Spacer(),
-                  Text(
-                    'Time & Region',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Time & Region',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton.filledTonal(
-                    icon: const Icon(Icons.more_vert_rounded),
-                    onPressed: () {},
                   ),
                 ],
               ),

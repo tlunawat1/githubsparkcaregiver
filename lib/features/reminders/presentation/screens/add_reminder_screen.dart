@@ -436,10 +436,10 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
                         onPressed: () => Navigator.of(context).maybePop(),
                         icon: const Icon(Icons.arrow_back_rounded),
                       ),
+                      const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(
                           _isEdit ? 'Edit Reminder' : 'New Reminder',
-                          textAlign: TextAlign.center,
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
@@ -453,9 +453,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
                           ),
                           onPressed: _deleteReminder,
                           tooltip: 'Delete',
-                        )
-                      else
-                        const SizedBox(width: 48),
+                        ),
                     ],
                   ),
                 ),

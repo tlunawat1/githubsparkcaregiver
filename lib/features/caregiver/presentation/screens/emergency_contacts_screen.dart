@@ -74,13 +74,13 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                       onPressed: () => Navigator.of(context).maybePop(),
                       icon: const Icon(Icons.arrow_back_rounded),
                     ),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         'Emergency Contacts',
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                     if (_contacts.isNotEmpty)
@@ -88,9 +88,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                         icon: const Icon(Icons.reorder),
                         onPressed: _showReorderDialog,
                         tooltip: 'Reorder contacts',
-                      )
-                    else
-                      const SizedBox(width: 48),
+                      ),
                   ],
                 ),
               ),
