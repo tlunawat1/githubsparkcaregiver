@@ -388,21 +388,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     onDidReceiveNotificationResponse: localNotificationTapHandler,
   );
 
-  final androidPlugin = plugin.resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin>();
-
-  // Ensure urgent channel exists (custom sound).
-  await androidPlugin?.createNotificationChannel(
-    const AndroidNotificationChannel(
-      'reminders_urgent',
-      'Urgent Reminders',
-      description: 'Urgent reminder notifications (escalations)',
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: true,
-      sound: RawResourceAndroidNotificationSound('reminder_alarm'),
-    ),
-  );
+  // The 'reminders_urgent' channel (with custom sound) is already created by
+  // the main isolate in NotificationHandler.initialize(). Do NOT recreate it
+  // here — the background isolate cannot resolve raw resources, which causes
+  // a PlatformException(invalid_sound) crash.
 
   final androidDetails = AndroidNotificationDetails(
     'reminders_urgent',
@@ -413,7 +402,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     showWhen: true,
     playSound: true,
     enableVibration: true,
-    sound: const RawResourceAndroidNotificationSound('reminder_alarm'),
+    // Sound is controlled by the channel (created in main isolate).
     // FLAG_INSISTENT (4) - repeat sound until the user interacts.
     additionalFlags: Int32List.fromList(<int>[4]),
   );

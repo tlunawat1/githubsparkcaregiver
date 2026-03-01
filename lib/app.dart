@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/di/injection.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/fcm_service.dart';
+import 'core/services/notification_handler.dart';
 import 'core/services/reminder_alarm_service.dart';
 import 'core/theme/app_theme.dart';
 import 'data/datasources/remote/remote.dart';
@@ -151,6 +152,13 @@ class _ParentalCareAppState extends State<ParentalCareApp>
     );
 
     ReminderAlarmService.instance.navigatorKey = rootNavigatorKey;
+
+    // Wire notification tap handler so Level 0-1 reminder taps navigate
+    // to the full-screen reminder alert screen.
+    NotificationHandler().onNotificationTapped = (instanceId) {
+      if (instanceId == null || instanceId.isEmpty) return;
+      _appRouter.router.go('/dependent/reminder/$instanceId');
+    };
 
     if (mounted) {
       setState(() => _isLoading = false);

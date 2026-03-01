@@ -164,6 +164,12 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
     }
   }
 
+  String _sessionLabel(int hour) {
+    if (hour < 12) return 'Morning';
+    if (hour < 17) return 'Afternoon';
+    return 'Evening';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -198,9 +204,16 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
       );
     }
 
-    final accentColor = _reminder!.priority == 'high'
+    final isHighPriority = _reminder!.priority == 'high';
+    final accentColor = isHighPriority
         ? AppColors.error
         : colorScheme.primary;
+
+    // Derive session label from the scheduled time
+    final localTime = _instance?.scheduledTime.toLocal();
+    final sessionLabel = localTime != null
+        ? _sessionLabel(localTime.hour)
+        : 'Scheduled';
 
     return Scaffold(
       body: RedesignBackground(
@@ -228,6 +241,34 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
+                // High-priority badge
+                if (isHighPriority)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorLight,
+                      borderRadius: AppRadius.smallRadius,
+                      border: Border.all(color: AppColors.error),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.priority_high, color: AppColors.error, size: 18),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          'High Priority',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
@@ -248,11 +289,12 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
                                     : '--:--',
                                 style: theme.textTheme.displayMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
+                                  color: isHighPriority ? AppColors.error : null,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Morning Session',
+                                sessionLabel,
                                 style: theme.textTheme.labelMedium?.copyWith(
                                   color: accentColor,
                                   fontWeight: FontWeight.w700,

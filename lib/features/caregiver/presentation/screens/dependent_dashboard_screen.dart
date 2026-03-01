@@ -48,6 +48,20 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
         .toList();
   }
 
+  List<ReminderInstanceData> get _sortedFilteredInstances {
+    return List<ReminderInstanceData>.from(_filteredInstances)..sort((a, b) {
+      final aPending = a.status == 'pending';
+      final bPending = b.status == 'pending';
+      if (aPending != bPending) {
+        return aPending ? -1 : 1; // Pending items always appear first.
+      }
+      if (aPending && bPending) {
+        return a.scheduledTime.compareTo(b.scheduledTime); // Soonest first.
+      }
+      return b.scheduledTime.compareTo(a.scheduledTime); // Others newest first.
+    });
+  }
+
   // Computed stats
   int get _completedCount =>
       _todayInstances.where((i) => i.status == 'completed').length;
@@ -297,17 +311,9 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
                         SliverPadding(
                           padding: AppSpacing.screenPaddingHorizontal,
                           sliver: SliverList.builder(
-                            itemCount: _filteredInstances.length,
+                            itemCount: _sortedFilteredInstances.length,
                             itemBuilder: (context, index) {
-                              final sorted =
-                                  List<ReminderInstanceData>.from(
-                                    _filteredInstances,
-                                  )..sort(
-                                    (a, b) => a.scheduledTime.compareTo(
-                                      b.scheduledTime,
-                                    ),
-                                  );
-                              final instance = sorted[index];
+                              final instance = _sortedFilteredInstances[index];
                               return _buildScheduleCard(instance);
                             },
                           ),
