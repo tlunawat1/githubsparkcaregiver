@@ -335,6 +335,32 @@ using (var scope = app.Services.CreateScope())
                 ALTER TABLE NotificationLogs ADD EscalationLevel INT NOT NULL DEFAULT 0
             END");
 
+        // Add NextInstanceDate column to Reminders for background service optimization
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'Reminders') AND name = 'NextInstanceDate')
+            BEGIN
+                ALTER TABLE Reminders ADD NextInstanceDate DATETIME2 NULL
+            END");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'Reminders') AND name = 'IX_Reminders_NextInstanceDate')
+            BEGIN
+                CREATE INDEX IX_Reminders_NextInstanceDate ON Reminders(NextInstanceDate)
+            END");
+
+        // Add NextDueTime column to ReminderInstances for tick-based notification processor
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'ReminderInstances') AND name = 'NextDueTime')
+            BEGIN
+                ALTER TABLE ReminderInstances ADD NextDueTime DATETIME2 NULL
+            END");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'ReminderInstances') AND name = 'IX_ReminderInstances_NextDueTime')
+            BEGIN
+                CREATE INDEX IX_ReminderInstances_NextDueTime ON ReminderInstances(NextDueTime) WHERE NextDueTime IS NOT NULL
+            END");
+
         Console.WriteLine("Database schema updates applied successfully");
     }
     catch (Exception ex)
@@ -342,5 +368,11 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine($"Warning: Could not apply schema updates: {ex.Message}");
     }
 }
+
+// Register recurring tick-based notification processor (runs every minute)
+RecurringJob.AddOrUpdate<INotificationJobService>(
+    "process-due-notifications",
+    x => x.ProcessDueNotificationsAsync(),
+    "* * * * *");
 
 app.Run();

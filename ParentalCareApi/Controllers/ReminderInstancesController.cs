@@ -220,6 +220,7 @@ public class ReminderInstancesController : ControllerBase
         {
             ReminderId = request.ReminderId,
             ScheduledTime = request.ScheduledTime,
+            NextDueTime = request.ScheduledTime,
             Status = "pending",
             EscalationLevel = 0
         };
@@ -232,7 +233,6 @@ public class ReminderInstancesController : ControllerBase
 
         var dto = MapToDto(instance);
         var instanceId = instance.Id;
-        var scheduledTime = request.ScheduledTime;
         var dependentId = reminder.DependentId;
 
         // Query caregivers directly from database to ensure SignalR delivery
@@ -244,18 +244,7 @@ public class ReminderInstancesController : ControllerBase
         // SignalR notifications - send to both dependent and caregivers by user ID
         await _hubContext.SendInstanceCreatedAsync(dependentId, dto, caregiverIds);
 
-        // Fire-and-forget: Schedule notification jobs (slow Hangfire operation)
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await _notificationJobService.ScheduleNotificationJobsAsync(instanceId, scheduledTime);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to schedule notification jobs for instance {InstanceId}", instanceId);
-            }
-        });
+        // Tick processor handles notifications via NextDueTime — no per-instance Hangfire jobs needed
 
         _logger.LogInformation("Created instance {InstanceId} for reminder {ReminderId}", instanceId, request.ReminderId);
 
@@ -292,6 +281,7 @@ public class ReminderInstancesController : ControllerBase
 
         instance.Status = "completed";
         instance.CompletedAt = DateTime.UtcNow;
+        instance.NextDueTime = null;
 
         // Save the critical state change immediately
         await _context.SaveChangesAsync();
@@ -312,7 +302,7 @@ public class ReminderInstancesController : ControllerBase
         // SignalR notifications - send to both dependent and caregivers by user ID
         await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
 
-        // Fire-and-forget: Cancel notification jobs (slow Hangfire operation)
+        // Fire-and-forget: Cancel old Hangfire jobs (backward compat for Tier 1 instances)
         _ = Task.Run(async () =>
         {
             try
@@ -367,6 +357,7 @@ public class ReminderInstancesController : ControllerBase
 
         instance.Status = "snoozed";
         instance.SnoozedUntil = snoozedUntilUtc;
+        instance.NextDueTime = snoozedUntilUtc;
         instance.EscalationLevel = 0;
         await _context.SaveChangesAsync();
 
@@ -382,18 +373,17 @@ public class ReminderInstancesController : ControllerBase
         // SignalR notifications - send to both dependent and caregivers by user ID
         await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
 
-        // Fire-and-forget: Cancel existing notification jobs and reschedule from snooze time.
-        // This prevents the original +5/+10 escalations (and auto-miss) from firing during the snooze window.
+        // Fire-and-forget: Cancel old Hangfire jobs (backward compat for Tier 1 instances)
+        // Tick processor handles wake-up via NextDueTime = snoozedUntilUtc
         _ = Task.Run(async () =>
         {
             try
             {
                 await _notificationJobService.CancelNotificationJobsAsync(id);
-                await _notificationJobService.ScheduleNotificationJobsAsync(id, snoozedUntilUtc);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to reschedule notification jobs for snoozed instance {InstanceId}", id);
+                _logger.LogError(ex, "Failed to cancel notification jobs for snoozed instance {InstanceId}", id);
             }
         });
 
@@ -425,6 +415,7 @@ public class ReminderInstancesController : ControllerBase
         }
 
         instance.Status = "missed";
+        instance.NextDueTime = null;
 
         // Save the critical state change immediately
         await _context.SaveChangesAsync();
@@ -441,7 +432,7 @@ public class ReminderInstancesController : ControllerBase
         // SignalR notifications - send to both dependent and caregivers by user ID
         await _hubContext.SendInstanceStatusChangedAsync(dependentId, dto, caregiverIds);
 
-        // Fire-and-forget: Cancel notification jobs (slow Hangfire operation)
+        // Fire-and-forget: Cancel old Hangfire jobs (backward compat for Tier 1 instances)
         _ = Task.Run(async () =>
         {
             try
@@ -585,6 +576,7 @@ public class ReminderInstancesController : ControllerBase
         {
             _logger.LogInformation("Marking instance {Id} as missed (was: {OldStatus})", instance.Id, instance.Status);
             instance.Status = "missed";
+            instance.NextDueTime = null;
         }
         await _context.SaveChangesAsync();
         _logger.LogInformation("Database updated successfully");

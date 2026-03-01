@@ -29,6 +29,8 @@ public class ReminderInstance
 
     public string? NotificationJobIds { get; set; } // JSON array of Hangfire job IDs for cancellation
 
+    public DateTime? NextDueTime { get; set; } // Tick processor: null = ignore, set = processor picks up at this time
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation property

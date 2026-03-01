@@ -9,15 +9,15 @@ namespace ParentalCareApi.Services;
 
 /// <summary>
 /// Background service that manages reminder instances:
-/// - Generates future instances for recurring reminders (rolling 7-day window)
+/// - Generates future instances for recurring reminders (rolling 2-day window)
 /// Note: Auto-miss functionality is handled by Hangfire scheduled jobs for each instance.
 /// </summary>
 public class ReminderInstanceBackgroundService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ReminderInstanceBackgroundService> _logger;
-    private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(5);
-    private const int RollingWindowDays = 7;
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(30);
+    private const int RollingWindowDays = 2;
 
     public ReminderInstanceBackgroundService(
         IServiceProvider serviceProvider,
@@ -67,13 +67,16 @@ public class ReminderInstanceBackgroundService : BackgroundService
     {
         // Use UTC date for the initial query filter (conservative - includes reminders that might still be active)
         var utcToday = DateTime.UtcNow.Date;
+        var utcWindowEnd = utcToday.AddDays(RollingWindowDays + 1); // +1 for timezone edge cases
 
-        // Get all active recurring reminders
+        // Get active recurring reminders that need new instances generated
+        // NextInstanceDate == null means never processed (e.g., after deploy); treat as needing generation
         var recurringReminders = await context.Reminders
             .Include(r => r.Dependent)
             .Where(r => r.IsActive &&
                         r.RepeatPattern != "once" &&
-                        (r.EndDate == null || r.EndDate >= utcToday.AddDays(-1))) // -1 to handle timezone edge cases
+                        (r.EndDate == null || r.EndDate >= utcToday.AddDays(-1)) &&
+                        (r.NextInstanceDate == null || r.NextInstanceDate < utcWindowEnd))
             .ToListAsync(stoppingToken);
 
         foreach (var reminder in recurringReminders)
@@ -83,6 +86,15 @@ public class ReminderInstanceBackgroundService : BackgroundService
             var today = GetCurrentDateInTimezone(timezone);
             var windowEnd = today.AddDays(RollingWindowDays);
             await GenerateInstancesForReminderAsync(context, hubContext, notificationJobService, reminder, today, windowEnd, stoppingToken);
+
+            // Update NextInstanceDate so this reminder is skipped until the window advances
+            reminder.NextInstanceDate = windowEnd;
+        }
+
+        // Batch-save all NextInstanceDate updates
+        if (recurringReminders.Count > 0)
+        {
+            await context.SaveChangesAsync(stoppingToken);
         }
     }
 
@@ -168,12 +180,9 @@ public class ReminderInstanceBackgroundService : BackgroundService
                 .Select(cr => cr.CaregiverId)
                 .ToListAsync(stoppingToken);
 
-            // Schedule notification jobs and notify dependent about new instances
+            // Notify dependent about new instances (tick processor handles notifications via NextDueTime)
             foreach (var instance in newInstances)
             {
-                // Schedule Hangfire notification jobs
-                await notificationJobService.ScheduleNotificationJobsAsync(instance.Id, instance.ScheduledTime);
-
                 var instanceDto = new
                 {
                     instance.Id,
@@ -213,6 +222,7 @@ public class ReminderInstanceBackgroundService : BackgroundService
             Id = Guid.NewGuid().ToString(),
             ReminderId = reminder.Id,
             ScheduledTime = scheduledTimeUtc,
+            NextDueTime = scheduledTimeUtc,
             Status = "pending",
             EscalationLevel = 0,
             CreatedAt = DateTime.UtcNow

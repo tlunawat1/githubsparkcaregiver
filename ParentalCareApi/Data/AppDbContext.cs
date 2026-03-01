@@ -62,6 +62,7 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(e => e.DependentId);
             entity.HasIndex(e => e.CreatorId);
+            entity.HasIndex(e => e.NextInstanceDate);
         });
 
         // SosEvent configuration
@@ -92,6 +93,7 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.ReminderId);
             entity.HasIndex(e => e.ScheduledTime);
             entity.HasIndex(e => new { e.ReminderId, e.ScheduledTime });
+            entity.HasIndex(e => e.NextDueTime);
         });
 
         // UserDeviceToken configuration

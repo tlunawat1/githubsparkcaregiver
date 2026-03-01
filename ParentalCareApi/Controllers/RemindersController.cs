@@ -182,12 +182,18 @@ public class RemindersController : ControllerBase
         // Generate instances based on repeat pattern (no longer schedules notification jobs inline)
         var instances = await GenerateInstancesForReminder(reminder);
 
+        // Set NextInstanceDate so the background service skips this reminder until the window advances
+        var depForTz = await _context.Users.FindAsync(reminder.DependentId);
+        var tzForCreate = depForTz?.Timezone ?? "UTC";
+        var todayForCreate = GetCurrentDateInTimezone(tzForCreate);
+        reminder.NextInstanceDate = todayForCreate.AddDays(2);
+        await _context.SaveChangesAsync();
+
         var reminderDto = MapToDto(reminder);
         var dependentId = request.DependentId;
         var reminderId = reminder.Id;
 
-        // Enqueue background job to schedule all notification jobs (decoupled from HTTP request)
-        BackgroundJob.Enqueue<INotificationJobService>(x => x.ProcessReminderNotificationsAsync(reminderId));
+        // Tick processor handles notifications via NextDueTime — no per-instance Hangfire jobs needed
 
         // Query caregivers directly from database to ensure SignalR delivery
         var caregiverIds = await _context.CareRelationships
@@ -350,6 +356,8 @@ public class RemindersController : ControllerBase
 
             foreach (var instance in pendingInstances)
             {
+                instance.NextDueTime = null;
+
                 if (!string.IsNullOrEmpty(instance.NotificationJobIds))
                 {
                     try
@@ -424,7 +432,7 @@ public class RemindersController : ControllerBase
 
             // Regenerate instances based on the updated reminder
             var startDate = reminder.StartDate.Date >= today ? reminder.StartDate.Date : today;
-            var windowEnd = today.AddDays(7);
+            var windowEnd = today.AddDays(2);
             var endDate = reminder.EndDate?.Date ?? windowEnd;
             endDate = endDate < windowEnd ? endDate : windowEnd;
 
@@ -475,17 +483,15 @@ public class RemindersController : ControllerBase
             if (newInstances.Count > 0)
                 _context.ReminderInstances.AddRange(newInstances);
 
+            // Update NextInstanceDate so BG service skips until window advances
+            reminder.NextInstanceDate = windowEnd;
+
             _logger.LogInformation("Generated {Count} new instances for reminder {Id} after schedule change", newInstances.Count, id);
         }
 
         await _context.SaveChangesAsync();
 
-        // Schedule Hangfire jobs for new instances
-        if (newInstances.Count > 0)
-        {
-            var reminderId = id;
-            BackgroundJob.Enqueue<INotificationJobService>(x => x.ProcessReminderNotificationsAsync(reminderId));
-        }
+        // Tick processor handles notifications via NextDueTime — no per-instance Hangfire jobs needed
 
         _logger.LogInformation("Reminder updated: {Id}", id);
 
@@ -609,7 +615,7 @@ public class RemindersController : ControllerBase
 
     /// <summary>
     /// Generates ReminderInstance records based on the reminder's repeat pattern.
-    /// Creates instances for a 7-day rolling window.
+    /// Creates instances for a 2-day rolling window.
     /// Uses the dependent's timezone to correctly schedule notifications.
     /// </summary>
     private async Task<List<ReminderInstance>> GenerateInstancesForReminder(Reminder reminder)
@@ -623,8 +629,8 @@ public class RemindersController : ControllerBase
         // Calculate "today" in the dependent's timezone, not UTC
         var today = GetCurrentDateInTimezone(timezone);
         var startDate = reminder.StartDate.Date >= today ? reminder.StartDate.Date : today;
-        var endDate = reminder.EndDate?.Date ?? today.AddDays(7);
-        var windowEnd = today.AddDays(7);
+        var endDate = reminder.EndDate?.Date ?? today.AddDays(2);
+        var windowEnd = today.AddDays(2);
 
         // Don't generate past the window or the reminder's end date
         endDate = endDate < windowEnd ? endDate : windowEnd;
@@ -721,6 +727,7 @@ public class RemindersController : ControllerBase
             Id = Guid.NewGuid().ToString(),
             ReminderId = reminder.Id,
             ScheduledTime = scheduledTimeUtc,
+            NextDueTime = scheduledTimeUtc,
             Status = "pending",
             EscalationLevel = 0,
             CreatedAt = DateTime.UtcNow

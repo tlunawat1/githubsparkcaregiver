@@ -5,6 +5,15 @@ public interface INotificationService
     Task SendPushNotificationAsync(string deviceToken, string title, string body, Dictionary<string, string>? data = null);
     Task SendPushNotificationsAsync(IEnumerable<string> deviceTokens, string title, string body, Dictionary<string, string>? data = null);
     Task<NotificationResult> SendToUserAsync(string userId, string title, string body, Dictionary<string, string>? data = null);
+    Task<List<NotificationResult>> SendBatchToUsersAsync(IList<BatchNotification> notifications);
+}
+
+public class BatchNotification
+{
+    public string UserId { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public Dictionary<string, string>? Data { get; set; }
 }
 
 public class NotificationResult

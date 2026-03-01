@@ -2,6 +2,7 @@ namespace ParentalCareApi.Services;
 
 public interface INotificationJobService
 {
+    Task ProcessDueNotificationsAsync();
     Task SendReminderNotificationAsync(string instanceId, int escalationLevel = 0);
     Task SendEscalatedNotificationAsync(string instanceId, int escalationLevel);
     Task MarkAsMissedAsync(string instanceId);
