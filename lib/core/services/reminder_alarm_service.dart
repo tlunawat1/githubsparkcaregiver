@@ -69,6 +69,17 @@ class ReminderAlarmService {
   /// The instance ID of the currently active alarm, if any.
   String? get activeInstanceId => _activeInstanceId;
 
+  /// Start only the continuous alarm sound (no overlay).
+  ///
+  /// Used by [ReminderAlertScreen] for Level >= 2 escalations so the
+  /// full-screen route can manage the alarm lifecycle itself.
+  Future<void> startAlarmSound(String instanceId) async {
+    if (_isAlarmActive) return;
+    _isAlarmActive = true;
+    _activeInstanceId = instanceId;
+    await _startAlarmSound();
+  }
+
   Future<void> _startAlarmSound() async {
     try {
       // Set release mode to loop so audio repeats

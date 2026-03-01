@@ -7,6 +7,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/services/reminder_alarm_service.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/redesign_ui.dart';
@@ -51,6 +52,11 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
   @override
   void dispose() {
     _player.dispose();
+    // Stop the continuous alarm if it was started for this screen.
+    if (ReminderAlarmService.instance.isAlarmActive &&
+        ReminderAlarmService.instance.activeInstanceId == widget.instanceId) {
+      ReminderAlarmService.instance.stopAlarm();
+    }
     super.dispose();
   }
 
@@ -62,8 +68,14 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
       if (_instance != null) {
         _reminder = await _reminderApi.getReminder(_instance!.reminderId);
 
-        // Auto-play voice note if available
-        if (_reminder?.voiceNoteUrl != null) {
+        // Start continuous alarm for urgent (Level >= 2) escalations.
+        if (_instance!.escalationLevel >= 2) {
+          ReminderAlarmService.instance.startAlarmSound(widget.instanceId);
+        }
+
+        // Auto-play voice note if available (only for non-urgent, to avoid
+        // clashing with the alarm sound).
+        if (_reminder?.voiceNoteUrl != null && _instance!.escalationLevel < 2) {
           _playVoiceNote();
         }
       }
@@ -94,6 +106,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
 
   Future<void> _markDone() async {
     Haptics.heavyImpact();
+    ReminderAlarmService.instance.stopAlarm();
 
     try {
       await _reminderInstanceApi.markCompleted(widget.instanceId);
@@ -130,6 +143,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
 
   Future<void> _snooze() async {
     Haptics.mediumImpact();
+    ReminderAlarmService.instance.stopAlarm();
 
     try {
       final snoozeUntil = DateTime.now().toUtc().add(

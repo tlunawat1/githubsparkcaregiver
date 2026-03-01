@@ -7,7 +7,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../utils/feedback_settings.dart';
-import 'reminder_alarm_service.dart';
 
 /// Handles Firebase Cloud Messaging notifications across all app states
 class NotificationHandler {
@@ -175,21 +174,19 @@ class NotificationHandler {
     final notification = message.notification;
     final data = message.data;
 
-    // Urgent (3rd) reminder escalations may arrive as Android data-only messages.
-    // Always inspect `data` so we can trigger continuous ringing while the app is in the foreground.
     final type = data['type'] as String?;
     final instanceId = data['instanceId'] as String?;
     final escalationLevel = _parseEscalationLevel(data);
 
+    // Urgent (3rd) reminder: navigate directly to the full-screen alert.
     if (type == 'reminder' && instanceId != null && escalationLevel >= 2) {
-      debugPrint('Foreground urgent reminder: triggering alarm for instance $instanceId');
-      ReminderAlarmService.instance.triggerAlarm(instanceId);
+      debugPrint('Foreground urgent reminder: navigating to alert screen for instance $instanceId');
+      onNotificationTapped?.call(instanceId);
       return;
     }
 
     // For other notifications: if we have a notification payload, show it.
     if (notification != null) {
-      // For first/second reminders: show a normal notification (default one-time sound).
       _showLocalNotification(
         title: notification.title ?? 'Reminder',
         body: notification.body ?? '',
@@ -215,21 +212,9 @@ class NotificationHandler {
   void _handleNotificationTap(RemoteMessage message) {
     debugPrint('Notification tapped: ${message.messageId}');
 
-    final data = message.data;
-    final type = data['type'] as String?;
-    final instanceId = data['instanceId'] as String?;
-    final escalationLevel = _parseEscalationLevel(data);
+    final instanceId = message.data['instanceId'] as String?;
 
-    if (type == 'reminder' && instanceId != null) {
-      // Only urgent (3rd) opens the Done/Snooze overlay.
-      if (escalationLevel >= 2) {
-        debugPrint('Urgent reminder tap: triggering alarm for instance $instanceId');
-        ReminderAlarmService.instance.triggerAlarm(instanceId);
-        return;
-      }
-    }
-
-    // Fallback: use the legacy onNotificationTapped callback
+    // All reminder taps navigate to the full-screen alert screen.
     if (instanceId != null && onNotificationTapped != null) {
       onNotificationTapped!(instanceId);
     }
@@ -245,18 +230,9 @@ class NotificationHandler {
 
     try {
       final data = json.decode(response.payload!) as Map<String, dynamic>;
-      final type = data['type'] as String?;
       final instanceId = data['instanceId'] as String?;
-      final escalationLevel = _parseEscalationLevel(data);
 
-      // Only urgent (3rd) opens the Done/Snooze overlay.
-      if (type == 'reminder' && instanceId != null && escalationLevel >= 2) {
-        debugPrint('Local urgent reminder tap: triggering alarm for instance $instanceId');
-        ReminderAlarmService.instance.triggerAlarm(instanceId);
-        return;
-      }
-
-      // Fallback: use the legacy onNotificationTapped callback
+      // All reminder taps navigate to the full-screen alert screen.
       if (instanceId != null && onNotificationTapped != null) {
         onNotificationTapped!(instanceId);
       }
