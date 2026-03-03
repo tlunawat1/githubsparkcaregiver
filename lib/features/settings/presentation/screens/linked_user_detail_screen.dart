@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -219,7 +220,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                 Center(
                   child: CircleAvatar(
                     backgroundColor: colorScheme.primaryContainer,
-                    radius: 48,
+                    radius: 48.r,
                     child: Text(
                       _nameController.text.isNotEmpty
                           ? _nameController.text[0].toUpperCase()
@@ -241,11 +242,11 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                     hintText: 'Full name',
                     prefixIcon: Icons.person_outline,
                     suffixIcon: isEditable
-                        ? const Icon(Icons.edit_outlined, size: 20)
+                        ? Icon(Icons.edit_outlined, size: 20.r)
                         : Icon(
                             Icons.lock_outline,
                             color: colorScheme.onSurfaceVariant,
-                            size: 20,
+                            size: 20.r,
                           ),
                   ),
                   style: !isEditable
@@ -280,7 +281,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                     suffixIcon: Icon(
                       Icons.lock_outline,
                       color: colorScheme.onSurfaceVariant,
-                      size: 20,
+                      size: 20.r,
                     ),
                   ),
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
@@ -300,7 +301,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                     suffixIcon: Icon(
                       Icons.lock_outline,
                       color: colorScheme.onSurfaceVariant,
-                      size: 20,
+                      size: 20.r,
                     ),
                   ),
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
@@ -318,7 +319,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                     suffixIcon: Icon(
                       Icons.lock_outline,
                       color: colorScheme.onSurfaceVariant,
-                      size: 20,
+                      size: 20.r,
                     ),
                   ),
                   style: TextStyle(
@@ -407,7 +408,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
   Widget _buildSwipeToRemove(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    const height = 60.0;
+    final height = 60.h;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -452,7 +453,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                       Icon(
                         Icons.arrow_forward,
                         color: colorScheme.error.withValues(alpha: 0.7),
-                        size: 20,
+                        size: 20.r,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -522,7 +523,7 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
                           ? Icons.person_remove
                           : Icons.chevron_right,
                       color: colorScheme.onError,
-                      size: 24,
+                      size: 24.r,
                     ),
                   ),
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
@@ -128,14 +129,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       color: isCaregiver
                           ? colorScheme.primaryContainer
                           : colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(20.r),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           isCaregiver ? Icons.favorite : Icons.person,
-                          size: 16,
+                          size: 16.r,
                           color: isCaregiver
                               ? colorScheme.primary
                               : colorScheme.secondary,
@@ -178,7 +179,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       hintText: 'Enter your name',
                       prefixIcon: const Icon(Icons.person_outline),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12.r),
                       ),
                     ),
                     textCapitalization: TextCapitalization.words,
@@ -254,12 +255,12 @@ class _InfoCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: colorScheme.primary, size: 24),
+          Icon(icon, color: colorScheme.primary, size: 24.r),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(

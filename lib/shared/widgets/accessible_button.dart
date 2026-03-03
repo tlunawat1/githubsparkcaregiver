@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/utils/haptics.dart';
 
@@ -41,24 +42,24 @@ class AccessibleButton extends StatelessWidget {
         (isDestructive ? colorScheme.onError : colorScheme.onPrimary);
 
     final buttonHeight = switch (size) {
-      AccessibleButtonSize.small => AppTouchTargets.minimum,
-      AccessibleButtonSize.medium => 56.0,
-      AccessibleButtonSize.large => AppTouchTargets.elderly,
-      AccessibleButtonSize.xlarge => AppTouchTargets.large,
+      AccessibleButtonSize.small => 48.r.clamp(44.0, 52.0),
+      AccessibleButtonSize.medium => 56.r.clamp(48.0, 60.0),
+      AccessibleButtonSize.large => 64.r.clamp(56.0, 68.0),
+      AccessibleButtonSize.xlarge => 80.r.clamp(72.0, 84.0),
     };
 
     final fontSize = switch (size) {
-      AccessibleButtonSize.small => 16.0,
-      AccessibleButtonSize.medium => 18.0,
-      AccessibleButtonSize.large => 20.0,
-      AccessibleButtonSize.xlarge => 24.0,
+      AccessibleButtonSize.small => 16.sp,
+      AccessibleButtonSize.medium => 18.sp,
+      AccessibleButtonSize.large => 20.sp,
+      AccessibleButtonSize.xlarge => 24.sp,
     };
 
     final iconSize = switch (size) {
-      AccessibleButtonSize.small => 20.0,
-      AccessibleButtonSize.medium => 24.0,
-      AccessibleButtonSize.large => 28.0,
-      AccessibleButtonSize.xlarge => 32.0,
+      AccessibleButtonSize.small => 20.r,
+      AccessibleButtonSize.medium => 24.r,
+      AccessibleButtonSize.large => 28.r,
+      AccessibleButtonSize.xlarge => 32.r,
     };
 
     Widget buttonChild = isLoading
@@ -158,24 +159,24 @@ class AccessibleOutlinedButton extends StatelessWidget {
     final border = borderColor ?? colorScheme.primary;
 
     final buttonHeight = switch (size) {
-      AccessibleButtonSize.small => AppTouchTargets.minimum,
-      AccessibleButtonSize.medium => 56.0,
-      AccessibleButtonSize.large => AppTouchTargets.elderly,
-      AccessibleButtonSize.xlarge => AppTouchTargets.large,
+      AccessibleButtonSize.small => 48.r.clamp(44.0, 52.0),
+      AccessibleButtonSize.medium => 56.r.clamp(48.0, 60.0),
+      AccessibleButtonSize.large => 64.r.clamp(56.0, 68.0),
+      AccessibleButtonSize.xlarge => 80.r.clamp(72.0, 84.0),
     };
 
     final fontSize = switch (size) {
-      AccessibleButtonSize.small => 16.0,
-      AccessibleButtonSize.medium => 18.0,
-      AccessibleButtonSize.large => 20.0,
-      AccessibleButtonSize.xlarge => 24.0,
+      AccessibleButtonSize.small => 16.sp,
+      AccessibleButtonSize.medium => 18.sp,
+      AccessibleButtonSize.large => 20.sp,
+      AccessibleButtonSize.xlarge => 24.sp,
     };
 
     final iconSize = switch (size) {
-      AccessibleButtonSize.small => 20.0,
-      AccessibleButtonSize.medium => 24.0,
-      AccessibleButtonSize.large => 28.0,
-      AccessibleButtonSize.xlarge => 32.0,
+      AccessibleButtonSize.small => 20.r,
+      AccessibleButtonSize.medium => 24.r,
+      AccessibleButtonSize.large => 28.r,
+      AccessibleButtonSize.xlarge => 32.r,
     };
 
     Widget buttonChild = isLoading

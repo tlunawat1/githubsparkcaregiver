@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
 
@@ -268,10 +269,10 @@ class _TimezoneSettingsScreenState extends State<TimezoneSettingsScreen> {
                     _getTimezoneLabel(_currentTimezone) ?? 'Custom timezone',
                   ),
                   trailing: _isSaving
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                      ? SizedBox(
+                          width: 24.r,
+                          height: 24.r,
+                          child: const CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.check_circle, color: Colors.green),
                 ),

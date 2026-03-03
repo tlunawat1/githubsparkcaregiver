@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/custom_icons.dart';
@@ -131,7 +132,7 @@ class _ReminderCardState extends State<ReminderCard>
               'HIGH',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 10,
+                fontSize: 10.sp,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -184,8 +185,8 @@ class _ReminderCardState extends State<ReminderCard>
                     // Category icon with colored background
                     CategoryIconWidget(
                       category: category,
-                      size: 48,
-                      iconSize: 24,
+                      size: 48.r,
+                      iconSize: 24.r,
                     ),
                     const SizedBox(width: AppSpacing.md),
                     // Title and time
@@ -241,7 +242,7 @@ class _ReminderCardState extends State<ReminderCard>
                                   statusLabel,
                                   style: TextStyle(
                                     color: statusColor,
-                                    fontSize: 10,
+                                    fontSize: 10.sp,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -523,8 +524,8 @@ class _LargeReminderButtonState extends State<LargeReminderButton>
               children: [
                 // Category Icon
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 56.r,
+                  height: 56.r,
                   decoration: BoxDecoration(
                     color: widget.isUrgent
                         ? AppColors.error
@@ -536,7 +537,7 @@ class _LargeReminderButtonState extends State<LargeReminderButton>
                         ? AppIcons.voiceNote
                         : AppIcons.getCategoryIcon(category),
                     color: Colors.white,
-                    size: 28,
+                    size: 28.r,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),

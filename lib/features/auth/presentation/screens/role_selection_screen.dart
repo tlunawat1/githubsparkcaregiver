@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -163,13 +164,13 @@ class _RoleCard extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    width: 46,
-                    height: 46,
+                    width: 46.r,
+                    height: 46.r,
                     decoration: BoxDecoration(
                       color: iconColor.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(14.r),
                     ),
-                    child: Icon(icon, color: iconColor, size: 26),
+                    child: Icon(icon, color: iconColor, size: 26.r),
                   ),
                   Expanded(
                     child: Align(
@@ -255,7 +256,7 @@ class _RoleCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  icon: Icon(Icons.arrow_forward_rounded, size: 18.r),
                   label: Text(
                     role == UserRole.caregiver
                         ? 'Choose Caregiver'

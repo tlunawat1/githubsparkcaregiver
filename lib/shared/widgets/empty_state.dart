@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/constants/app_spacing.dart';
 import 'accessible_button.dart';
 
@@ -33,15 +34,15 @@ class EmptyState extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: iconSize + 32,
-              height: iconSize + 32,
+              width: (iconSize + 32).r,
+              height: (iconSize + 32).r,
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
-                size: iconSize,
+                size: iconSize.r,
                 color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
             ),

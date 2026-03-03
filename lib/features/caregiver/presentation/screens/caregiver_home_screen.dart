@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -139,18 +140,19 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
                 child: Row(
                   children: [
                     Container(
-                      width: 42,
-                      height: 42,
+                      width: 42.r,
+                      height: 42.r,
                       decoration: BoxDecoration(
                         color: RedesignTokens.primary.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(21),
+                        borderRadius: BorderRadius.circular(21.r),
                         border: Border.all(
                           color: RedesignTokens.primary.withValues(alpha: 0.28),
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person_2_outlined,
                         color: RedesignTokens.primary,
+                        size: 24.r,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -356,7 +358,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
                   foregroundColor: const Color(0xFF10313A),
                   textStyle: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                icon: const Icon(Icons.content_copy_rounded, size: 16),
+                icon: Icon(Icons.content_copy_rounded, size: 16.r),
                 label: const Text('Copy'),
               ),
             ],
@@ -394,11 +396,11 @@ class _DependentCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 56.r,
+            height: 56.r,
             decoration: BoxDecoration(
               color: RedesignTokens.primary.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(28.r),
             ),
             child: Center(
               child: Text(

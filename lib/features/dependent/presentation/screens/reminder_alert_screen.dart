@@ -1,5 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
@@ -204,7 +205,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 64),
+              Icon(Icons.error_outline, size: 64.r),
               const SizedBox(height: AppSpacing.md),
               const Text('Reminder not found'),
               const SizedBox(height: AppSpacing.md),
@@ -271,7 +272,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.priority_high, color: AppColors.error, size: 18),
+                        Icon(Icons.priority_high, color: AppColors.error, size: 18.r),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
                           'High Priority',
@@ -358,7 +359,7 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
                 FilledButton.tonal(
                   onPressed: _snooze,
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
+                    minimumSize: Size.fromHeight(56.h.clamp(46.0, 64.0)),
                   ),
                   child: const Text('Remind me in 10 minutes'),
                 ),
@@ -400,8 +401,8 @@ class _VoiceNotePlayer extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 56.r,
+            height: 56.r,
             decoration: BoxDecoration(
               color: accentColor,
               shape: BoxShape.circle,
@@ -411,7 +412,7 @@ class _VoiceNotePlayer extends StatelessWidget {
               icon: Icon(
                 isPlaying ? Icons.pause : Icons.play_arrow,
                 color: Colors.white,
-                size: 32,
+                size: 32.r,
               ),
             ),
           ),

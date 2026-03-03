@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
@@ -342,9 +343,9 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                         ),
                                       ),
                                       IconButton.filledTonal(
-                                        icon: const Icon(
+                                        icon: Icon(
                                           Icons.settings,
-                                          size: 22,
+                                          size: 22.r,
                                         ),
                                         onPressed: () =>
                                             context.go(AppRoutes.settings),
@@ -435,11 +436,11 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                               padding: AppSpacing.screenPaddingHorizontal,
                               sliver: SliverGrid(
                                 gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                    SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: 2,
                                       mainAxisSpacing: AppSpacing.md,
                                       crossAxisSpacing: AppSpacing.md,
-                                      childAspectRatio: 1.55,
+                                      childAspectRatio: 1.sw < 360 ? 1.35 : 1.55,
                                     ),
                                 delegate: SliverChildBuilderDelegate((
                                   context,
@@ -506,8 +507,8 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                           ],
 
                           // Spacer for SOS button (increased to prevent overflow)
-                          const SliverToBoxAdapter(
-                            child: SizedBox(height: 150),
+                          SliverToBoxAdapter(
+                            child: SizedBox(height: 150.h),
                           ),
                         ],
                       ),
@@ -535,7 +536,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                           ),
                           child: Center(
                             child: SOSButton(
-                              size: 56,
+                              size: 56.r,
                               width: double.infinity,
                               onActivated: () {
                                 context.go('${AppRoutes.dependentHome}/sos');
@@ -722,13 +723,13 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
+                  width: 30.r,
+                  height: 30.r,
                   decoration: BoxDecoration(
                     color: iconColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, size: 18, color: iconColor),
+                  child: Icon(icon, size: 18.r, color: iconColor),
                 ),
                 Text(
                   DateFormat.jm().format(displayTime),
@@ -769,7 +770,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: statusFg,
                         fontWeight: FontWeight.w800,
-                        fontSize: 10,
+                        fontSize: 10.sp,
                       ),
                     ),
             ),
@@ -793,13 +794,13 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
       child: Column(
         children: [
           Container(
-            width: 80,
-            height: 80,
+            width: 80.r,
+            height: 80.r,
             decoration: BoxDecoration(
               color: AppColors.success,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check, color: Colors.white, size: 48),
+            child: Icon(Icons.check, color: Colors.white, size: 48.r),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -845,7 +846,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
       ),
       child: Row(
         children: [
-          const Icon(Icons.qr_code, color: RedesignTokens.primary, size: 24),
+          Icon(Icons.qr_code, color: RedesignTokens.primary, size: 24.r),
           const SizedBox(width: AppSpacing.sm),
           Text(
             'Your Code:',
@@ -867,7 +868,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.copy, size: 20),
+            icon: Icon(Icons.copy, size: 20.r),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: uniqueCode));
               Haptics.lightImpact();
@@ -982,7 +983,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                 children: [
                   Icon(
                     Icons.schedule,
-                    size: 14,
+                    size: 14.r,
                     color: theme.colorScheme.primary,
                   ),
                   const SizedBox(width: 4),
@@ -1001,13 +1002,13 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
           Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 48.r,
+                height: 48.r,
                 decoration: BoxDecoration(
                   color: categoryColor.withValues(alpha: 0.18),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(categoryIcon, color: categoryColor, size: 28),
+                child: Icon(categoryIcon, color: categoryColor, size: 28.r),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -1139,8 +1140,8 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                           ),
                           // Skeleton for name
                           Container(
-                            width: 150,
-                            height: 32,
+                            width: 150.r,
+                            height: 32.r,
                             margin: const EdgeInsets.only(top: 4),
                             decoration: BoxDecoration(
                               color: colorScheme.surfaceContainerHighest,
@@ -1150,7 +1151,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                         ],
                       ),
                     ),
-                    const Icon(Icons.settings, size: 28),
+                    Icon(Icons.settings, size: 28.r),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -1192,7 +1193,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
         ),
 
         // Spacer for SOS button
-        const SliverToBoxAdapter(child: SizedBox(height: 200)),
+        SliverToBoxAdapter(child: SizedBox(height: 200.h)),
       ],
     );
   }

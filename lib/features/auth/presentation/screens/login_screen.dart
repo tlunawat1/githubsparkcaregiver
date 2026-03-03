@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -99,13 +100,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   Column(
                                     children: [
                                       Container(
-                                        width: 64,
-                                        height: 64,
+                                        width: 64.r,
+                                        height: 64.r,
                                         decoration: BoxDecoration(
                                           color: RedesignTokens.primary
                                               .withValues(alpha: 0.16),
                                           borderRadius: BorderRadius.circular(
-                                            32,
+                                            32.r,
                                           ),
                                           border: Border.all(
                                             color: RedesignTokens.primary
@@ -116,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           widget.role == 'caregiver'
                                               ? Icons.favorite
                                               : Icons.person,
-                                          size: 34,
+                                          size: 34.r,
                                           color: colorScheme.primary,
                                         ),
                                       ),
@@ -149,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: colorScheme.errorContainer,
-                                        borderRadius: BorderRadius.circular(14),
+                                        borderRadius: BorderRadius.circular(14.r),
                                       ),
                                       child: Row(
                                         children: [
@@ -258,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   const SizedBox(height: AppSpacing.md),
                                   SizedBox(
-                                    height: 56,
+                                    height: 56.h.clamp(48.0, 60.0),
                                     child: OutlinedButton.icon(
                                       onPressed: _isLoading
                                           ? null
@@ -279,7 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             .withValues(alpha: 0.04),
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
-                                            28,
+                                            28.r,
                                           ),
                                         ),
                                       ),
@@ -333,21 +334,21 @@ class _LoginScreenState extends State<LoginScreen> {
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: colorScheme.surface.withValues(alpha: 0.66),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+      contentPadding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 18.h),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(28.r),
         borderSide: BorderSide(
           color: colorScheme.outlineVariant.withValues(alpha: 0.65),
         ),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(28.r),
         borderSide: BorderSide(
           color: colorScheme.outlineVariant.withValues(alpha: 0.65),
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(28.r),
         borderSide: BorderSide(
           color: colorScheme.primary.withValues(alpha: 0.70),
           width: 1.2,
@@ -478,7 +479,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       dialogError!,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onErrorContainer,
-                        fontSize: 12,
+                        fontSize: 12.sp,
                       ),
                     ),
                   ),

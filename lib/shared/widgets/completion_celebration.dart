@@ -1,5 +1,6 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/utils/haptics.dart';
@@ -367,16 +368,16 @@ class _CelebrationOverlayWidgetState extends State<_CelebrationOverlayWidget>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 64,
-                          height: 64,
+                          width: 64.r,
+                          height: 64.r,
                           decoration: BoxDecoration(
                             gradient: AppColors.successButtonGradient,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.check_rounded,
                             color: Colors.white,
-                            size: 40,
+                            size: 40.r,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.md),

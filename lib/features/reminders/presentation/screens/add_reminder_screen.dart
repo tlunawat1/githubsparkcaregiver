@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -511,7 +512,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
                               Icon(
                                 Icons.access_time,
                                 color: colorScheme.primary,
-                                size: 20,
+                                size: 20.r,
                               ),
                               const SizedBox(width: AppSpacing.sm),
                               Text(
@@ -522,7 +523,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
                               Icon(
                                 Icons.edit,
                                 color: colorScheme.onSurfaceVariant,
-                                size: 18,
+                                size: 18.r,
                               ),
                             ],
                           ),
@@ -594,8 +595,8 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
                                 });
                               },
                               child: Container(
-                                width: 40,
-                                height: 40,
+                                width: 40.r,
+                                height: 40.r,
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? colorScheme.primary
@@ -788,7 +789,7 @@ class _PriorityOption extends StatelessWidget {
             Icon(
               isSelected ? Icons.check_circle : Icons.circle_outlined,
               color: isSelected ? color : theme.colorScheme.onSurfaceVariant,
-              size: 18,
+              size: 18.r,
             ),
             const SizedBox(width: AppSpacing.xs),
             Text(

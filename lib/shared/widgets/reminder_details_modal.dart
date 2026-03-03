@@ -1,5 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -143,7 +144,7 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
               // Handle bar
               Center(
                 child: Container(
-                  width: 40,
+                  width: 40.w,
                   height: 4,
                   decoration: BoxDecoration(
                     color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
@@ -326,8 +327,8 @@ class _VoiceNotePlayer extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 48.r,
+            height: 48.r,
             decoration: BoxDecoration(
               color: colorScheme.secondary,
               shape: BoxShape.circle,
@@ -340,7 +341,7 @@ class _VoiceNotePlayer extends StatelessWidget {
               icon: Icon(
                 isPlaying ? Icons.pause : Icons.play_arrow,
                 color: colorScheme.onSecondary,
-                size: 24,
+                size: 24.r,
               ),
             ),
           ),

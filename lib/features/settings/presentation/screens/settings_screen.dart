@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -374,7 +375,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Avatar
                 CircleAvatar(
                   backgroundColor: colorScheme.primaryContainer,
-                  radius: 32,
+                  radius: 32.r,
                   child: Text(
                     _userName.isNotEmpty ? _userName[0].toUpperCase() : '?',
                     style: theme.textTheme.headlineMedium?.copyWith(
@@ -397,9 +398,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10.r,
+                          vertical: 4.r,
                         ),
                         decoration: BoxDecoration(
                           color: colorScheme.primaryContainer,
@@ -446,7 +447,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Icon(
                       Icons.email_outlined,
                       color: colorScheme.onSurfaceVariant,
-                      size: 20,
+                      size: 20.r,
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
@@ -477,7 +478,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Icon(
                         Icons.phone_outlined,
                         color: colorScheme.onSurfaceVariant,
-                        size: 20,
+                        size: 20.r,
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
@@ -647,7 +648,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Icon(
                 isCaregiver ? Icons.people_outline : Icons.person_outline,
-                size: 48,
+                size: 48.r,
                 color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
               const SizedBox(height: AppSpacing.md),

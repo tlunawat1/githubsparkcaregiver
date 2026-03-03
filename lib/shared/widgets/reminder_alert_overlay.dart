@@ -1,5 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -187,7 +188,7 @@ class _ReminderAlertOverlayState extends State<ReminderAlertOverlay> {
           children: [
             // Drag handle indicator
             Container(
-              width: 40,
+              width: 40.w,
               height: 4,
               margin: const EdgeInsets.only(bottom: AppSpacing.md),
               decoration: BoxDecoration(
@@ -229,8 +230,8 @@ class _ReminderAlertOverlayState extends State<ReminderAlertOverlay> {
 
             // Reminder icon
             Container(
-              width: 100,
-              height: 100,
+              width: 100.r,
+              height: 100.r,
               decoration: BoxDecoration(
                 color: accentColor,
                 shape: BoxShape.circle,
@@ -242,10 +243,10 @@ class _ReminderAlertOverlayState extends State<ReminderAlertOverlay> {
                   ),
                 ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.notifications_active,
                 color: Colors.white,
-                size: 56,
+                size: 56.r,
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -360,8 +361,8 @@ class _ReminderAlertOverlayState extends State<ReminderAlertOverlay> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 48.r,
+            height: 48.r,
             decoration: BoxDecoration(
               color: accentColor,
               shape: BoxShape.circle,
@@ -371,7 +372,7 @@ class _ReminderAlertOverlayState extends State<ReminderAlertOverlay> {
               icon: Icon(
                 _isPlayingVoice ? Icons.pause : Icons.play_arrow,
                 color: Colors.white,
-                size: 28,
+                size: 28.r,
               ),
             ),
           ),

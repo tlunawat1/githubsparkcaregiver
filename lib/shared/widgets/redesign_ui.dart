@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../core/constants/app_spacing.dart';
 import '../../core/theme/redesign_tokens.dart';
@@ -24,18 +25,18 @@ class RedesignBackground extends StatelessWidget {
       child: Stack(
         children: [
           Positioned(
-            left: -70,
-            top: -50,
+            left: -70.w,
+            top: -50.h,
             child: _BackgroundBubble(
-              size: 220,
+              size: 220.r,
               color: RedesignTokens.primary.withValues(alpha: 0.20),
             ),
           ),
           Positioned(
-            right: -90,
-            bottom: -70,
+            right: -90.w,
+            bottom: -70.h,
             child: _BackgroundBubble(
-              size: 280,
+              size: 280.r,
               color: const Color(0xFF6366F1).withValues(alpha: 0.16),
             ),
           ),
@@ -120,11 +121,11 @@ class GradientPrimaryButton extends StatelessWidget {
     final brightness = Theme.of(context).brightness;
     return SizedBox(
       width: double.infinity,
-      height: 58,
+      height: 58.h.clamp(48.0, 62.0),
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: RedesignTokens.buttonGradient(brightness),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(18.r),
           boxShadow: const [
             BoxShadow(
               color: Color(0x3313C8EC),
@@ -141,7 +142,7 @@ class GradientPrimaryButton extends StatelessWidget {
             disabledBackgroundColor: Colors.transparent,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(18.r),
             ),
           ),
           icon: isLoading

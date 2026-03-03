@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -143,16 +144,16 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 32.r,
+            height: 32.r,
             decoration: BoxDecoration(
               color: RedesignTokens.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.info_outline,
               color: RedesignTokens.primary,
-              size: 18,
+              size: 18.r,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -434,8 +435,8 @@ class _ContactCard extends StatelessWidget {
         children: [
           // Priority number
           Container(
-            width: 32,
-            height: 32,
+            width: 32.r,
+            height: 32.r,
             decoration: BoxDecoration(
               color: colorScheme.primary,
               shape: BoxShape.circle,

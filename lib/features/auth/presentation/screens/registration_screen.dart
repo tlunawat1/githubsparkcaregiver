@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
 
@@ -97,13 +98,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           Column(
                             children: [
                               Container(
-                                width: 58,
-                                height: 58,
+                                width: 58.r,
+                                height: 58.r,
                                 decoration: BoxDecoration(
                                   color: RedesignTokens.primary.withValues(
                                     alpha: 0.20,
                                   ),
-                                  borderRadius: BorderRadius.circular(18),
+                                  borderRadius: BorderRadius.circular(18.r),
                                   border: Border.all(
                                     color: RedesignTokens.primary.withValues(
                                       alpha: 0.30,
@@ -112,7 +113,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 ),
                                 child: Icon(
                                   Icons.family_restroom,
-                                  size: 34,
+                                  size: 34.r,
                                   color: colorScheme.primary,
                                 ),
                               ),
@@ -148,7 +149,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     ),
                                     decoration: BoxDecoration(
                                       color: colorScheme.errorContainer,
-                                      borderRadius: BorderRadius.circular(14),
+                                      borderRadius: BorderRadius.circular(14.r),
                                     ),
                                     child: Text(
                                       _errorMessage!,
@@ -344,21 +345,21 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: colorScheme.surface.withValues(alpha: 0.70),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      contentPadding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 14.h),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(30.r),
         borderSide: BorderSide(
           color: colorScheme.outlineVariant.withValues(alpha: 0.55),
         ),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(30.r),
         borderSide: BorderSide(
           color: colorScheme.outlineVariant.withValues(alpha: 0.55),
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(30.r),
         borderSide: BorderSide(
           color: colorScheme.primary.withValues(alpha: 0.75),
           width: 1.2,
@@ -426,7 +427,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(left: 12, bottom: 6),
+      padding: EdgeInsets.only(left: 12.w, bottom: 6.h),
       child: Text(
         text,
         style: theme.textTheme.labelSmall?.copyWith(

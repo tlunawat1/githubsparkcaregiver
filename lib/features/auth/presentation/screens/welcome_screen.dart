@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -37,13 +38,13 @@ class WelcomeScreen extends StatelessWidget {
                         Column(
                           children: [
                             Container(
-                              width: 84,
-                              height: 84,
+                              width: 84.r,
+                              height: 84.r,
                               decoration: BoxDecoration(
                                 color: colorScheme.primary.withValues(
                                   alpha: 0.16,
                                 ),
-                                borderRadius: BorderRadius.circular(22),
+                                borderRadius: BorderRadius.circular(22.r),
                                 border: Border.all(
                                   color: colorScheme.primary.withValues(
                                     alpha: 0.25,
@@ -52,7 +53,7 @@ class WelcomeScreen extends StatelessWidget {
                               ),
                               child: Icon(
                                 Icons.family_restroom,
-                                size: 46,
+                                size: 46.r,
                                 color: colorScheme.primary,
                               ),
                             ),
@@ -159,22 +160,22 @@ class _FeatureItem extends StatelessWidget {
     final tone = iconColor ?? colorScheme.primary;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: colorScheme.surface.withValues(alpha: 0.76),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: tone.withValues(alpha: 0.18)),
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 40.r,
+            height: 40.r,
             decoration: BoxDecoration(
               color: tone.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(20.r),
             ),
-            child: Icon(icon, color: tone, size: 22),
+            child: Icon(icon, color: tone, size: 22.r),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

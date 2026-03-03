@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -129,8 +130,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Container(
-                                width: 80,
-                                height: 80,
+                                width: 80.r,
+                                height: 80.r,
                                 decoration: BoxDecoration(
                                   color: colorScheme.primary.withValues(
                                     alpha: 0.18,
@@ -139,7 +140,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                                 ),
                                 child: Icon(
                                   Icons.mark_email_read_outlined,
-                                  size: 42,
+                                  size: 42.r,
                                   color: colorScheme.primary,
                                 ),
                               ),
@@ -176,7 +177,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                                   padding: const EdgeInsets.all(AppSpacing.md),
                                   decoration: BoxDecoration(
                                     color: colorScheme.errorContainer,
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(14.r),
                                   ),
                                   child: Text(
                                     _errorMessage!,
@@ -269,7 +270,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: SizedBox(
-            width: 44,
+            width: 44.w,
             child: TextField(
               controller: _digitControllers[index],
               focusNode: _digitFocusNodes[index],
@@ -283,21 +284,21 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               decoration: InputDecoration(
                 filled: true,
                 fillColor: colorScheme.surface.withValues(alpha: 0.72),
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                contentPadding: EdgeInsets.symmetric(vertical: 14.h),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                   borderSide: BorderSide(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.5),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                   borderSide: BorderSide(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.5),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                   borderSide: BorderSide(
                     color: colorScheme.primary.withValues(alpha: 0.75),
                     width: 1.2,

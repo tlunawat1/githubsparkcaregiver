@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -99,8 +100,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Container(
-                                  width: 80,
-                                  height: 80,
+                                  width: 80.r,
+                                  height: 80.r,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     gradient: const LinearGradient(
@@ -110,10 +111,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                       ],
                                     ),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.published_with_changes_rounded,
                                     color: Colors.white,
-                                    size: 40,
+                                    size: 40.r,
                                   ),
                                 ),
                                 const SizedBox(height: AppSpacing.lg),
@@ -297,19 +298,19 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       fillColor: colorScheme.surface.withValues(alpha: 0.7),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(28.r),
         borderSide: BorderSide(
           color: RedesignTokens.primary.withValues(alpha: 0.25),
         ),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(28.r),
         borderSide: BorderSide(
           color: RedesignTokens.primary.withValues(alpha: 0.25),
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(28.r),
         borderSide: BorderSide(
           color: RedesignTokens.primary.withValues(alpha: 0.75),
         ),

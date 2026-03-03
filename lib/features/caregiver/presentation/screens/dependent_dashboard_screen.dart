@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/custom_icons.dart';
@@ -384,7 +385,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
                             },
                           ),
                         ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                      SliverToBoxAdapter(child: SizedBox(height: 100.h)),
                     ],
                   ),
                 ),
@@ -454,7 +455,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              const Icon(Icons.auto_awesome, size: 16, color: Colors.teal),
+              Icon(Icons.auto_awesome, size: 16.r, color: Colors.teal),
               const SizedBox(width: 6),
               Text(
                 percent >= 50
@@ -486,7 +487,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
       ),
       child: Row(
         children: [
-          Icon(AppIcons.priorityHigh, color: AppColors.error, size: 20),
+          Icon(AppIcons.priorityHigh, color: AppColors.error, size: 20.r),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
@@ -503,7 +504,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
           ),
           // Close button
           IconButton(
-            icon: Icon(Icons.close_rounded, color: AppColors.error, size: 20),
+            icon: Icon(Icons.close_rounded, color: AppColors.error, size: 20.r),
             onPressed: () {
               Haptics.lightImpact();
               setState(() {
@@ -513,7 +514,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
             tooltip: 'Dismiss',
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: BoxConstraints(minWidth: 32.r, minHeight: 32.r),
           ),
         ],
       ),
@@ -606,13 +607,13 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 48.r,
+                height: 48.r,
                 decoration: BoxDecoration(
                   color: iconColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16.r),
                 ),
-                child: Icon(icon, color: iconColor),
+                child: Icon(icon, color: iconColor, size: 24.r),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -689,13 +690,13 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
           child: Row(
             children: [
               Container(
-                width: 46,
-                height: 46,
+                width: 46.r,
+                height: 46.r,
                 decoration: BoxDecoration(
                   color: iconColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(14.r),
                 ),
-                child: Icon(icon, color: iconColor),
+                child: Icon(icon, color: iconColor, size: 24.r),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -761,7 +762,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
               children: [
                 // Progress bar skeleton
                 Container(
-                  height: 80,
+                  height: 80.h,
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerHighest,
                     borderRadius: AppRadius.largeRadius,
@@ -785,7 +786,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
               children: List.generate(3, (index) {
                 return Expanded(
                   child: Container(
-                    height: 48,
+                    height: 48.h,
                     margin: EdgeInsets.only(
                       left: index > 0 ? AppSpacing.sm : 0,
                     ),
@@ -864,7 +865,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
         ),
 
         // Bottom padding
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        SliverToBoxAdapter(child: SizedBox(height: 100.h)),
       ],
     );
   }
@@ -933,8 +934,8 @@ class _EmptyRemindersCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 56.r,
+            height: 56.r,
             decoration: BoxDecoration(
               color: AppColors.success.withValues(alpha: 0.2),
               shape: BoxShape.circle,
@@ -942,7 +943,7 @@ class _EmptyRemindersCard extends StatelessWidget {
             child: Icon(
               Icons.event_available_rounded,
               color: AppColors.success,
-              size: 28,
+              size: 28.r,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -992,7 +993,7 @@ class _NoFilterResultsCard extends StatelessWidget {
         children: [
           Icon(
             Icons.filter_list_off_rounded,
-            size: 48,
+            size: 48.r,
             color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           const SizedBox(width: AppSpacing.md),

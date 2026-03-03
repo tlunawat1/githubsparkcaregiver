@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_config.dart';
 import '../../core/constants/app_spacing.dart';
@@ -131,7 +132,7 @@ class _SOSButtonState extends State<SOSButton>
   Widget build(BuildContext context) {
     final reduceMotion = _shouldReduceMotion();
     final height = widget.size;
-    final width = widget.width ?? 280;
+    final width = widget.width ?? 280.w;
 
     // Stop pulse animation if reduce motion is enabled
     if (reduceMotion && _pulseController.isAnimating) {
@@ -211,7 +212,7 @@ class _SOSButtonState extends State<SOSButton>
                         Icon(
                           AppIcons.sos,
                           color: Colors.white,
-                          size: 22,
+                          size: 22.r,
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Column(
@@ -222,7 +223,7 @@ class _SOSButtonState extends State<SOSButton>
                               'SOS',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: 18.sp,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1.5,
                               ),
@@ -232,7 +233,7 @@ class _SOSButtonState extends State<SOSButton>
                                 'Hold 3s',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.85),
-                                  fontSize: 12,
+                                  fontSize: 12.sp,
                                 ),
                               )
                             else
@@ -240,7 +241,7 @@ class _SOSButtonState extends State<SOSButton>
                                 'Activating...',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.9),
-                                  fontSize: 12,
+                                  fontSize: 12.sp,
                                 ),
                               ),
                           ],
@@ -337,7 +338,7 @@ class _SOSConfirmationDialogState extends State<SOSConfirmationDialog>
           Icon(
             AppIcons.sos,
             color: AppColors.error,
-            size: 32,
+            size: 32.r,
           ),
           const SizedBox(width: AppSpacing.sm),
           Text(
@@ -364,8 +365,8 @@ class _SOSConfirmationDialogState extends State<SOSConfirmationDialog>
               return Transform.scale(
                 scale: reduceMotion ? 1.0 : _pulseAnimation.value,
                 child: Container(
-                  width: 80,
-                  height: 80,
+                  width: 80.r,
+                  height: 80.r,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
@@ -387,7 +388,7 @@ class _SOSConfirmationDialogState extends State<SOSConfirmationDialog>
                       '$_remainingSeconds',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 36,
+                        fontSize: 36.sp,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -435,7 +436,7 @@ class _SOSConfirmationDialogState extends State<SOSConfirmationDialog>
                     'CANCEL - I\'m Okay',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 20.sp,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

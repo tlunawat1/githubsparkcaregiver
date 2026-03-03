@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -151,7 +152,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     child: CircleAvatar(
                       backgroundColor: colorScheme.primaryContainer,
-                      radius: 54,
+                      radius: 54.r,
                       child: Text(
                         _nameController.text.isNotEmpty
                             ? _nameController.text[0].toUpperCase()
@@ -202,7 +203,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     suffixIcon: Icon(
                       Icons.lock_outline,
                       color: colorScheme.onSurfaceVariant,
-                      size: 20,
+                      size: 20.r,
                     ),
                   ),
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
@@ -220,7 +221,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     suffixIcon: Icon(
                       Icons.lock_outline,
                       color: colorScheme.onSurfaceVariant,
-                      size: 20,
+                      size: 20.r,
                     ),
                   ),
                   style: TextStyle(color: colorScheme.onSurfaceVariant),

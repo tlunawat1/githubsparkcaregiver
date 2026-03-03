@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -142,7 +143,7 @@ class _DependentTile extends StatelessWidget {
         children: [
           CircleAvatar(
             backgroundColor: colorScheme.primaryContainer,
-            radius: 28,
+            radius: 28.r,
             child: Text(
               dependent.name.isNotEmpty ? dependent.name[0].toUpperCase() : '?',
               style: theme.textTheme.headlineSmall?.copyWith(
@@ -174,7 +175,7 @@ class _DependentTile extends StatelessWidget {
           Icon(
             Icons.chevron_right,
             color: colorScheme.onSurfaceVariant,
-            size: 28,
+            size: 28.r,
           ),
         ],
       ),

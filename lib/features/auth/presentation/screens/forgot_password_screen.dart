@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_spacing.dart';
@@ -85,8 +86,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                           const SizedBox(height: AppSpacing.lg),
                           Container(
-                            width: 80,
-                            height: 80,
+                            width: 80.r,
+                            height: 80.r,
                             decoration: BoxDecoration(
                               color: colorScheme.primary.withValues(
                                 alpha: 0.12,
@@ -95,7 +96,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                             child: Icon(
                               Icons.lock_reset,
-                              size: 40,
+                              size: 40.r,
                               color: colorScheme.primary,
                             ),
                           ),
@@ -227,19 +228,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       filled: true,
       fillColor: colorScheme.surface.withValues(alpha: 0.68),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         borderSide: BorderSide(
           color: colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         borderSide: BorderSide(
           color: colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         borderSide: BorderSide(
           color: colorScheme.primary.withValues(alpha: 0.75),
           width: 1.2,

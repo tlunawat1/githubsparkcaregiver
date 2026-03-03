@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
@@ -136,7 +137,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
                       _errorMessage!,
                       style: TextStyle(
                         color: colorScheme.onErrorContainer,
-                        fontSize: 13,
+                        fontSize: 13.sp,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -255,7 +256,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
           children: [
             Icon(
               icon,
-              size: 16,
+              size: 16.r,
               color: isSelected
                   ? RedesignTokens.primary
                   : colorScheme.onSurfaceVariant,
@@ -400,7 +401,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
                   'For testing, use code: 12345',
                   style: TextStyle(
                     color: colorScheme.primary,
-                    fontSize: 12,
+                    fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -593,8 +594,8 @@ class _ProgressPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 26,
-      height: 6,
+      width: 26.r,
+      height: 6.r,
       decoration: BoxDecoration(
         color: active
             ? RedesignTokens.primary

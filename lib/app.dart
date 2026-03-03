@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'core/di/injection.dart';
 import 'core/routing/app_router.dart';
@@ -167,27 +168,46 @@ class _ParentalCareAppState extends State<ParentalCareApp>
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return MaterialApp(
-        title: 'Parental Care',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        home: const Scaffold(
-          body: RedesignBackground(
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        ),
-      );
-    }
+    return ScreenUtilInit(
+      designSize: const Size(393, 852),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      builder: (context, child) {
+        final mqData = MediaQuery.of(context);
+        final clampedScaler = mqData.textScaler.clamp(
+          minScaleFactor: 0.85,
+          maxScaleFactor: 1.35,
+        );
 
-    return MaterialApp.router(
-      title: 'Parental Care',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      routerConfig: _appRouter.router,
+        if (_isLoading) {
+          return MediaQuery(
+            data: mqData.copyWith(textScaler: clampedScaler),
+            child: MaterialApp(
+              title: 'Parental Care',
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: ThemeMode.system,
+              home: const Scaffold(
+                body: RedesignBackground(
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return MediaQuery(
+          data: mqData.copyWith(textScaler: clampedScaler),
+          child: MaterialApp.router(
+            title: 'Parental Care',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: ThemeMode.system,
+            routerConfig: _appRouter.router,
+          ),
+        );
+      },
     );
   }
 }

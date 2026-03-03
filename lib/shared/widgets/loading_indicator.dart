@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/constants/app_spacing.dart';
 
 /// A full-screen loading overlay with optional message.
@@ -218,38 +219,38 @@ class _ReminderSkeletonCardState extends State<ReminderSkeletonCard>
             children: [
               // Category icon placeholder
               Container(
-                width: 44,
-                height: 44,
+                width: 44.r,
+                height: 44.r,
                 decoration: BoxDecoration(
                   gradient: shimmerGradient,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
               // Title placeholder
               Container(
                 width: double.infinity,
-                height: 16,
+                height: 16.h,
                 decoration: BoxDecoration(
                   gradient: shimmerGradient,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: 6.h),
               // Second line placeholder
               Container(
-                width: 80,
-                height: 14,
+                width: 80.w,
+                height: 14.h,
                 decoration: BoxDecoration(
                   gradient: shimmerGradient,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4.h),
               // Time placeholder
               Container(
-                width: 60,
-                height: 14,
+                width: 60.w,
+                height: 14.h,
                 decoration: BoxDecoration(
                   gradient: shimmerGradient,
                   borderRadius: BorderRadius.circular(4),
@@ -258,11 +259,11 @@ class _ReminderSkeletonCardState extends State<ReminderSkeletonCard>
               const Spacer(),
               // Status chip placeholder
               Container(
-                width: 90,
-                height: 24,
+                width: 90.w,
+                height: 24.h,
                 decoration: BoxDecoration(
                   gradient: shimmerGradient,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
               ),
             ],
@@ -376,7 +377,7 @@ class _TimelineSkeletonCardState extends State<TimelineSkeletonCard>
               // Content placeholder
               Expanded(
                 child: Container(
-                  height: 56,
+                  height: 56.h,
                   decoration: BoxDecoration(
                     gradient: shimmerGradient,
                     borderRadius: AppRadius.mediumRadius,

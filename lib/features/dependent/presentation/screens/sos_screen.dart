@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
@@ -185,7 +186,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                   child: Icon(
                     Icons.emergency,
                     color: theme.colorScheme.primary,
-                    size: 34,
+                    size: 34.r,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -226,7 +227,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.person, size: 16),
+                            Icon(Icons.person, size: 16.r),
                             const SizedBox(width: 4),
                             Text(
                               contact.name,
@@ -244,21 +245,21 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                 FilledButton.tonal(
                   onPressed: _cancelSOS,
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(64),
+                    minimumSize: Size.fromHeight(64.h.clamp(52.0, 72.0)),
                     foregroundColor: AppColors.error,
                     backgroundColor: AppColors.error.withValues(alpha: 0.12),
                   ),
-                  child: const Column(
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
+                      const Text(
                         'Cancel - I\'m Okay',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
                         'Hold for 2 seconds to dismiss',
-                        style: TextStyle(fontSize: 11),
+                        style: TextStyle(fontSize: 11.sp),
                       ),
                     ],
                   ),
@@ -267,7 +268,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.location_on_outlined, size: 14),
+                    Icon(Icons.location_on_outlined, size: 14.r),
                     const SizedBox(width: 4),
                     Text(
                       'Current Location: Live',
@@ -295,16 +296,16 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               children: [
                 const Spacer(),
                 Container(
-                  width: 110,
-                  height: 110,
+                  width: 110.r,
+                  height: 110.r,
                   decoration: BoxDecoration(
                     color: AppColors.success.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.check_circle,
                     color: AppColors.success,
-                    size: 64,
+                    size: 64.r,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -350,16 +351,17 @@ class _CountdownRing extends StatelessWidget {
     final theme = Theme.of(context);
     final total = AppConfig.sosCancellationWindowSeconds.toDouble();
     final progress = ((seconds / total).clamp(0.0, 1.0)).toDouble();
+    final ringSize = 220.r.clamp(160.0, 240.0);
 
     return SizedBox(
-      width: 220,
-      height: 220,
+      width: ringSize,
+      height: ringSize,
       child: Stack(
         alignment: Alignment.center,
         children: [
           SizedBox(
-            width: 220,
-            height: 220,
+            width: ringSize,
+            height: ringSize,
             child: CircularProgressIndicator(
               value: progress,
               strokeWidth: 10,

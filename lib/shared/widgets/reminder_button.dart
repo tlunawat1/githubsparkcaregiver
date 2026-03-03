@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/custom_icons.dart';
@@ -96,22 +97,23 @@ class ReminderButton extends StatelessWidget {
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 // Top row with category icon and details button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      width: 38,
-                      height: 38,
+                      width: 36.r,
+                      height: 36.r,
                       decoration: BoxDecoration(
                         color: categoryColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(10.r),
                       ),
                       child: Icon(
                         categoryIcon,
                         color: categoryColor,
-                        size: 22,
+                        size: 20.r,
                       ),
                     ),
                     GestureDetector(
@@ -122,22 +124,22 @@ class ReminderButton extends StatelessWidget {
                               onDetailsTap?.call();
                             },
                       child: Container(
-                        width: 28,
-                        height: 28,
+                        width: 26.r,
+                        height: 26.r,
                         decoration: BoxDecoration(
                           color: borderColor.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.help_outline,
-                          size: 18,
+                          size: 16.r,
                           color: borderColor,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 3.h),
                 // Title
                 Text(
                   title,
@@ -151,7 +153,7 @@ class ReminderButton extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                const Spacer(),
                 // Time + status row
                 if (isLoading)
                   SizedBox(
@@ -166,11 +168,14 @@ class ReminderButton extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        time,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: borderColor,
-                          fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: Text(
+                          time,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: borderColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       _buildStatusChip(theme, textColor, borderColor),
@@ -186,7 +191,7 @@ class ReminderButton extends StatelessWidget {
 
   Widget _buildStatusChip(ThemeData theme, Color textColor, Color borderColor) {
     final (icon, label) = switch (status) {
-      ReminderInstanceStatus.pending => (Icons.touch_app, 'Tap to\ncomplete'),
+      ReminderInstanceStatus.pending => (Icons.touch_app, 'Tap'),
       ReminderInstanceStatus.completed => (Icons.check_circle, 'Done'),
       ReminderInstanceStatus.missed => (Icons.error, 'Missed'),
       ReminderInstanceStatus.snoozed => (Icons.snooze, 'Snoozed'),
@@ -209,9 +214,8 @@ class ReminderButton extends StatelessWidget {
               color: textColor,
               fontWeight: FontWeight.w600,
               fontSize: 10,
-              height: 1.1,
             ),
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ],
