@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/utils/haptics.dart';
+import 'done_confirmation_dialog.dart';
 import 'reminder_button.dart';
 
 /// A bottom sheet modal showing reminder details with voice note player
@@ -19,7 +20,6 @@ class ReminderDetailsModal extends StatefulWidget {
     this.description,
     this.voiceNoteUrl,
     this.onMarkDone,
-    this.onSnooze,
   });
 
   final String title;
@@ -28,7 +28,6 @@ class ReminderDetailsModal extends StatefulWidget {
   final String? description;
   final String? voiceNoteUrl;
   final VoidCallback? onMarkDone;
-  final VoidCallback? onSnooze;
 
   /// Show the modal as a bottom sheet
   static Future<void> show(
@@ -39,7 +38,6 @@ class ReminderDetailsModal extends StatefulWidget {
     String? description,
     String? voiceNoteUrl,
     VoidCallback? onMarkDone,
-    VoidCallback? onSnooze,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -52,7 +50,6 @@ class ReminderDetailsModal extends StatefulWidget {
         description: description,
         voiceNoteUrl: voiceNoteUrl,
         onMarkDone: onMarkDone,
-        onSnooze: onSnooze,
       ),
     );
   }
@@ -126,8 +123,7 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
         ),
     };
 
-    final isActionable = widget.status == ReminderInstanceStatus.pending ||
-        widget.status == ReminderInstanceStatus.snoozed;
+    final isActionable = widget.status == ReminderInstanceStatus.pending;
 
     return Container(
       decoration: BoxDecoration(
@@ -242,9 +238,14 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
                         child: ElevatedButton.icon(
                           onPressed: _isLoading
                               ? null
-                              : () {
+                              : () async {
+                                  final confirmed = await DoneConfirmationDialog.show(
+                                    context,
+                                    reminderTitle: widget.title,
+                                  );
+                                  if (!confirmed) return;
                                   Haptics.mediumImpact();
-                                  Navigator.pop(context);
+                                  if (context.mounted) Navigator.pop(context);
                                   widget.onMarkDone?.call();
                                 },
                           icon: _isLoading
@@ -268,30 +269,7 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: SizedBox(
-                        height: AppTouchTargets.elderly,
-                        child: OutlinedButton.icon(
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  Haptics.lightImpact();
-                                  Navigator.pop(context);
-                                  widget.onSnooze?.call();
-                                },
-                          icon: const Icon(Icons.snooze),
-                          label: const Text('Snooze'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.blue,
-                            side: const BorderSide(color: Colors.blue),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: AppRadius.mediumRadius,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+
                   ],
                 ),
               ],

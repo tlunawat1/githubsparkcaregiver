@@ -11,6 +11,7 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../core/services/reminder_alarm_service.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
+import '../../../../shared/widgets/done_confirmation_dialog.dart';
 import '../../../../shared/widgets/redesign_ui.dart';
 
 /// Full-screen reminder alert for dependents
@@ -106,6 +107,10 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
   }
 
   Future<void> _markDone() async {
+    final title = _reminder?.title ?? _instance?.reminderTitle ?? 'Reminder';
+    final confirmed = await DoneConfirmationDialog.show(context, reminderTitle: title);
+    if (!confirmed || !mounted) return;
+
     Haptics.heavyImpact();
     ReminderAlarmService.instance.stopAlarm();
 

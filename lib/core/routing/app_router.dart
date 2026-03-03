@@ -15,7 +15,7 @@ import '../../features/caregiver/presentation/screens/dependent_dashboard_screen
 import '../../features/caregiver/presentation/screens/emergency_contacts_screen.dart';
 import '../../features/dependent/presentation/screens/dependent_home_screen.dart';
 import '../../features/dependent/presentation/screens/reminder_alert_screen.dart';
-import '../../features/dependent/presentation/screens/sos_screen.dart';
+
 import '../../features/reminders/presentation/screens/add_reminder_screen.dart';
 import '../../features/reminders/presentation/screens/edit_reminder_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
@@ -51,7 +51,7 @@ class AppRoutes {
   // Dependent routes
   static const String dependentHome = '/dependent';
   static const String reminderAlert = '/dependent/reminder/:instanceId';
-  static const String sos = '/dependent/sos';
+
 
   // Shared routes
   static const String settings = '/settings';
@@ -264,14 +264,7 @@ class AppRouter {
               );
             },
           ),
-          GoRoute(
-            path: 'sos',
-            name: 'sos',
-            pageBuilder: (context, state) => AppTransitions.scaleFade(
-              child: const SosScreen(),
-              state: state,
-            ),
-          ),
+
         ],
       ),
 

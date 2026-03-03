@@ -172,6 +172,9 @@ class _ParentalCareAppState extends State<ParentalCareApp>
       designSize: const Size(393, 852),
       minTextAdapt: true,
       splitScreenMode: true,
+      // Ensure ScreenUtil re-computes correctly on small / large screens and
+      // when the orientation changes.
+      ensureScreenSize: true,
       builder: (context, child) {
         final mqData = MediaQuery.of(context);
         final clampedScaler = mqData.textScaler.clamp(

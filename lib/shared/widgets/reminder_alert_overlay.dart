@@ -8,6 +8,7 @@ import '../../core/constants/app_spacing.dart';
 import '../../core/di/injection.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/datasources/remote/remote.dart';
+import 'done_confirmation_dialog.dart';
 
 /// A non-dismissible bottom sheet overlay that appears when a reminder alarm fires.
 ///
@@ -93,6 +94,11 @@ class _ReminderAlertOverlayState extends State<ReminderAlertOverlay> {
 
   Future<void> _markDone() async {
     if (_isActioning) return;
+
+    final title = _reminder?.title ?? _instance?.reminderTitle ?? 'Reminder';
+    final confirmed = await DoneConfirmationDialog.show(context, reminderTitle: title);
+    if (!confirmed || !mounted) return;
+
     setState(() => _isActioning = true);
     Haptics.heavyImpact();
 
@@ -122,34 +128,7 @@ class _ReminderAlertOverlayState extends State<ReminderAlertOverlay> {
     }
   }
 
-  Future<void> _snooze() async {
-    if (_isActioning) return;
-    setState(() => _isActioning = true);
-    Haptics.mediumImpact();
 
-    try {
-      await _voicePlayer.stop();
-      final snoozeUntil = DateTime.now().toUtc().add(const Duration(minutes: 10));
-      await _reminderInstanceApi.snooze(widget.instanceId, snoozeUntil);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Snoozed for 10 minutes')),
-        );
-      }
-      widget.onDismiss();
-    } catch (e) {
-      debugPrint('ReminderAlertOverlay: Error snoozing: $e');
-      if (mounted) {
-        setState(() => _isActioning = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -323,26 +302,7 @@ class _ReminderAlertOverlayState extends State<ReminderAlertOverlay> {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              height: AppTouchTargets.elderly,
-              child: OutlinedButton.icon(
-                onPressed: _isActioning ? null : _snooze,
-                icon: const Icon(Icons.snooze, size: 28),
-                label: const Text(
-                  'Remind me in 10 minutes',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colorScheme.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: AppRadius.largeRadius,
-                  ),
-                  side: BorderSide(color: colorScheme.primary, width: 2),
-                ),
-              ),
-            ),
+
             const SizedBox(height: AppSpacing.md),
           ],
         ),

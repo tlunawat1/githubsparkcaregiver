@@ -18,7 +18,6 @@ class ReminderCard extends StatefulWidget {
     this.hasVoiceNote = false,
     this.onTap,
     this.onMarkDone,
-    this.onSnooze,
     this.priority = ReminderPriority.normal,
     this.enableAnimations = true,
   });
@@ -30,7 +29,6 @@ class ReminderCard extends StatefulWidget {
   final bool hasVoiceNote;
   final VoidCallback? onTap;
   final VoidCallback? onMarkDone;
-  final VoidCallback? onSnooze;
   final ReminderPriority priority;
   final bool enableAnimations;
 
@@ -284,7 +282,7 @@ class _ReminderCardState extends State<ReminderCard>
                 ],
                 // Action buttons for pending reminders
                 if (widget.status == ReminderStatus.pending &&
-                    (widget.onMarkDone != null || widget.onSnooze != null)) ...[
+                    widget.onMarkDone != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   Row(
                     children: [
@@ -298,17 +296,7 @@ class _ReminderCardState extends State<ReminderCard>
                             gradient: AppColors.successButtonGradient,
                           ),
                         ),
-                      if (widget.onMarkDone != null && widget.onSnooze != null)
-                        const SizedBox(width: AppSpacing.sm),
-                      if (widget.onSnooze != null)
-                        Expanded(
-                          child: _ActionButton(
-                            onPressed: widget.onSnooze!,
-                            icon: AppIcons.snooze,
-                            label: 'Snooze',
-                            color: AppColors.info,
-                          ),
-                        ),
+
                     ],
                   ),
                 ],
