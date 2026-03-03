@@ -258,8 +258,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     icon: Icons.login_rounded,
                                   ),
                                   const SizedBox(height: AppSpacing.md),
-                                  SizedBox(
-                                    height: 56.h.clamp(48.0, 60.0),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(minHeight: 48),
                                     child: OutlinedButton.icon(
                                       onPressed: _isLoading
                                           ? null
@@ -287,22 +287,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: AppSpacing.lg),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        "Don't have an account? ",
-                                        style: theme.textTheme.bodyMedium,
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          context.go(
-                                            '${AppRoutes.register}?role=${widget.role}',
-                                          );
-                                        },
-                                        child: const Text('Register'),
-                                      ),
-                                    ],
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "Don't have an account? ",
+                                          style: theme.textTheme.bodyMedium,
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            context.go(
+                                              '${AppRoutes.register}?role=${widget.role}',
+                                            );
+                                          },
+                                          child: const Text('Register'),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),

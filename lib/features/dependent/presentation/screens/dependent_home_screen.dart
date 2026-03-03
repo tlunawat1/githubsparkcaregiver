@@ -404,7 +404,9 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                 AppSpacing.sm,
                               ),
                               child: Text(
-                                'Coming Up Today',
+                                _todayInstances.isNotEmpty && _getNextPendingReminder() == null
+                                    ? 'All Completed ✅'
+                                    : 'Coming Up Today',
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -435,11 +437,11 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                               padding: AppSpacing.screenPaddingHorizontal,
                               sliver: SliverGrid(
                                 gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                    SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: 2,
                                       mainAxisSpacing: AppSpacing.md,
                                       crossAxisSpacing: AppSpacing.md,
-                                      childAspectRatio: 1.55,
+                                      childAspectRatio: 1.2 / MediaQuery.textScalerOf(context).scale(1.0),
                                     ),
                                 delegate: SliverChildBuilderDelegate((
                                   context,
@@ -552,9 +554,6 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   Future<void> _markInstanceComplete(String instanceId, {String title = 'Reminder'}) async {
     if (_completingInstances.contains(instanceId)) return;
 
-    final confirmed = await DoneConfirmationDialog.show(context, reminderTitle: title);
-    if (!confirmed || !mounted) return;
-
     setState(() => _completingInstances.add(instanceId));
     Haptics.mediumImpact();
 
@@ -595,7 +594,9 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
       status: _getInstanceStatus(instance.status),
       description: reminder?.description ?? instance.reminderDescription,
       voiceNoteUrl: reminder?.voiceNoteUrl ?? instance.voiceNoteUrl,
-      onMarkDone: () => _markInstanceComplete(instance.id, title: reminder?.title ?? instance.reminderTitle ?? 'Reminder'),
+      onMarkDone: (instance.status == 'pending' || instance.status == 'snoozed')
+          ? () => _markInstanceComplete(instance.id, title: reminder?.title ?? instance.reminderTitle ?? 'Reminder')
+          : null,
     );
   }
 
@@ -643,10 +644,9 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     };
 
     return GestureDetector(
-      onTap: () => _markInstanceComplete(instance.id, title: title),
-      onLongPress: () => _showDetailsModal(instance, reminder),
+      onTap: () => _showDetailsModal(instance, reminder),
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.78),
           borderRadius: BorderRadius.circular(22),
@@ -655,39 +655,50 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Icon + time row — fixed height
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
+                  width: 28,
+                  height: 28,
                   decoration: BoxDecoration(
                     color: iconColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, size: 18, color: iconColor),
+                  child: Icon(icon, size: 16, color: iconColor),
                 ),
-                Text(
-                  DateFormat.jm().format(displayTime),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
+                Flexible(
+                  child: Text(
+                    DateFormat.jm().format(displayTime),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            const Spacer(),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+            const SizedBox(height: 4),
+            // Title — absorbs all remaining vertical space
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 2),
+            // Status chip — fixed height at bottom
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: statusBg,
                 borderRadius: BorderRadius.circular(99),
@@ -708,6 +719,8 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                         fontWeight: FontWeight.w800,
                         fontSize: 10,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
             ),
           ],
@@ -964,9 +977,9 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: isLoading
+                  onPressed: isLoading || nextReminder.status == 'completed' || nextReminder.status == 'missed'
                       ? null
-                      : () => _markInstanceComplete(nextReminder.id, title: title),
+                      : () => _showDetailsModal(nextReminder, reminder),
                   icon: isLoading
                       ? const SizedBox(
                           width: 16,
@@ -980,11 +993,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                   label: Text(isLoading ? 'Completing...' : 'Mark as Done'),
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              IconButton.filledTonal(
-                onPressed: () => _showDetailsModal(nextReminder, reminder),
-                icon: const Icon(Icons.info_outline),
-              ),
+
             ],
           ),
         ],

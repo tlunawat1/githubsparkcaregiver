@@ -290,22 +290,25 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                   icon: Icons.arrow_forward_rounded,
                                 ),
                                 const SizedBox(height: AppSpacing.md),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Already have an account? ',
-                                      style: theme.textTheme.bodyMedium,
-                                    ),
-                                    TextButton(
-                                      onPressed: () {
-                                        context.go(
-                                          '${AppRoutes.login}?role=${widget.role}',
-                                        );
-                                      },
-                                      child: const Text('Login'),
-                                    ),
-                                  ],
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Already have an account? ',
+                                        style: theme.textTheme.bodyMedium,
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          context.go(
+                                            '${AppRoutes.login}?role=${widget.role}',
+                                          );
+                                        },
+                                        child: const Text('Login'),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),

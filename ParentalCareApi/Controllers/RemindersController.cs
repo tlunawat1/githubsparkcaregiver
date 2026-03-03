@@ -250,7 +250,7 @@ public class RemindersController : ControllerBase
                     await notificationService.SendPushNotificationAsync(
                         dependent.DeviceToken,
                         "New Reminder",
-                        $"{creator?.Name ?? "Your caregiver"} created a reminder: {reminderTitle}",
+                        $"{creator?.Name ?? "Someone"} created a reminder: {reminderTitle}",
                         new Dictionary<string, string>
                         {
                             { "type", "reminder_created" },

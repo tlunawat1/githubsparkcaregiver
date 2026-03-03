@@ -17,7 +17,26 @@ class NotificationHandler {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
-  Function(String? instanceId)? onNotificationTapped;
+  Function(String instanceId, int escalationLevel)? _onReminderNotificationTapped;
+
+  /// Pending notification tap that arrived before the callback was wired.
+  /// Stored as (instanceId, escalationLevel).
+  (String, int)? _pendingReminderTap;
+
+  /// Setter that processes any pending tap as soon as the callback is wired.
+  set onReminderNotificationTapped(
+      Function(String instanceId, int escalationLevel)? callback) {
+    _onReminderNotificationTapped = callback;
+    if (callback != null && _pendingReminderTap != null) {
+      final (instanceId, level) = _pendingReminderTap!;
+      _pendingReminderTap = null;
+      debugPrint('NotificationHandler: Processing pending tap for $instanceId (level $level)');
+      callback(instanceId, level);
+    }
+  }
+
+  Function(String instanceId, int escalationLevel)? get onReminderNotificationTapped =>
+      _onReminderNotificationTapped;
   static const List<String> _channelIds = [
     'reminders',
     'reminders_high',
@@ -178,17 +197,18 @@ class NotificationHandler {
     final instanceId = data['instanceId'] as String?;
     final escalationLevel = _parseEscalationLevel(data);
 
-    // Urgent (3rd) reminder: navigate directly to the full-screen alert.
-    if (type == 'reminder' && instanceId != null && escalationLevel >= 2) {
-      debugPrint('Foreground urgent reminder: navigating to alert screen for instance $instanceId');
-      onNotificationTapped?.call(instanceId);
+    // ALL reminder notifications with an instanceId: show overlay directly
+    // so that foreground behaviour is identical for every escalation level.
+    if (type == 'reminder' && instanceId != null) {
+      debugPrint('Foreground reminder (level $escalationLevel): showing overlay for instance $instanceId');
+      _dispatchOrQueue(instanceId, escalationLevel);
       return;
     }
 
-    // For other notifications: if we have a notification payload, show it.
+    // Non-reminder notifications: show in the notification tray.
     if (notification != null) {
       _showLocalNotification(
-        title: notification.title ?? 'Reminder',
+        title: notification.title ?? 'Notification',
         body: notification.body ?? '',
         payload: json.encode(data),
         channelId: _getChannelId(data),
@@ -196,12 +216,12 @@ class NotificationHandler {
       return;
     }
 
-    // Data-only non-urgent messages: if title/body were supplied in data, show a local notification.
+    // Data-only non-reminder messages with title/body.
     final title = data['title'] as String?;
     final body = data['body'] as String?;
     if (title != null || body != null) {
       _showLocalNotification(
-        title: title ?? 'Reminder',
+        title: title ?? 'Notification',
         body: body ?? '',
         payload: json.encode(data),
         channelId: _getChannelId(data),
@@ -214,15 +234,28 @@ class NotificationHandler {
 
     final instanceId = message.data['instanceId'] as String?;
 
-    // All reminder taps navigate to the full-screen alert screen.
-    if (instanceId != null && onNotificationTapped != null) {
-      onNotificationTapped!(instanceId);
+    // All reminder taps show the overlay bottom sheet.
+    if (instanceId != null) {
+      final escalationLevel = _parseEscalationLevel(message.data);
+      _dispatchOrQueue(instanceId, escalationLevel);
     }
   }
 
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('Local notification tapped: ${response.payload}');
     handleLocalNotificationResponse(response);
+  }
+
+  /// Dispatch the notification tap to the callback, or queue it if the
+  /// callback hasn't been wired yet (e.g. cold-start race condition).
+  void _dispatchOrQueue(String instanceId, int escalationLevel) {
+    if (_onReminderNotificationTapped != null) {
+      _onReminderNotificationTapped!(instanceId, escalationLevel);
+    } else {
+      debugPrint(
+          'NotificationHandler: Callback not ready, queuing tap for $instanceId (level $escalationLevel)');
+      _pendingReminderTap = (instanceId, escalationLevel);
+    }
   }
 
   void handleLocalNotificationResponse(NotificationResponse response) {
@@ -232,9 +265,10 @@ class NotificationHandler {
       final data = json.decode(response.payload!) as Map<String, dynamic>;
       final instanceId = data['instanceId'] as String?;
 
-      // All reminder taps navigate to the full-screen alert screen.
-      if (instanceId != null && onNotificationTapped != null) {
-        onNotificationTapped!(instanceId);
+      // All reminder taps show the overlay bottom sheet.
+      if (instanceId != null) {
+        final escalationLevel = _parseEscalationLevel(data);
+        _dispatchOrQueue(instanceId, escalationLevel);
       }
     } catch (e) {
       debugPrint('Error parsing notification payload: $e');

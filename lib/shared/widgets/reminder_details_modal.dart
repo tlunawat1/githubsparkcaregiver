@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/utils/haptics.dart';
-import 'done_confirmation_dialog.dart';
 import 'reminder_button.dart';
 
 /// A bottom sheet modal showing reminder details with voice note player
@@ -183,15 +182,17 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
                 children: [
                   Icon(
                     Icons.access_time,
-                    size: 20,
+                    size: 18,
                     color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    DateFormat('EEEE, MMMM d \'at\' h:mm a')
-                        .format(widget.scheduledTime),
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                  Flexible(
+                    child: Text(
+                      DateFormat('EEE, MMM d \'at\' h:mm a')
+                          .format(widget.scheduledTime),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
@@ -230,47 +231,61 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
               // Action buttons
               if (isActionable) ...[
                 const SizedBox(height: AppSpacing.xl),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: AppTouchTargets.elderly,
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading
-                              ? null
-                              : () async {
-                                  final confirmed = await DoneConfirmationDialog.show(
-                                    context,
-                                    reminderTitle: widget.title,
-                                  );
-                                  if (!confirmed) return;
-                                  Haptics.mediumImpact();
-                                  if (context.mounted) Navigator.pop(context);
-                                  widget.onMarkDone?.call();
-                                },
-                          icon: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.check),
-                          label: const Text('Mark Done'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.success,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: AppRadius.mediumRadius,
+                SizedBox(
+                  width: double.infinity,
+                  height: AppTouchTargets.elderly,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            Haptics.mediumImpact();
+                            Navigator.pop(context);
+                            widget.onMarkDone?.call();
+                          },
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
                             ),
-                          ),
-                        ),
-                      ),
+                          )
+                        : const Icon(Icons.check, size: 24),
+                    label: const Text(
+                      'Yes, Done',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                     ),
-
-                  ],
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Colors.white,
+                      shape: const StadiumBorder(),
+                      elevation: 2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  width: double.infinity,
+                  height: AppTouchTargets.elderly,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.schedule, size: 22),
+                    label: const Text(
+                      'Not Yet',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colorScheme.onSurfaceVariant,
+                      side: BorderSide(
+                        color: colorScheme.outline,
+                        width: 1.5,
+                      ),
+                      shape: const StadiumBorder(),
+                    ),
+                  ),
                 ),
               ],
               const SizedBox(height: AppSpacing.md),

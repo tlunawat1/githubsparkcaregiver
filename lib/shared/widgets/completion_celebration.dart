@@ -222,11 +222,23 @@ class CelebrationOverlay extends StatefulWidget {
 
   final Widget child;
 
-  /// Show a celebration overlay
-  static void show(BuildContext context, {String message = 'Great job!'}) {
-    final overlay = Overlay.of(context);
-    late OverlayEntry entry;
+  /// Show a celebration overlay.
+  ///
+  /// Pass [overlay] directly when the [context] might not have an [Overlay]
+  /// ancestor (e.g. when using `rootNavigatorKey.currentContext` — the root
+  /// Navigator's own Overlay is a *descendant*, not an ancestor).
+  static void show(
+    BuildContext context, {
+    String message = 'Great job!',
+    OverlayState? overlay,
+  }) {
+    overlay ??= Overlay.maybeOf(context);
+    if (overlay == null) {
+      debugPrint('CelebrationOverlay: No overlay found — skipping');
+      return;
+    }
 
+    late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (context) => _CelebrationOverlayWidget(
         message: message,

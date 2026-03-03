@@ -86,88 +86,37 @@ class ReminderButton extends StatelessWidget {
                     }
                   : null,
           borderRadius: AppRadius.largeRadius,
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.largeRadius,
-              border: Border.all(color: borderColor, width: 2),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top row with category icon and details button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 36.r,
-                      height: 36.r,
-                      decoration: BoxDecoration(
-                        color: categoryColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10.r),
-                      ),
-                      child: Icon(
-                        categoryIcon,
-                        color: categoryColor,
-                        size: 20.r,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: isLoading
-                          ? null
-                          : () {
-                              Haptics.lightImpact();
-                              onDetailsTap?.call();
-                            },
-                      child: Container(
-                        width: 26.r,
-                        height: 26.r,
-                        decoration: BoxDecoration(
-                          color: borderColor.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.help_outline,
-                          size: 16.r,
-                          color: borderColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 3.h),
-                // Title
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.w600,
-                    decoration: status == ReminderInstanceStatus.completed
-                        ? TextDecoration.lineThrough
-                        : null,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const Spacer(),
-                // Time + status row
-                if (isLoading)
-                  SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(textColor),
-                    ),
-                  )
-                else
+          child: ClipRRect(
+            borderRadius: AppRadius.largeRadius,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.largeRadius,
+                border: Border.all(color: borderColor, width: 2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top row with category icon and time
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      Container(
+                        width: 36.r,
+                        height: 36.r,
+                        decoration: BoxDecoration(
+                          color: categoryColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        child: Icon(
+                          categoryIcon,
+                          color: categoryColor,
+                          size: 20.r,
+                        ),
+                      ),
                       Flexible(
                         child: Text(
                           time,
@@ -178,10 +127,38 @@ class ReminderButton extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      _buildStatusChip(theme, textColor, borderColor),
                     ],
                   ),
-              ],
+                  const SizedBox(height: 4),
+                  // Title
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: textColor,
+                        fontWeight: FontWeight.w600,
+                        decoration: status == ReminderInstanceStatus.completed
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // Status row
+                  if (isLoading)
+                    SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(textColor),
+                      ),
+                    )
+                  else
+                    _buildStatusChip(theme, textColor, borderColor),
+                ],
+              ),
             ),
           ),
         ),
