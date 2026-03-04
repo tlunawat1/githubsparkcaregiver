@@ -674,14 +674,14 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     final Color borderTint;
     switch (instance.status) {
       case 'completed':
-        tint = isDark ? const Color(0xFF1B3A1B) : const Color(0xFFA5E6A0);
-        borderTint = isDark ? const Color(0xFF4CAF50) : const Color(0xFF66BB6A);
+        tint = isDark ? const Color(0xFF1B3A1B) : const Color(0xFFC8F7C5);
+        borderTint = isDark ? const Color(0xFF4CAF50) : const Color(0xFF81C784);
       case 'missed':
-        tint = isDark ? const Color(0xFF3A1B1B) : const Color(0xFFFFB3B3);
-        borderTint = isDark ? const Color(0xFFE57373) : const Color(0xFFEF5350);
+        tint = isDark ? const Color(0xFF3A1B1B) : const Color(0xFFFDCFCF);
+        borderTint = isDark ? const Color(0xFFE57373) : const Color(0xFFEF9A9A);
       default: // pending, snoozed, upcoming
-        tint = isDark ? const Color(0xFF3A351B) : const Color(0xFFFFE082);
-        borderTint = isDark ? const Color(0xFFFFD54F) : const Color(0xFFFFCA28);
+        tint = isDark ? const Color(0xFF3A351B) : const Color(0xFFFFF9C4);
+        borderTint = isDark ? const Color(0xFFFFD54F) : const Color(0xFFFFE082);
     }
 
     final cardBg = tint;
@@ -958,15 +958,15 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
       margin: const EdgeInsets.only(bottom: AppSpacing.lg),
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF3A351B) : const Color(0xFFFFE082),
+        color: isDark ? const Color(0xFF3A351B) : const Color(0xFFFFF9C4),
         borderRadius: BorderRadius.circular(30),
         border: Border.all(
-          color: isDark ? const Color(0xFFFFD54F) : const Color(0xFFFFCA28),
+          color: isDark ? const Color(0xFFFFD54F) : const Color(0xFFFFE082),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? const Color(0xFFFFD54F) : const Color(0xFFFFCA28)).withValues(alpha: isDark ? 0.1 : 0.22),
+            color: (isDark ? const Color(0xFFFFD54F) : const Color(0xFFFFE082)).withValues(alpha: isDark ? 0.1 : 0.22),
             blurRadius: 14,
             offset: const Offset(0, 5),
           ),
