@@ -82,7 +82,7 @@ class _LinkRequestDialogState extends State<LinkRequestDialog> {
                           ),
                         ),
                         Text(
-                          'wants to be your caregiver',
+                          'wants to be your companion',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),

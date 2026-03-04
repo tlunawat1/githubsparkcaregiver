@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/friendly_error.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../data/repositories/repositories.dart';
@@ -32,11 +33,7 @@ class EmailVerificationScreen extends StatefulWidget {
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
-  final _digitControllers = List<TextEditingController>.generate(
-    6,
-    (_) => TextEditingController(),
-  );
-  final _digitFocusNodes = List<FocusNode>.generate(6, (_) => FocusNode());
+  final _codeController = TextEditingController();
   final _authApi = getIt<AuthApi>();
   final _settingsRepository = getIt<SettingsRepository>();
   final _apiClient = getIt<ApiClient>();
@@ -67,12 +64,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   void dispose() {
     _resendCooldownTimer?.cancel();
-    for (final controller in _digitControllers) {
-      controller.dispose();
-    }
-    for (final node in _digitFocusNodes) {
-      node.dispose();
-    }
+    _codeController.dispose();
     super.dispose();
   }
 
@@ -107,7 +99,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                           children: [
                             IconButton.filledTonal(
                               onPressed: () => context.go(
-                                '${AppRoutes.register}?role=${widget.role}',
+                                AppRoutes.register,
                               ),
                               icon: const Icon(Icons.arrow_back_rounded),
                             ),
@@ -198,39 +190,50 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                                 icon: Icons.arrow_forward_rounded,
                               ),
                               const SizedBox(height: AppSpacing.md),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 4,
                                 children: [
                                   Text(
                                     'Didn\'t receive a code? ',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                    style: theme.textTheme.bodySmall?.copyWith(
                                       color: colorScheme.onSurfaceVariant,
                                     ),
                                   ),
-                                  TextButton.icon(
-                                    onPressed:
-                                        (_isResending ||
-                                            _resendCooldownSeconds > 0)
-                                        ? null
-                                        : _handleResend,
-                                    icon: _isResending
-                                        ? const SizedBox(
-                                            height: 14,
-                                            width: 14,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.refresh_rounded,
-                                            size: 16,
-                                          ),
-                                    label: Text(
-                                      _resendCooldownSeconds > 0
-                                          ? 'Resend in ${_resendCooldownSeconds}s'
-                                          : 'Resend Code',
+                                  if (_isResending)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      child: SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: colorScheme.primary,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    GestureDetector(
+                                      onTap: _resendCooldownSeconds > 0
+                                          ? null
+                                          : _handleResend,
+                                      child: Text(
+                                        _resendCooldownSeconds > 0
+                                            ? 'Resend in ${_resendCooldownSeconds}s'
+                                            : 'Resend Code',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: _resendCooldownSeconds > 0
+                                              ? colorScheme.onSurfaceVariant
+                                              : colorScheme.primary,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: _resendCooldownSeconds > 0
+                                              ? TextDecoration.none
+                                              : TextDecoration.underline,
+                                          decorationColor: colorScheme.primary,
+                                        ),
+                                      ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ],
@@ -260,78 +263,50 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     );
   }
 
-  String get _verificationCode => _digitControllers.map((c) => c.text).join();
+  String get _verificationCode => _codeController.text.trim();
 
   Widget _buildCodeInputs(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_digitControllers.length, (index) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: SizedBox(
-            width: 44.w,
-            child: TextField(
-              controller: _digitControllers[index],
-              focusNode: _digitFocusNodes[index],
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              textInputAction: index == _digitControllers.length - 1
-                  ? TextInputAction.done
-                  : TextInputAction.next,
-              onChanged: (value) => _onCodeChanged(index, value),
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: colorScheme.surface.withValues(alpha: 0.72),
-                contentPadding: EdgeInsets.symmetric(vertical: 14.h),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: BorderSide(
-                    color: colorScheme.primary.withValues(alpha: 0.75),
-                    width: 1.2,
-                  ),
-                ),
-              ),
-            ),
+    return TextFormField(
+      controller: _codeController,
+      keyboardType: TextInputType.number,
+      textAlign: TextAlign.center,
+      maxLength: 6,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 8,
+      ),
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      decoration: InputDecoration(
+        hintText: 'Enter 6-digit code',
+        hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          letterSpacing: 1,
+        ),
+        filled: true,
+        fillColor: colorScheme.surface.withValues(alpha: 0.72),
+        contentPadding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 14.h),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30.r),
+          borderSide: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.55),
           ),
-        );
-      }),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30.r),
+          borderSide: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.55),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30.r),
+          borderSide: BorderSide(
+            color: colorScheme.primary.withValues(alpha: 0.75),
+            width: 1.2,
+          ),
+        ),
+      ),
     );
-  }
-
-  void _onCodeChanged(int index, String value) {
-    if (value.length > 1) {
-      final digits = value.replaceAll(RegExp(r'[^0-9]'), '').split('');
-      for (var i = 0; i < _digitControllers.length; i++) {
-        _digitControllers[i].text = i < digits.length ? digits[i] : '';
-      }
-      final target = digits.length >= _digitControllers.length
-          ? _digitControllers.length - 1
-          : digits.length;
-      if (target >= 0 && target < _digitFocusNodes.length) {
-        _digitFocusNodes[target].requestFocus();
-      }
-      return;
-    }
-
-    if (value.isNotEmpty && index < _digitFocusNodes.length - 1) {
-      _digitFocusNodes[index + 1].requestFocus();
-    } else if (value.isEmpty && index > 0) {
-      _digitFocusNodes[index - 1].requestFocus();
-    }
   }
 
   Future<void> _handleVerify() async {
@@ -389,7 +364,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = _extractErrorMessage(e);
+        _errorMessage = friendlyError(e);
         _isLoading = false;
       });
     }
@@ -425,23 +400,26 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       }
     } on ApiException catch (e) {
       final retryAfter = (e.data?['retryAfterSeconds'] as num?)?.toInt();
-      if (retryAfter != null && retryAfter > 0) {
-        _startResendCooldown(retryAfter);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_extractErrorMessage(e)),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+      if (e.statusCode == 429) {
+        _startResendCooldown(retryAfter ?? 60);
+      } else {
+        if (retryAfter != null && retryAfter > 0) {
+          _startResendCooldown(retryAfter);
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(friendlyError(e)),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_extractErrorMessage(e)),
+            content: Text(friendlyError(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -477,14 +455,5 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         _resendCooldownSeconds--;
       });
     });
-  }
-
-  String _extractErrorMessage(Object error) {
-    if (error is ApiException) {
-      return error.message;
-    }
-
-    final raw = error.toString().replaceAll('Exception: ', '');
-    return raw.isEmpty ? 'Something went wrong. Please try again.' : raw;
   }
 }

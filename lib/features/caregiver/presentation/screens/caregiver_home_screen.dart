@@ -167,7 +167,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
                             ),
                           ),
                           Text(
-                            'Hello, ${_currentUser?.name ?? 'Caregiver'}',
+                            'Hello, ${_currentUser?.name ?? 'Companion'}',
                             style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.w800,
                             ),
@@ -216,7 +216,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
         Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.md),
           child: Text(
-            'Your Dependents',
+            'Your Loved Ones',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -225,10 +225,10 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
         ),
         EmptyState(
           icon: Icons.people_outline,
-          title: 'No Dependents Yet',
+          title: 'No Loved Ones Yet',
           message:
-              'Add a dependent to start creating reminders and stay connected.',
-          actionLabel: 'Add Dependent',
+              'Add a loved one to start creating reminders and stay connected.',
+          actionLabel: 'Add Loved One',
           onAction: _showAddDependentDialog,
         ),
       ],
@@ -251,7 +251,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Your Dependents',
+                  'Your Loved Ones',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -335,7 +335,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen>
             children: [
               Expanded(
                 child: Text(
-                  'Share this unique code to connect with your dependents.',
+                  'Share this unique code to connect with your loved ones.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),

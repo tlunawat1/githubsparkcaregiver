@@ -5,13 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/redesign_tokens.dart';
-import '../../../../core/utils/haptics.dart';
-import '../../../../shared/models/user_role.dart';
 import '../../../../shared/widgets/redesign_ui.dart';
 
-/// Screen for selecting user role (Caregiver or Dependent)
-class RoleSelectionScreen extends StatelessWidget {
-  const RoleSelectionScreen({super.key});
+/// Read-only onboarding info screen that explains the two roles.
+///
+/// Replaces the old [RoleSelectionScreen]. Role selection now happens
+/// only during registration.
+class OnboardingInfoScreen extends StatelessWidget {
+  const OnboardingInfoScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -39,72 +40,67 @@ class RoleSelectionScreen extends StatelessWidget {
                             IconButton.filledTonal(
                               onPressed: () => context.go(AppRoutes.welcome),
                               icon: const Icon(Icons.arrow_back_rounded),
-                              style: IconButton.styleFrom(
-                                backgroundColor: colorScheme.surface.withValues(
-                                  alpha: 0.65,
-                                ),
-                              ),
                             ),
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Text(
-                                'Select your role',
-                                style: theme.textTheme.headlineMedium?.copyWith(
+                                'How We Care',
+                                style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSpacing.lg),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          'This determines how you\'ll use the app. You can switch roles later in settings.',
+                          'Built with care and protected with trust.',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: colorScheme.onSurfaceVariant,
+                            height: 1.45,
                           ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        _RoleCard(
-                          role: UserRole.caregiver,
+
+                        // --- Companion info card ---
+                        _InfoCard(
                           icon: Icons.favorite,
-                          title: 'I\'m a Caregiver',
+                          title: 'Companion',
                           description:
-                              'Manage schedules, monitor health metrics, and organize daily care routines.',
-                          features: const [
-                            'Create reminders',
-                            'Track health',
-                            'Manage circle',
+                              'Be there for your loved ones. Create reminders, follow up and organize care for your Loved One.',
+                          chipLabels: const [
+                            'Stay Connected',
+                            'Create Reminders',
+                            'Track Progress',
                           ],
-                          badgeText: 'Most Popular',
-                          onTap: () => _selectRole(context, UserRole.caregiver),
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        _RoleCard(
-                          role: UserRole.dependent,
+
+                        // --- Loved One info card ---
+                        _InfoCard(
                           icon: Icons.star,
-                          title: 'I\'m a Dependent',
+                          title: 'Loved One',
                           description:
-                              'Receive support, stay connected with loved ones, and access safety tools.',
-                          features: const [
-                            'Receive reminders',
-                            'Quick SOS',
-                            'Shared calendar',
+                              'Stay on top of your schedule, feel connected and cared for with gentle reminders.',
+                          chipLabels: const [
+                            'Feel Loved',
+                            'Gentle Reminders',
+                            'Emergency SOS',
                           ],
-                          onTap: () => _selectRole(context, UserRole.dependent),
                         ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          'Need help deciding? Learn more',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant.withValues(
-                              alpha: 0.9,
-                            ),
-                            letterSpacing: 0.8,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        const SizedBox(height: AppSpacing.lg),
+
+                        // --- CTA ---
+                        GradientPrimaryButton(
+                          onPressed: () => context.go(AppRoutes.login),
+                          label: "Let's Get Started",
+                          icon: Icons.arrow_forward_rounded,
+                        ),
+                        SizedBox(
+                          height: MediaQuery.paddingOf(context).bottom > 0
+                              ? 0
+                              : AppSpacing.sm,
                         ),
                       ],
                     ),
@@ -117,30 +113,20 @@ class RoleSelectionScreen extends StatelessWidget {
       ),
     );
   }
-
-  void _selectRole(BuildContext context, UserRole role) {
-    Haptics.mediumImpact();
-    context.go('${AppRoutes.login}?role=${role.name}');
-  }
 }
 
-class _RoleCard extends StatelessWidget {
-  final UserRole role;
+/// A read-only glass card describing a role.
+class _InfoCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
-  final List<String> features;
-  final String? badgeText;
-  final VoidCallback onTap;
+  final List<String> chipLabels;
 
-  const _RoleCard({
-    required this.role,
+  const _InfoCard({
     required this.icon,
     required this.title,
     required this.description,
-    required this.features,
-    this.badgeText,
-    required this.onTap,
+    required this.chipLabels,
   });
 
   @override
@@ -149,124 +135,67 @@ class _RoleCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final iconColor = RedesignTokens.primary;
 
-    return Semantics(
-      label: '$title. $description',
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: GlassCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return GlassCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 46.r,
-                    height: 46.r,
-                    decoration: BoxDecoration(
-                      color: iconColor.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(14.r),
-                    ),
-                    child: Icon(icon, color: iconColor, size: 26.r),
-                  ),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: badgeText == null
-                          ? const SizedBox.shrink()
-                          : Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: iconColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(99),
-                              ),
-                              child: Text(
-                                badgeText!,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: iconColor,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                title,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
+              Container(
+                width: 46.r,
+                height: 46.r,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14.r),
                 ),
+                child: Icon(icon, color: iconColor, size: 26.r),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                description,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.xs,
-                children: features.map((feature) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant.withValues(
-                          alpha: 0.35,
-                        ),
-                      ),
-                    ),
-                    child: Text(
-                      feature,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: onTap,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: RedesignTokens.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    textStyle: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  icon: Icon(Icons.arrow_forward_rounded, size: 18.r),
-                  label: Text(
-                    role == UserRole.caregiver
-                        ? 'Choose Caregiver'
-                        : 'Choose Dependent',
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            description,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: chipLabels.map((label) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }

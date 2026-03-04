@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -7,6 +9,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/redesign_tokens.dart';
+import '../../../../core/utils/friendly_error.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/redesign_ui.dart';
 
@@ -32,12 +35,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _authApi = getIt<AuthApi>();
 
   bool _isLoading = false;
+  bool _isResending = false;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   String? _errorMessage;
+  int _resendCooldownSeconds = 0;
+  Timer? _resendCooldownTimer;
 
   @override
   void dispose() {
+    _resendCooldownTimer?.cancel();
     _codeController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
@@ -259,13 +266,50 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            'Didn\'t receive a code? Resend now from the previous screen.',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                          const SizedBox(height: AppSpacing.md),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Didn\'t receive a code? ',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              if (_isResending)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  child: SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                )
+                              else
+                                GestureDetector(
+                                  onTap: _resendCooldownSeconds > 0
+                                      ? null
+                                      : _handleResendCode,
+                                  child: Text(
+                                    _resendCooldownSeconds > 0
+                                        ? 'Resend in ${_resendCooldownSeconds}s'
+                                        : 'Resend Code',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: _resendCooldownSeconds > 0
+                                          ? colorScheme.onSurfaceVariant
+                                          : colorScheme.primary,
+                                      fontWeight: FontWeight.w700,
+                                      decoration: _resendCooldownSeconds > 0
+                                          ? TextDecoration.none
+                                          : TextDecoration.underline,
+                                      decorationColor: colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
                       ),
@@ -318,6 +362,81 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
   }
 
+  void _startResendCooldown(int seconds) {
+    _resendCooldownTimer?.cancel();
+    setState(() => _resendCooldownSeconds = seconds);
+    _resendCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCooldownSeconds <= 1) {
+        timer.cancel();
+        setState(() => _resendCooldownSeconds = 0);
+      } else {
+        setState(() => _resendCooldownSeconds -= 1);
+      }
+    });
+  }
+
+  Future<void> _handleResendCode() async {
+    setState(() {
+      _isResending = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await _authApi.requestPasswordReset(
+        email: widget.email,
+      );
+
+      final retryAfter = response.retryAfterSeconds;
+      if (retryAfter != null && retryAfter > 0) {
+        _startResendCooldown(retryAfter);
+      } else {
+        _startResendCooldown(60); // default 60s cooldown
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.message.isNotEmpty
+                  ? response.message
+                  : 'A new code has been sent to your email.',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      final retryAfter = (e.data?['retryAfterSeconds'] as num?)?.toInt();
+      if (e.statusCode == 429) {
+        // Rate-limited — just start cooldown, no error banner
+        _startResendCooldown(retryAfter ?? 60);
+      } else {
+        if (retryAfter != null && retryAfter > 0) {
+          _startResendCooldown(retryAfter);
+        }
+        if (mounted) {
+          setState(() {
+            _errorMessage = friendlyError(e);
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = friendlyError(e);
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isResending = false);
+      }
+    }
+  }
+
   Future<void> _handleReset() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -336,8 +455,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       if (!response.success) {
         setState(() {
           _errorMessage = response.message.isNotEmpty
-              ? response.message
-              : 'Could not reset password.';
+              ? friendlyError(Exception(response.message))
+              : 'Could not reset password. Please try again.';
           _isLoading = false;
         });
         return;
@@ -355,18 +474,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           ),
         );
 
-        context.go('${AppRoutes.login}?role=${widget.role}');
+        context.go(AppRoutes.login);
       }
     } on ApiException catch (e) {
       setState(() {
-        _errorMessage = e.message.isNotEmpty
-            ? e.message
-            : 'Could not reset password.';
+        _errorMessage = friendlyError(e);
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
       setState(() {
-        _errorMessage = 'Could not reset password.';
+        _errorMessage = friendlyError(e);
         _isLoading = false;
       });
     }

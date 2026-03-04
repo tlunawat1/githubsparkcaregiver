@@ -11,9 +11,9 @@ extension UserRoleExtension on UserRole {
   String get displayName {
     switch (this) {
       case UserRole.caregiver:
-        return 'Caregiver';
+        return 'Companion';
       case UserRole.dependent:
-        return 'Dependent';
+        return 'Loved One';
     }
   }
 

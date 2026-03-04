@@ -159,7 +159,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
-              'These contacts will be notified when ${_dependent?.name ?? 'the dependent'} triggers an SOS alert.',
+              'These contacts will be notified when ${_dependent?.name ?? 'your loved one'} triggers an SOS alert.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onPrimaryContainer,
               ),

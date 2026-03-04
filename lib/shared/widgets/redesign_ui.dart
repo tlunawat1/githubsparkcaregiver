@@ -119,11 +119,10 @@ class GradientPrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48),
-      child: SizedBox(
-        width: double.infinity,
-        child: DecoratedBox(
+    return SizedBox(
+      height: 48,
+      width: double.infinity,
+      child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: RedesignTokens.buttonGradient(brightness),
           borderRadius: BorderRadius.circular(18.r),
@@ -161,7 +160,6 @@ class GradientPrimaryButton extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
-      ),
       ),
     );
   }

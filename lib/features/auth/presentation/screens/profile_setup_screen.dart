@@ -104,7 +104,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   Row(
                     children: [
                       IconButton.filledTonal(
-                        onPressed: () => context.go(AppRoutes.roleSelection),
+                        onPressed: () => context.go(AppRoutes.login),
                         icon: const Icon(Icons.arrow_back_rounded),
                       ),
                       const SizedBox(width: AppSpacing.sm),
@@ -143,7 +143,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          isCaregiver ? 'Caregiver' : 'Dependent',
+                          isCaregiver ? 'Companion' : 'Loved One',
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: isCaregiver
                                 ? colorScheme.primary
@@ -164,8 +164,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     isCaregiver
-                        ? 'This will help your dependents identify who set up their reminders.'
-                        : 'This will help your caregivers identify you.',
+                        ? 'This will help your loved ones identify who set up their reminders.'
+                        : 'This will help your companions identify you.',
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -203,7 +203,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       icon: Icons.info_outline,
                       title: 'Next Steps',
                       description:
-                          'After setup, you\'ll be able to add dependents and create reminders for them.',
+                          'After setup, you\'ll be able to add loved ones and create reminders for them.',
                     ),
                     const SizedBox(height: AppSpacing.md),
                   ],

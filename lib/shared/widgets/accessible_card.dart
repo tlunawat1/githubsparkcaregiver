@@ -44,7 +44,7 @@ class AccessibleCard extends StatelessWidget {
     final card = Card(
       margin: margin ?? const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       elevation: onTap != null ? elevation : elevation / 2,
-      color: backgroundColor ?? colorScheme.surfaceContainer,
+      color: backgroundColor ?? colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: AppRadius.largeRadius,
         side: borderWidth > 0

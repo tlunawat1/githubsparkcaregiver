@@ -138,7 +138,11 @@ class ReminderAlarmService {
       isScrollControlled: true,
       isDismissible: false,
       enableDrag: false,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (sheetContext) {
         return ReminderAlertOverlay(
           instanceId: instanceId,

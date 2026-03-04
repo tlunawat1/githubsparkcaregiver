@@ -360,7 +360,7 @@ class _DependentDashboardScreenState extends State<DependentDashboardScreen>
                               icon: Icons.notifications_off_outlined,
                               title: 'No Reminders',
                               message:
-                                  'Create a reminder to help ${_dependent?.name ?? 'your dependent'} stay on track.',
+                                  'Create a reminder to help ${_dependent?.name ?? 'your loved one'} stay on track.',
                               actionLabel: 'Add Reminder',
                               onAction: () async {
                                 final result = await context.goToAddReminder(

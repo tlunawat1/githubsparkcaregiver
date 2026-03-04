@@ -72,7 +72,7 @@ class _DependentSelectorScreenState extends State<DependentSelectorScreen> {
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        'Select Dependent',
+                        'Select Loved One',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
@@ -87,8 +87,8 @@ class _DependentSelectorScreenState extends State<DependentSelectorScreen> {
                     : _dependents.isEmpty
                     ? EmptyState(
                         icon: Icons.people_outline,
-                        title: 'No Dependents',
-                        message: 'Add a dependent from the home screen first.',
+                        title: 'No Loved Ones',
+                        message: 'Add a loved one from the home screen first.',
                         actionLabel: 'Go Back',
                         onAction: () => context.go(AppRoutes.caregiverHome),
                       )

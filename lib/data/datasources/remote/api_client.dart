@@ -27,7 +27,7 @@ class ApiException implements Exception {
 class ApiClient {
   // Configuration
   static const String _defaultBaseUrl = 'https://remotecaregiver-api-gremgwfab5c9fbhs.canadacentral-01.azurewebsites.net';
-  static const Duration _timeout = Duration(seconds: 30);
+  static const Duration _timeout = Duration(seconds: 60);
 
   final String baseUrl;
   final http.Client _httpClient;

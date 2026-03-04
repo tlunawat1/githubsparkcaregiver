@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 
+import 'core/constants/api_constants.dart';
 import 'core/di/injection.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/fcm_service.dart';
@@ -147,6 +149,20 @@ class _ParentalCareAppState extends State<ParentalCareApp>
     if (_isAuthenticated) {
       _initializeServicesInBackground(apiClient, signalRService);
     }
+
+    // Fire-and-forget: ping /health to wake up the backend so it's warm by
+    // the time the user reaches login/register (Azure cold-start mitigation).
+    _warmUpBackend();
+  }
+
+  /// Silent fire-and-forget GET to /health to wake the Azure App Service
+  /// worker process. Errors are ignored — it's purely opportunistic.
+  void _warmUpBackend() {
+    http.get(Uri.parse('${ApiConstants.baseUrl}/health')).then((_) {
+      debugPrint('App: Backend warm-up ping succeeded');
+    }).catchError((e) {
+      debugPrint('App: Backend warm-up ping failed (ignored): $e');
+    });
   }
 
   /// Initialize SignalR, FCM, and token refresh in the background.
@@ -185,7 +201,7 @@ class _ParentalCareAppState extends State<ParentalCareApp>
       });
 
       final fcmFuture = () async {
-        final fcmService = FcmService(getIt<UserApi>());
+        final fcmService = getIt<FcmService>();
         await fcmService.initialize();
         await fcmService.registerDeviceToken();
         debugPrint('FCM token registered on app start');
@@ -226,7 +242,28 @@ class _ParentalCareAppState extends State<ParentalCareApp>
               themeMode: ThemeMode.system,
               home: const Scaffold(
                 body: RedesignBackground(
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.favorite,
+                          size: 56,
+                          color: Color(0xFF13C8EC),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'CareNest',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A1A1A),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -338,7 +375,11 @@ class _ParentalCareAppState extends State<ParentalCareApp>
         isScrollControlled: true,
         isDismissible: escalationLevel < 2,
         enableDrag: escalationLevel < 2,
-        backgroundColor: Colors.transparent,
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
+        barrierColor: Colors.black.withValues(alpha: 0.6),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         builder: (sheetContext) {
           return ReminderDetailsModal(
             title: reminder?.title ?? instance?.reminderTitle ?? 'Reminder',

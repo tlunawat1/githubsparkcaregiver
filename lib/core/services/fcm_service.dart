@@ -9,6 +9,10 @@ class FcmService {
 
   String? _currentToken;
 
+  /// When true, token refresh events are ignored (prevents re-registration
+  /// after logout calls deleteToken, which can trigger onTokenRefresh).
+  bool _suppressRegistration = false;
+
   FcmService(this._userApi);
 
   String? get currentToken => _currentToken;
@@ -41,6 +45,11 @@ class FcmService {
   }
 
   Future<void> registerDeviceToken() async {
+    if (_suppressRegistration) {
+      debugPrint('FCM: registration suppressed (logout in progress)');
+      return;
+    }
+
     if (_currentToken == null) {
       _currentToken = await _messaging.getToken();
     }
@@ -65,6 +74,10 @@ class FcmService {
 
   void _handleTokenRefresh(String newToken) async {
     debugPrint('FCM Token refreshed: $newToken');
+    if (_suppressRegistration) {
+      debugPrint('FCM: ignoring token refresh (logout in progress)');
+      return;
+    }
     _currentToken = newToken;
 
     // Re-register the new token with the backend
@@ -86,6 +99,25 @@ class FcmService {
     await _messaging.deleteToken();
     _currentToken = null;
     debugPrint('FCM token deleted');
+  }
+
+  /// Full cleanup for logout: invalidates the server-side token, suppresses
+  /// any re-registration from onTokenRefresh, then deletes the local FCM token.
+  Future<void> cleanupForLogout() async {
+    _suppressRegistration = true;
+    await invalidateToken();
+    try {
+      await _messaging.deleteToken();
+    } catch (e) {
+      debugPrint('FCM: error deleting token during logout: $e');
+    }
+    _currentToken = null;
+    debugPrint('FCM: full logout cleanup done');
+  }
+
+  /// Re-enable token registration (called after a fresh login).
+  void enableRegistration() {
+    _suppressRegistration = false;
   }
 
   Future<String?> getApnsToken() async {

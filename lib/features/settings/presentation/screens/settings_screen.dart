@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -9,6 +8,7 @@ import '../../../../core/constants/app_config.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/services/fcm_service.dart';
 import '../../../../core/services/notification_handler.dart';
 import '../../../../core/services/reminder_alarm_service.dart';
 import '../../../../core/utils/feedback_settings.dart';
@@ -42,8 +42,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _uniqueCode = '';
   String _userTimezone = 'UTC';
   String _themeMode = 'system';
-  bool _highContrast = false;
-  bool _reduceAnimations = false;
   bool _notificationSound = true;
   bool _hapticFeedback = true;
   bool _isLoading = true;
@@ -60,8 +58,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       _userRole = await _settingsRepository.getUserRole() ?? 'caregiver';
       _themeMode = await _settingsRepository.getThemeMode();
-      _highContrast = await _settingsRepository.isHighContrastEnabled();
-      _reduceAnimations = await _settingsRepository.isReduceAnimationsEnabled();
       _notificationSound = await _settingsRepository
           .isNotificationSoundEnabled();
       _hapticFeedback = await _settingsRepository.isHapticFeedbackEnabled();
@@ -136,27 +132,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Stop any continuous ringing immediately.
       await ReminderAlarmService.instance.stopAlarm();
 
-      // Ensure this device stops receiving pushes until the next login.
-      // Backend logout also invalidates all tokens for the user.
-      try {
-        await FirebaseMessaging.instance.deleteToken();
-      } catch (e) {
-        debugPrint('Error deleting FCM token on logout: $e');
-      }
+      // 1. Invalidate device token on backend & delete FCM token locally.
+      //    This must happen BEFORE _authApi.logout() because logout clears
+      //    the JWT. cleanupForLogout() also suppresses onTokenRefresh from
+      //    re-registering a new token.
+      final fcmService = getIt<FcmService>();
+      await fcmService.cleanupForLogout();
 
+      // 2. Call API logout (clears refresh token + any remaining device tokens)
       try {
-        // Call API logout (clears device token from server)
         await _authApi.logout();
       } catch (e) {
         debugPrint('Error during logout: $e');
       }
 
-      // Disconnect SignalR and clear subscriptions before clearing settings
+      // 3. Disconnect SignalR and clear subscriptions
       final signalRService = getIt<SignalRService>();
       await signalRService.disconnect(clearTracking: true);
       debugPrint('SignalR disconnected on logout');
 
-      // Clear local settings
+      // 4. Clear local settings
       await _settingsRepository.clearAllSettings();
 
       if (mounted) {
@@ -184,7 +179,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Row(
                 children: [
                   IconButton.filledTonal(
-                    icon: const Icon(Icons.arrow_back_rounded),
                     onPressed: () {
                       if (_userRole == 'caregiver') {
                         context.go(AppRoutes.caregiverHome);
@@ -192,12 +186,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         context.go(AppRoutes.dependentHome);
                       }
                     },
+                    icon: const Icon(Icons.arrow_back_rounded),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    'Settings',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
+                  Expanded(
+                    child: Text(
+                      'Settings',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
@@ -210,7 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               // My Dependents / My Caregivers section
               _buildSectionHeader(
-                _userRole == 'caregiver' ? 'My Dependents' : 'My Caregivers',
+                _userRole == 'caregiver' ? 'My Loved Ones' : 'My Companions',
               ),
               _buildLinkedUsersSection(),
               const SizedBox(height: AppSpacing.lg),
@@ -226,28 +223,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       subtitle: Text(_getThemeLabel(_themeMode)),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _showThemeDialog,
-                    ),
-                    const Divider(height: 1),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.contrast),
-                      title: const Text('High Contrast'),
-                      subtitle: const Text('Increases text visibility'),
-                      value: _highContrast,
-                      onChanged: (value) async {
-                        await _settingsRepository.setHighContrast(value);
-                        setState(() => _highContrast = value);
-                      },
-                    ),
-                    const Divider(height: 1),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.animation_rounded),
-                      title: const Text('Reduce Animations'),
-                      subtitle: const Text('Simpler, faster transitions'),
-                      value: _reduceAnimations,
-                      onChanged: (value) async {
-                        await _settingsRepository.setReduceAnimations(value);
-                        setState(() => _reduceAnimations = value);
-                      },
                     ),
                   ],
                 ),
@@ -407,7 +382,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _userRole == 'caregiver' ? 'Caregiver' : 'Dependent',
+                          _userRole == 'caregiver' ? 'Companion' : 'Loved One',
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: colorScheme.primary,
                             fontWeight: FontWeight.w600,
@@ -574,7 +549,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Share this code with ${_userRole == 'caregiver' ? 'your dependents' : 'your caregiver'} to connect.',
+                    'Share this code with ${_userRole == 'caregiver' ? 'your loved ones' : 'your companion'} to connect.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -654,8 +629,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: AppSpacing.md),
               Text(
                 isCaregiver
-                    ? 'No dependents linked yet'
-                    : 'No caregivers linked yet',
+                    ? 'No loved ones linked yet'
+                    : 'No companions linked yet',
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),

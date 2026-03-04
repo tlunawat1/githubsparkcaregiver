@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../../core/utils/friendly_error.dart';
 import '../../../../shared/widgets/redesign_ui.dart';
 import '../../../../data/datasources/remote/remote.dart';
 
@@ -69,7 +70,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             children: [
                               IconButton.filledTonal(
                                 onPressed: () => context.go(
-                                  '${AppRoutes.login}?role=${widget.role}',
+                                  AppRoutes.login,
                                 ),
                                 icon: const Icon(Icons.arrow_back_rounded),
                               ),
@@ -101,14 +102,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          Text(
-                            'Forgot your password?',
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
                           Text(
                             'Enter your email and we\'ll send a 6-digit reset code.',
                             style: theme.textTheme.bodyLarge?.copyWith(
@@ -197,9 +190,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               ),
                               TextButton(
                                 onPressed: () => context.go(
-                                  '${AppRoutes.login}?role=${widget.role}',
+                                  AppRoutes.login,
                                 ),
-                                child: const Text('Back to Login'),
+                                child: const Text('Login'),
                               ),
                             ],
                           ),
@@ -316,20 +309,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       }
     } on ApiException catch (e) {
       final retryAfter = (e.data?['retryAfterSeconds'] as num?)?.toInt();
-      if (retryAfter != null && retryAfter > 0) {
-        _startCooldown(retryAfter);
+      if (e.statusCode == 429) {
+        _startCooldown(retryAfter ?? 60);
+      } else {
+        if (retryAfter != null && retryAfter > 0) {
+          _startCooldown(retryAfter);
+        }
+        setState(() {
+          _errorMessage = friendlyError(e);
+          _isLoading = false;
+        });
       }
-
-      setState(() {
-        _errorMessage = e.message.isNotEmpty
-            ? e.message
-            : 'Could not send reset code. Please try again.';
-        _isLoading = false;
-      });
       return;
     } catch (e) {
       setState(() {
-        _errorMessage = 'Could not send reset code. Please try again.';
+        _errorMessage = friendlyError(e);
         _isLoading = false;
       });
       return;

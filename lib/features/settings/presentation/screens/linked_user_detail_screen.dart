@@ -187,8 +187,8 @@ class _LinkedUserDetailScreenState extends State<LinkedUserDetailScreen> {
     final colorScheme = theme.colorScheme;
     final isEditable = widget.userData.isEditable;
     final roleLabel = widget.userData.linkedUserRole == 'dependent'
-        ? 'Dependent Details'
-        : 'Caregiver Details';
+        ? 'Loved One Details'
+        : 'Companion Details';
 
     return Scaffold(
       body: RedesignBackground(

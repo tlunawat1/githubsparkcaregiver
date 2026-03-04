@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/screens/role_selection_screen.dart';
+    // NOTE: role_selection_screen.dart now exports OnboardingInfoScreen
 import '../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../features/auth/presentation/screens/profile_setup_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
@@ -28,7 +29,9 @@ import 'app_transitions.dart';
 /// Route names for type-safe navigation
 class AppRoutes {
   static const String welcome = '/';
-  static const String roleSelection = '/role-selection';
+  static const String onboarding = '/onboarding';
+  /// @deprecated Use [onboarding] instead.
+  static const String roleSelection = '/onboarding';
   static const String profileSetup = '/profile-setup';
 
   // Authentication routes
@@ -95,10 +98,10 @@ class AppRouter {
         ),
       ),
       GoRoute(
-        path: AppRoutes.roleSelection,
-        name: 'roleSelection',
+        path: AppRoutes.onboarding,
+        name: 'onboarding',
         pageBuilder: (context, state) => AppTransitions.fadeSlide(
-          child: const RoleSelectionScreen(),
+          child: const OnboardingInfoScreen(),
           state: state,
         ),
       ),
@@ -119,9 +122,8 @@ class AppRouter {
         path: AppRoutes.login,
         name: 'login',
         pageBuilder: (context, state) {
-          final role = state.uri.queryParameters['role'] ?? 'caregiver';
           return AppTransitions.fadeSlide(
-            child: LoginScreen(role: role),
+            child: const LoginScreen(),
             state: state,
           );
         },
@@ -130,9 +132,8 @@ class AppRouter {
         path: AppRoutes.register,
         name: 'register',
         pageBuilder: (context, state) {
-          final role = state.uri.queryParameters['role'] ?? 'caregiver';
           return AppTransitions.slideFromRight(
-            child: RegistrationScreen(role: role),
+            child: const RegistrationScreen(),
             state: state,
           );
         },
@@ -317,8 +318,7 @@ class AppRouter {
 
     // If onboarding was completed but auth is invalid, send to login
     if (!isAuthenticated) {
-      final role = userRole ?? 'caregiver';
-      return '${AppRoutes.login}?role=$role';
+      return AppRoutes.login;
     }
 
     if (userRole == 'caregiver') {

@@ -59,7 +59,7 @@ class WelcomeScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: AppSpacing.md),
                             Text(
-                              'Parental Care',
+                              'CareNest',
                               style: theme.textTheme.headlineLarge?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
@@ -106,21 +106,9 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         GradientPrimaryButton(
-                          onPressed: () => context.go(AppRoutes.roleSelection),
-                          label: 'Get Started',
-                          icon: Icons.arrow_forward_rounded,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          'Trusted by 50,000+ families',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            letterSpacing: 1.3,
-                            fontWeight: FontWeight.w700,
-                            color: colorScheme.onSurfaceVariant.withValues(
-                              alpha: 0.9,
-                            ),
-                          ),
-                          textAlign: TextAlign.center,
+                          onPressed: () => context.go(AppRoutes.onboarding),
+                          label: 'Begin with Love',
+                          icon: Icons.favorite_rounded,
                         ),
                         SizedBox(
                           height: MediaQuery.paddingOf(context).bottom > 0

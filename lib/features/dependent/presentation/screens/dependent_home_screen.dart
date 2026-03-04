@@ -64,9 +64,6 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
   Future<void> _initializeScreen() async {
     debugPrint('DependentHomeScreen: Starting screen initialization');
 
-    // Pre-load animation settings for synchronous access
-    await _settingsRepository.isReduceAnimationsEnabled();
-
     // 1. Set up connection state listener first (to handle reconnections)
     _setupConnectionStateListener();
 
@@ -481,6 +478,7 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                                     instance: instance,
                                     reminder: reminder,
                                     displayTime: displayTime,
+                                    colorIndex: index,
                                   );
 
                                   // Apply staggered animation if animations are enabled
@@ -610,17 +608,52 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
     }
   }
 
+  /// Rich-tinted pastel palette for reminder grid cards — each card gets a
+  /// distinct saturated hue. The colours are deeper than typical pastels but
+  /// still pair with the liquid-glass translucency via alpha blending.
+  static const List<Color> _cardTintPalette = [
+    Color(0xFFCADBFD), // deeper blue
+    Color(0xFFF8C4D4), // rich pink
+    Color(0xFFFFEBB8), // golden cream
+    Color(0xFFC3E8C6), // lush mint
+    Color(0xFFE2C6EB), // vivid lavender
+    Color(0xFFFFDBA8), // warm peach
+    Color(0xFFB8EDF5), // bright cyan
+    Color(0xFFF8CFC5), // deep coral
+    Color(0xFFC9CDEB), // bold periwinkle
+    Color(0xFFDAEDB8), // rich lime
+  ];
+
+  /// Matching saturated accent for border per tint — gives a visible coloured
+  /// edge while the translucent fill keeps the glassy depth.
+  static const List<Color> _cardBorderPalette = [
+    Color(0xFF90B4F8), // deeper blue border
+    Color(0xFFF09AB4), // rich pink border
+    Color(0xFFFFD466), // golden cream border
+    Color(0xFF8FD494), // lush mint border
+    Color(0xFFCF9EDE), // vivid lavender border
+    Color(0xFFFFBE66), // warm peach border
+    Color(0xFF7CD9EA), // bright cyan border
+    Color(0xFFF0A090), // deep coral border
+    Color(0xFFA0A6DA), // bold periwinkle border
+    Color(0xFFC0DC8F), // rich lime border
+  ];
+
   Widget _buildComingUpCard({
     required ReminderInstanceData instance,
     required ReminderData? reminder,
     required DateTime displayTime,
+    int colorIndex = 0,
   }) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final title = reminder?.title ?? instance.reminderTitle ?? 'Reminder';
     final category = CategoryInference.inferCategory(title);
     final icon = AppIcons.getCategoryIcon(category);
     final iconColor = AppIcons.getCategoryColor(category);
     final isLoading = _completingInstances.contains(instance.id);
+
+    // Status-based card colors: green=done, red=missed, yellow=pending
     final statusLabel = switch (instance.status) {
       'completed' => 'Done',
       'missed' => 'Missed',
@@ -628,29 +661,47 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
       'snoozed' => 'Snoozed',
       _ => 'Upcoming',
     };
-    final statusBg = switch (instance.status) {
-      'completed' => Colors.green.withValues(alpha: 0.14),
-      'missed' => Colors.redAccent.withValues(alpha: 0.14),
-      'pending' => theme.colorScheme.primary.withValues(alpha: 0.14),
-      'snoozed' => Colors.orange.withValues(alpha: 0.14),
-      _ => theme.colorScheme.surfaceContainerHighest,
-    };
     final statusFg = switch (instance.status) {
-      'completed' => Colors.green,
-      'missed' => Colors.redAccent,
-      'pending' => theme.colorScheme.primary,
+      'completed' => Colors.green[700]!,
+      'missed' => Colors.red[600]!,
+      'pending' => Colors.orange[700]!,
       'snoozed' => Colors.orange,
       _ => theme.colorScheme.onSurfaceVariant,
     };
+
+    // Card tint based on status
+    final Color tint;
+    final Color borderTint;
+    switch (instance.status) {
+      case 'completed':
+        tint = isDark ? const Color(0xFF1B3A1B) : const Color(0xFFA5E6A0);
+        borderTint = isDark ? const Color(0xFF4CAF50) : const Color(0xFF66BB6A);
+      case 'missed':
+        tint = isDark ? const Color(0xFF3A1B1B) : const Color(0xFFFFB3B3);
+        borderTint = isDark ? const Color(0xFFE57373) : const Color(0xFFEF5350);
+      default: // pending, snoozed, upcoming
+        tint = isDark ? const Color(0xFF3A351B) : const Color(0xFFFFE082);
+        borderTint = isDark ? const Color(0xFFFFD54F) : const Color(0xFFFFCA28);
+    }
+
+    final cardBg = tint;
+    final cardBorder = borderTint;
 
     return GestureDetector(
       onTap: () => _showDetailsModal(instance, reminder),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.78),
+          color: cardBg,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
+          border: Border.all(color: cardBorder, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: borderTint.withValues(alpha: isDark ? 0.1 : 0.22),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -660,13 +711,20 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 28,
-                  height: 28,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
                   ),
-                  child: Icon(icon, size: 16, color: iconColor),
+                  child: Icon(icon, size: 17, color: iconColor),
                 ),
                 Flexible(
                   child: Text(
@@ -696,12 +754,19 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
               ),
             ),
             const SizedBox(height: 2),
-            // Status chip — fixed height at bottom
+            // Status chip — solid white background, coloured text
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: statusBg,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(99),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
               child: isLoading
                   ? SizedBox(
@@ -887,20 +952,23 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
 
     final isLoading = _completingInstances.contains(nextReminder.id);
 
+    final isDark = theme.brightness == Brightness.dark;
+
     Widget card = Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.lg),
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: isDark ? const Color(0xFF3A351B) : const Color(0xFFFFE082),
         borderRadius: BorderRadius.circular(30),
         border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.15),
+          color: isDark ? const Color(0xFFFFD54F) : const Color(0xFFFFCA28),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.primary.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            color: (isDark ? const Color(0xFFFFD54F) : const Color(0xFFFFCA28)).withValues(alpha: isDark ? 0.1 : 0.22),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -954,8 +1022,15 @@ class _DependentHomeScreenState extends State<DependentHomeScreen>
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: categoryColor.withValues(alpha: 0.18),
+                  color: Colors.white,
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
                 child: Icon(categoryIcon, color: categoryColor, size: 28),
               ),

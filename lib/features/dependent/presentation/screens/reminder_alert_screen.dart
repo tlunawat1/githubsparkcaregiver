@@ -247,9 +247,8 @@ class _ReminderAlertScreenState extends State<ReminderAlertScreen> {
                     Expanded(
                       child: Text(
                         'Reminder Alert',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.w700,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),

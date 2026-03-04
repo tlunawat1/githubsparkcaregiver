@@ -22,7 +22,11 @@ class DoneConfirmationDialog extends StatelessWidget {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => DoneConfirmationDialog(reminderTitle: reminderTitle),
     );
     return result ?? false;

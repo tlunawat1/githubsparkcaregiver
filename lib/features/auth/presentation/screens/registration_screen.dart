@@ -7,6 +7,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/redesign_tokens.dart';
+import '../../../../core/utils/friendly_error.dart';
 import '../../../../core/utils/haptics.dart';
 import '../../../../data/datasources/remote/remote.dart';
 import '../../../../shared/widgets/redesign_ui.dart';
@@ -14,9 +15,7 @@ import '../../domain/auth_service.dart';
 
 /// Registration screen for new users
 class RegistrationScreen extends StatefulWidget {
-  final String role;
-
-  const RegistrationScreen({super.key, required this.role});
+  const RegistrationScreen({super.key});
 
   @override
   State<RegistrationScreen> createState() => _RegistrationScreenState();
@@ -36,6 +35,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String? _errorMessage;
+  String? _roleError;
+
+  /// Selected role — required before registration can proceed.
+  String? _selectedRole;
 
   @override
   void dispose() {
@@ -78,15 +81,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           Row(
                             children: [
                               IconButton.filledTonal(
-                                onPressed: () => context.go(
-                                  '${AppRoutes.login}?role=${widget.role}',
-                                ),
+                                onPressed: () => context.go(AppRoutes.login),
                                 icon: const Icon(Icons.arrow_back_rounded),
                               ),
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Text(
-                                  'Create Account',
+                                  'Start Your Journey',
                                   style: theme.textTheme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -119,15 +120,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               ),
                               const SizedBox(height: AppSpacing.md),
                               Text(
-                                'Join Parental Care',
-                                style: theme.textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                'Professional remote care for your loved ones.',
+                                'Care begins with a simple step.',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
@@ -281,6 +274,95 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                   textInputAction: TextInputAction.done,
                                 ),
                                 const SizedBox(height: AppSpacing.md),
+                                _FieldLabel(text: 'I am a... *'),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surface.withValues(alpha: 0.70),
+                                    borderRadius: BorderRadius.circular(16.r),
+                                    border: Border.all(
+                                      color: _roleError != null
+                                          ? colorScheme.error
+                                          : colorScheme.outlineVariant.withValues(alpha: 0.55),
+                                      width: _roleError != null ? 1.5 : 1.0,
+                                    ),
+                                  ),
+                                  child: RadioGroup<String>(
+                                    groupValue: _selectedRole ?? '',
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedRole = value;
+                                        _roleError = null;
+                                      });
+                                    },
+                                    child: Column(
+                                      children: [
+                                        RadioListTile<String>(
+                                          title: Text(
+                                            'Companion',
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            'Create reminders & care for loved ones',
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                          value: 'caregiver',
+                                          toggleable: true,
+                                          activeColor: RedesignTokens.primary,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12.r),
+                                          ),
+                                          contentPadding: const EdgeInsets.symmetric(
+                                            horizontal: AppSpacing.sm,
+                                          ),
+                                        ),
+                                        Divider(
+                                          height: 1,
+                                          indent: AppSpacing.md,
+                                          endIndent: AppSpacing.md,
+                                          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                                        ),
+                                        RadioListTile<String>(
+                                          title: Text(
+                                            'Loved One',
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            'Receive reminders & stay connected',
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                          value: 'dependent',
+                                          toggleable: true,
+                                          activeColor: RedesignTokens.primary,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12.r),
+                                          ),
+                                          contentPadding: const EdgeInsets.symmetric(
+                                            horizontal: AppSpacing.sm,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                if (_roleError != null)
+                                  Padding(
+                                    padding: EdgeInsets.only(left: 14.w, top: 6.h),
+                                    child: Text(
+                                      _roleError!,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.error,
+                                      ),
+                                    ),
+                                  ),
+                                const SizedBox(height: AppSpacing.md),
                                 GradientPrimaryButton(
                                   onPressed: _isLoading
                                       ? null
@@ -301,9 +383,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                       ),
                                       TextButton(
                                         onPressed: () {
-                                          context.go(
-                                            '${AppRoutes.login}?role=${widget.role}',
-                                          );
+                                          context.go(AppRoutes.login);
                                         },
                                         child: const Text('Login'),
                                       ),
@@ -372,7 +452,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   Future<void> _handleRegister() async {
-    if (!_formKey.currentState!.validate()) return;
+    final formValid = _formKey.currentState!.validate();
+
+    // Always validate role selection alongside form fields
+    if (_selectedRole == null) {
+      setState(() => _roleError = 'Please select a role to continue');
+    }
+
+    if (!formValid || _selectedRole == null) return;
 
     setState(() {
       _isLoading = true;
@@ -384,6 +471,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       final email = _emailController.text.trim().toLowerCase();
       final password = _passwordController.text;
       final phone = _phoneController.text.trim();
+      final role = _selectedRole!;
 
       // Detect device timezone
       String? deviceTimezone;
@@ -399,7 +487,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         name: name,
         email: email,
         password: password,
-        role: widget.role,
+        role: role,
         phoneNumber: phone.isEmpty ? null : phone,
         timezone: deviceTimezone,
       );
@@ -409,12 +497,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       if (mounted) {
         // Navigate to email verification with email for login after verification
         context.go(
-          '${AppRoutes.emailVerification}?userId=${response.id}&role=${widget.role}&email=${Uri.encodeComponent(email)}',
+          '${AppRoutes.emailVerification}?userId=${response.id}&role=$role&email=${Uri.encodeComponent(email)}',
         );
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = friendlyError(e);
         _isLoading = false;
       });
     }
@@ -433,8 +521,9 @@ class _FieldLabel extends StatelessWidget {
       padding: EdgeInsets.only(left: 12.w, bottom: 6.h),
       child: Text(
         text,
-        style: theme.textTheme.labelSmall?.copyWith(
+        style: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w700,
+          fontSize: 13.sp,
           letterSpacing: 1.0,
         ),
       ),

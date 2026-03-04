@@ -41,7 +41,11 @@ class ReminderDetailsModal extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => ReminderDetailsModal(
         title: title,
         scheduledTime: scheduledTime,
@@ -124,15 +128,10 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
 
     final isActionable = widget.status == ReminderInstanceStatus.pending;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -149,26 +148,25 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
               ),
               const SizedBox(height: AppSpacing.lg),
 
-              // Status chip
+              // Status chip — fully solid filled
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md,
                   vertical: AppSpacing.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
+                  color: statusColor,
                   borderRadius: BorderRadius.circular(AppRadius.circular),
-                  border: Border.all(color: statusColor),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(statusIcon, size: 16, color: statusColor),
+                    Icon(statusIcon, size: 16, color: Colors.white),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
                       statusLabel,
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: statusColor,
+                        color: Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -292,8 +290,7 @@ class _ReminderDetailsModalState extends State<ReminderDetailsModal> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import '../../core/services/fcm_service.dart';
 import '../../data/datasources/local/database.dart';
 import '../../data/datasources/remote/remote.dart';
 import '../../data/repositories/repositories.dart';
@@ -39,6 +40,11 @@ Future<void> configureDependencies() async {
 
   getIt.registerLazySingleton<SosApi>(
     () => SosApi(getIt<ApiClient>()),
+  );
+
+  // FCM Service (singleton so suppression flag persists across logout/login)
+  getIt.registerLazySingleton<FcmService>(
+    () => FcmService(getIt<UserApi>()),
   );
 
   // SignalR Service

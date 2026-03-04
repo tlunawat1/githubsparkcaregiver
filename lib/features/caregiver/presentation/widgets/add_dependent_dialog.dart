@@ -109,7 +109,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
                 Text(
                   _showVerificationStep
                       ? 'Verify Connection'
-                      : 'Find Your Dependent',
+                      : 'Find Your Loved One',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -118,7 +118,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   _showVerificationStep
-                      ? 'Step 2 of 2: Enter the linking code provided by your dependent.'
+                      ? 'Step 2 of 2: Enter the linking code provided by your loved one.'
                       : 'Step 1 of 2: Enter the unique connection details provided to your family member.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
@@ -206,7 +206,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
                             ? _verifyAndConnect
                             : _findDependent),
                   isLoading: _isLoading,
-                  label: _showVerificationStep ? 'Verify' : 'Find Dependent',
+                  label: _showVerificationStep ? 'Verify' : 'Find Loved One',
                   icon: Icons.arrow_forward_rounded,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -346,7 +346,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
                       ),
                     ),
                     Text(
-                      'Dependent',
+                      'Loved One',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -385,7 +385,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                '${_foundDependent?.name ?? 'The dependent'} will see a notification with a 5-digit code. Ask them to share it with you.',
+                '${_foundDependent?.name ?? 'Your loved one'} will see a notification with a 5-digit code. Ask them to share it with you.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSecondaryContainer,
                 ),
@@ -481,7 +481,7 @@ class _AddDependentDialogState extends State<AddDependentDialog> {
       // Check if it's a dependent account
       if (dependent.role != 'dependent') {
         setState(() {
-          _errorMessage = 'This account is not registered as a dependent';
+          _errorMessage = 'This account is not registered as a loved one';
           _isLoading = false;
         });
         return;

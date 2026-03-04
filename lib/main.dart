@@ -12,22 +12,25 @@ import 'core/utils/feedback_settings.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize timezone data for notifications
+  // Initialize timezone data (synchronous, fast)
   tz.initializeTimeZones();
 
-  // Initialize Firebase
-  await Firebase.initializeApp();
-
-  // Set up background message handler
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-  // Set preferred orientations
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
+  // Run the heaviest init calls in parallel:
+  // - Firebase init (~2-3s cold)
+  // - Preferred orientations (~50ms)
+  // These have no interdependencies.
+  await Future.wait([
+    Firebase.initializeApp(),
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]),
   ]);
 
-  // Set system UI overlay style
+  // Set up background message handler (must be after Firebase.initializeApp)
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+  // System UI (synchronous, no await needed)
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -37,14 +40,13 @@ void main() async {
     ),
   );
 
-  // Initialize dependency injection
+  // Initialize dependency injection (needs to be done before runApp)
   await configureDependencies();
 
-  // Prime feedback settings cache
-  await FeedbackSettings.refresh();
-
-  // Initialize notification handler
-  await NotificationHandler().initialize();
-
+  // Launch app immediately — defer non-critical init to background
   runApp(const ParentalCareApp());
+
+  // Non-blocking: prime feedback settings + notification channels after first frame
+  FeedbackSettings.refresh();
+  NotificationHandler().initialize();
 }
