@@ -250,6 +250,55 @@ While running:
 - Press `R` for hot restart
 - Press `q` to quit
 
+## Using GitHub Spark
+
+[GitHub Spark](https://github.com/features/spark) is GitHub's AI-powered tool for creating and iterating on apps using natural language. You can use Spark to explore, modify, or build on top of this repository.
+
+### Prerequisites
+
+- A GitHub account with a **Copilot Pro+** or **Enterprise** subscription ([learn more](https://docs.github.com/en/copilot/concepts/spark))
+
+### Steps to Open This Repo in a New GitHub Spark Session
+
+1. **Go to GitHub Spark**  
+   Navigate to [spark.github.com](https://spark.github.com) and sign in with your GitHub account.
+
+2. **Create a New Spark**  
+   Click **"New Spark"** (or the **"+"** button) on the Spark dashboard.
+
+3. **Connect to this Repository**  
+   - In the new spark session, look for the **repository / Git integration** option.
+   - Search for `tlunawat1/githubsparkcaregiver` and select it.
+   - Spark will sync your session with the current code and history.
+
+4. **Describe What You Want to Build or Change**  
+   Use the natural-language prompt box to tell Spark what you'd like to do — for example:
+   - *"Add a new screen showing the caregiver's activity log"*
+   - *"Create a summary page for completed reminders this week"*
+   - *"Help me understand the reminder escalation flow"*
+
+5. **Iterate with AI Assistance**  
+   Spark will suggest code changes, generate new files, and give you a live preview. Accept, reject, or refine the suggestions using follow-up prompts.
+
+6. **Open in Codespace (Optional)**  
+   For a full cloud-based VS Code environment with terminal access, click **"Open in Codespace"** inside Spark. This gives you access to `flutter`, `dotnet`, and all other CLI tools needed for this project.
+
+7. **Sync Changes Back**  
+   Changes made in Spark are automatically synchronized to the repository — push them to a branch or open a pull request directly from the Spark interface.
+
+> **Note:** The `.github/copilot-instructions.md` file in this repository provides Spark and Copilot with project-specific context (architecture, coding conventions, key flows) so AI suggestions are accurate and consistent with the existing codebase.
+
+### Useful Links
+
+| Resource | URL |
+|----------|-----|
+| GitHub Spark | https://spark.github.com |
+| Spark documentation | https://docs.github.com/en/copilot/concepts/spark |
+| Spark tutorial | https://docs.github.com/en/copilot/tutorials/spark |
+| Spark user manual | https://github.com/githubnext/github-spark-user-manual |
+
+---
+
 ## Contributing
 
 1. Fork the repository
